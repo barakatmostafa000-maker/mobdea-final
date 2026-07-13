@@ -1,0 +1,3 @@
+6473d6842ccebfda0388dcec33875764a3be81d4759dde5baa3ff8b37b85b991  package.json
+16634b70fe29651afc8fe8133b6214a692973062313de4fd4fb9ade9677344b0  .github/workflows/build-android-apk.yml
+c232177dd63c59b42e42edf78766dae76d8bfef9e111047153f7b123a2c68cab  android/app/src/main/AndroidManifest.xml
