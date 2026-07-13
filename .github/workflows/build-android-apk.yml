@@ -34,10 +34,10 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install JavaScript dependencies
-        run: npm install --include=dev
+        run: npm install --no-save vite@6.1.0 @vitejs/plugin-react@4.4.1
 
       - name: Build web application
-        run: npm run build
+        run: npx --no-install vite build
 
       - name: Sync web files into Android
         run: npx cap sync android
