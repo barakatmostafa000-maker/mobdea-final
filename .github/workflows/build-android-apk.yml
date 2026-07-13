@@ -34,7 +34,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install JavaScript dependencies
-        run: npm ci --include=dev
+        run: npm ci --include=dev --include=dev
 
       - name: Build web application
         run: npm run build
