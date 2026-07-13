@@ -1,9 +1,0 @@
-{
-	"appId": "com.mobdea.education",
-	"appName": "المُبدع",
-	"webDir": "dist",
-	"bundledWebRuntime": false,
-	"server": {
-		"androidScheme": "https"
-	}
-}
