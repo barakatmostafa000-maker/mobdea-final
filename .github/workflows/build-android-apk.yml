@@ -34,10 +34,16 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install JavaScript dependencies
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
         run: |
           rm -rf node_modules
-          npm install --package-lock=false --registry=https://registry.npmjs.org/
-          npm install --no-save vite@6.1.0 @vitejs/plugin-react@4.4.1 typescript@5 @capacitor/cli@7.4.3
+          npm config delete proxy || true
+          npm config delete https-proxy || true
+          npm config set registry https://registry.npmjs.org/
+          npm cache clean --force
+          npm install --package-lock=false --legacy-peer-deps --registry=https://registry.npmjs.org/
+          npm install --no-save vite@6.1.0 @vitejs/plugin-react@4.4.1 typescript@5 @capacitor/cli@7.4.3 --registry=https://registry.npmjs.org/
 
       - name: Verify JavaScript tools
         run: |
