@@ -1,0 +1,10 @@
+name = "mobdea-sync"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+[[kv_namespaces]]
+binding = "MOBDEA_DATA"
+id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"
+
+# أضف MOBDEA_TOKEN كـ Secret من لوحة Cloudflare أو باستخدام:
+# npx wrangler secret put MOBDEA_TOKEN
