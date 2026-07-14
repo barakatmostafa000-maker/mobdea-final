@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -34,30 +35,10 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install JavaScript dependencies
-        env:
-          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
-        run: |
-          rm -rf node_modules
-          npm config delete proxy || true
-          npm config delete https-proxy || true
-          npm config set registry https://registry.npmjs.org/
-          npm cache clean --force
-          npm install --package-lock=false --legacy-peer-deps --registry=https://registry.npmjs.org/
-          npm install --no-save vite@6.1.0 @vitejs/plugin-react@4.4.1 typescript@5 @capacitor/cli@7.4.3 --registry=https://registry.npmjs.org/
-
-      - name: Verify JavaScript tools
-        run: |
-          ./node_modules/.bin/vite --version
-          ./node_modules/.bin/tsc --version
-          npx cap --version
+        run: npm ci
 
       - name: Build web application
-        run: ./node_modules/.bin/vite build
-
-      - name: Verify web build
-        run: |
-          test -f dist/index.html
-          test -d dist/assets
+        run: npm run build
 
       - name: Sync web files into Android
         run: npx cap sync android
