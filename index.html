@@ -5,9 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0d12" />
   <title>منصة المُبدع</title>
+  <style>
+    html,body,#root{margin:0;min-height:100%;background:#0b0d12;font-family:Tahoma,Arial,sans-serif}
+    #boot-fallback{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;color:#fff;text-align:center;background:radial-gradient(circle at top,#26334a,#090c12 58%)}
+    #boot-fallback .card{max-width:520px}
+    #boot-fallback .mark{width:96px;height:96px;border-radius:30px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#d7ad35,#8c6109);font-size:42px;font-weight:900;color:#111}
+    #boot-fallback p{color:#c7cfda;line-height:1.8}
+    #boot-fallback button{display:none;border:0;border-radius:12px;padding:12px 18px;background:#d7ad35;color:#111;font-weight:800}
+  </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div id="boot-fallback">
+      <div class="card">
+        <div class="mark">م</div>
+        <h1>منصة المُبدع</h1>
+        <p id="boot-message">جارٍ تجهيز التطبيق...</p>
+        <button id="boot-reload" onclick="location.reload()">إعادة المحاولة</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      function showBootError(message) {
+        var text = document.getElementById('boot-message');
+        var button = document.getElementById('boot-reload');
+        if (text) text.innerHTML = 'تعذر تشغيل التطبيق على هذا الجهاز.<br>' + (message || 'أعد المحاولة أو أرسل صورة هذه الرسالة.');
+        if (button) button.style.display = 'inline-block';
+      }
+      window.__mobdeaShowBootError = showBootError;
+      window.addEventListener('error', function (event) {
+        showBootError(event && event.message ? event.message : 'خطأ في بدء التشغيل');
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event && event.reason;
+        showBootError(reason && reason.message ? reason.message : String(reason || 'خطأ غير متوقع'));
+      });
+      setTimeout(function () {
+        if (document.getElementById('boot-fallback')) showBootError('انتهت مهلة تحميل الواجهة');
+      }, 12000);
+    }());
+  </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

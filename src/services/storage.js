@@ -41,12 +41,20 @@ function migrate(source) {
 
 export async function loadAppData() {
   try {
-    const { value } = await Preferences.get({ key: KEY });
-    return migrate(value ? JSON.parse(value) : clone(seedData));
-  } catch {
-    const local = localStorage.getItem(KEY);
-    return migrate(local ? JSON.parse(local) : clone(seedData));
-  }
+    const result = await Preferences.get({ key: KEY });
+    if (result && result.value) {
+      try { return migrate(JSON.parse(result.value)); } catch { /* fall through */ }
+    }
+  } catch { /* use local fallback */ }
+
+  try {
+    const local = window.localStorage ? window.localStorage.getItem(KEY) : null;
+    if (local) {
+      try { return migrate(JSON.parse(local)); } catch { /* reset damaged data */ }
+    }
+  } catch { /* storage can be blocked on old WebView */ }
+
+  return migrate(clone(seedData));
 }
 
 export async function saveAppData(data) {

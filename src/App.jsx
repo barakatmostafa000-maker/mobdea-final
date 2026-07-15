@@ -24,7 +24,7 @@ import ContentLibrary from './pages/ContentLibrary';
 import Updates from './pages/Updates';
 import Placeholder from './pages/Placeholder';
 import { loadAppData, saveAppData, resetAppData } from './services/storage';
-import { speakWelcome } from './services/voice';
+import { speakWelcome, unlockVoice } from './services/voice';
 
 export default function App() {
   const [active, setActive] = useState('dashboard');
@@ -32,7 +32,22 @@ export default function App() {
   const [unlocked, setUnlocked] = useState(false);
   const [welcomePlayed, setWelcomePlayed] = useState(false);
 
-  useEffect(() => { loadAppData().then(setData); }, []);
+  useEffect(() => {
+    loadAppData().then(setData).catch((error) => {
+      console.error('Mobdea startup data error', error);
+      window.__mobdeaShowBootError?.(error?.message || 'تعذر قراءة بيانات التطبيق');
+    });
+  }, []);
+
+  useEffect(() => {
+    const unlock = () => unlockVoice();
+    window.addEventListener('touchstart', unlock, { once: true, passive: true });
+    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+    return () => {
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('pointerdown', unlock);
+    };
+  }, []);
 
   useEffect(() => {
     if (!data?.settings?.lockEnabled || !unlocked) return;

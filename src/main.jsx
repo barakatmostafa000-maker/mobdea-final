@@ -4,6 +4,16 @@ import App from './App';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import './styles/app.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+if (!String.prototype.replaceAll) {
+  String.prototype.replaceAll = function(search, replacement) {
+    return this.split(search).join(replacement);
+  };
+}
+
+
+const rootElement = document.getElementById('root');
+if (rootElement) rootElement.innerHTML = '';
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode><AppErrorBoundary><App /></AppErrorBoundary></React.StrictMode>
 );
