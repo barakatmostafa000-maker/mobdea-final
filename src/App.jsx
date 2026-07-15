@@ -12,11 +12,16 @@ import Payments from './pages/Payments';
 import Messages from './pages/Messages';
 import Reports from './pages/Reports';
 import Games from './pages/Games';
+import QuestionBankManager from './pages/QuestionBankManager';
+import MapChallenge from './pages/MapChallenge';
 import ClassMode from './pages/ClassMode';
 import StudentCards from './pages/StudentCards';
 import Settings from './pages/Settings';
 import PortalPreview from './pages/PortalPreview';
 import DeviceDiagnostics from './pages/DeviceDiagnostics';
+import SmartAssistant from './pages/SmartAssistant';
+import ContentLibrary from './pages/ContentLibrary';
+import Updates from './pages/Updates';
 import Placeholder from './pages/Placeholder';
 import { loadAppData, saveAppData, resetAppData } from './services/storage';
 import { speakWelcome } from './services/voice';
@@ -67,17 +72,22 @@ export default function App() {
     studentCards: <StudentCards data={data} />,
     portalPreview: <PortalPreview data={data} />,
     diagnostics: <DeviceDiagnostics data={data} />,
+    smartAssistant: <SmartAssistant data={data} />,
+    contentLibrary: <ContentLibrary {...common} />,
+    updates: <Updates {...common} />,
     sessions: <Sessions {...common} />,
     attendance: <Attendance {...common} />,
     gradeScanner: <GradeScanner {...common} />,
     resultDetails: <ResultDetails {...common} />,
     grades: <Grades {...common} />,
     payments: <Payments {...common} />,
+    questionBank: <QuestionBankManager {...common} />,
     games: <Games {...common} />,
+    mapChallenge: <MapChallenge {...common} />,
     messages: <Messages {...common} />,
     reports: <Reports data={data} />,
     settings: <Settings {...common} resetAppData={resetAppData} />
   };
 
-  return <AppShell active={active} onChange={setActive} settings={data.settings}>{pages[active] || <Placeholder title="قيد التطوير" subtitle="سيتم استكمال الوحدة في الإصدار التالي." />}</AppShell>;
+  return <AppShell active={active} onChange={setActive} settings={data.settings} data={data}>{pages[active] || <Placeholder title="قيد التطوير" subtitle="سيتم استكمال الوحدة في الإصدار التالي." />}</AppShell>;
 }

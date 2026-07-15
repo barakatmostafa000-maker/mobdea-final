@@ -103,6 +103,12 @@ export default function Settings({ data, updateData, resetAppData }) {
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e)=>e.target.files?.[0]&&restore(e.target.files[0])}/>
       </article>
 
+
+      <article className="panel"><h3>تحديث التطبيق</h3><p className="settings-help">أضف رابط ملف JSON عام يحتوي على version وapkUrl وnotes.</p>
+        <label className="setting-row"><span>رابط Manifest</span><input value={data.settings.update?.manifestUrl || ''} placeholder="https://.../update.json" onChange={(e)=>patchSettings({update:{...(data.settings.update||{}),manifestUrl:e.target.value.trim()}})}/></label>
+        <label className="setting-row"><span>الفحص عند فتح التطبيق</span><input type="checkbox" checked={data.settings.update?.autoCheck !== false} onChange={(e)=>patchSettings({update:{...(data.settings.update||{}),autoCheck:e.target.checked}})}/></label>
+      </article>
+
       <article className="panel"><h3>البيانات التجريبية</h3><button className="danger-btn" onClick={async()=>updateData(await resetAppData())}>إعادة البيانات التجريبية</button></article>
     </div>
   </section>;

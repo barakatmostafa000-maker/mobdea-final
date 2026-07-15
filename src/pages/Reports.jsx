@@ -1,16 +1,42 @@
+import { useMemo, useState } from 'react';
+import { BarChart3, Download, Filter, MessageCircle, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { buildSmartInsights, studentAnalytics } from '../services/insights';
+import { openWhatsApp } from '../services/whatsapp';
+
+function csvCell(value) { return `"${String(value ?? '').replaceAll('"','""')}"`; }
+
 export default function Reports({ data }) {
-  const present = data.attendance.filter((a)=>['present','late'].includes(a.status)).length;
-  const attendanceRate = data.attendance.length ? Math.round(present/data.attendance.length*100) : 0;
-  const avg = data.grades.length ? Math.round(data.grades.reduce((n,g)=>n+(g.score/g.total)*100,0)/data.grades.length) : 0;
-  const due = data.payments.filter((p)=>p.type==='due').reduce((n,p)=>n+p.amount,0);
-  const followup = data.students.filter((student)=>{
-    const grades=data.grades.filter((g)=>g.studentId===student.id);
-    if(!grades.length)return false;
-    return grades.reduce((n,g)=>n+(g.score/g.total)*100,0)/grades.length<60;
-  });
-  return <section className="page">
-    <div className="page-heading"><div><span className="eyebrow">خاص بالإدارة</span><h2>التقارير العامة</h2><p>الإجماليات العامة لا تظهر في لوحة الحصة الحالية.</p></div></div>
-    <div className="stats-grid"><div className="stat-card"><div><span>الطلاب</span><strong>{data.students.length}</strong><small>إجمالي المنصة</small></div></div><div className="stat-card"><div><span>نسبة الحضور</span><strong>{attendanceRate}%</strong><small>كل السجلات</small></div></div><div className="stat-card"><div><span>متوسط الدرجات</span><strong>{avg}%</strong><small>كل الامتحانات</small></div></div><div className="stat-card"><div><span>المستحقات</span><strong>{due} ج</strong><small>إجمالي المستحق</small></div></div></div>
-    <div className="panel"><h3>طلاب يحتاجون متابعة</h3>{followup.length?followup.map((s)=><div className="student-row" key={s.id}><span className="student-code">{s.code}</span><div><strong>{s.name}</strong><small>{s.grade}</small></div><span className="status-pill">متابعة</span></div>):<div className="empty-state">لا يوجد طلاب تحت 60% حاليًا.</div>}</div>
+  const [group,setGroup]=useState('all');
+  const [tab,setTab]=useState('students');
+  const groups=[...new Set(data.students.map((item)=>item.group).filter(Boolean))];
+  const students=useMemo(()=>data.students.filter((item)=>group==='all'||item.group===group),[data.students,group]);
+  const rows=useMemo(()=>students.map((student)=>({student,...studentAnalytics(data,student)})),[students,data]);
+  const present=data.attendance.filter((item)=>['present','late'].includes(item.status)).length;
+  const attendanceRate=data.attendance.length?Math.round(present/data.attendance.length*100):0;
+  const avg=data.grades.length?Math.round(data.grades.reduce((sum,item)=>sum+(item.score/item.total)*100,0)/data.grades.length):0;
+  const due=data.payments.filter((item)=>item.type==='due').reduce((sum,item)=>sum+Number(item.amount||0),0);
+  const insights=useMemo(()=>buildSmartInsights(data),[data]);
+
+  const exportCsv=()=>{
+    const header=['الكود','الطالب','الصف','المجموعة','متوسط الدرجات','نسبة الحضور','الغياب','التأخر','المستحقات','نقاط الضعف'];
+    const body=rows.map(({student,...stats})=>[student.code,student.name,student.grade,student.group,stats.avg??'',stats.attendanceRate??'',stats.absences,stats.late,stats.due,stats.weaknesses.join(' - ')]);
+    const csv='\uFEFF'+[header,...body].map((row)=>row.map(csvCell).join(',')).join('\n');
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+    const link=document.createElement('a');link.href=url;link.download=`mobdea-report-${new Date().toISOString().slice(0,10)}.csv`;link.click();URL.revokeObjectURL(url);
+  };
+
+  const contact=(student,stats)=>openWhatsApp(student.guardianPhone,`السلام عليكم ورحمة الله وبركاته\n\nمتابعة الطالب: ${student.name}\nمتوسط الدرجات: ${stats.avg ?? 'لا توجد نتائج'}${stats.avg!==null?'%':''}\nنسبة الحضور: ${stats.attendanceRate ?? 'لا توجد سجلات'}${stats.attendanceRate!==null?'%':''}\n${stats.weaknesses.length?`نقاط تحتاج مراجعة: ${stats.weaknesses.join('، ')}`:''}\n\nالمُبدع مصطفى بركات`);
+
+  return <section className="page reports-pro-page">
+    <div className="page-heading"><div><span className="eyebrow">خاص بالإدارة</span><h2>مركز التقارير والتحليل</h2><p>تقرير الطالب، المجموعة، نقاط الضعف، المستحقات، والقرارات المقترحة.</p></div><button className="secondary-btn icon-button" onClick={exportCsv}><Download size={17}/> تصدير CSV</button></div>
+    <div className="stats-grid"><div className="stat-card"><Users/><div><span>الطلاب</span><strong>{students.length}</strong><small>{group==='all'?'إجمالي المنصة':group}</small></div></div><div className="stat-card"><TrendingUp/><div><span>نسبة الحضور</span><strong>{attendanceRate}%</strong><small>كل السجلات</small></div></div><div className="stat-card"><BarChart3/><div><span>متوسط الدرجات</span><strong>{avg}%</strong><small>كل الامتحانات</small></div></div><div className="stat-card"><TrendingDown/><div><span>المستحقات</span><strong>{due} ج</strong><small>إجمالي المستحق</small></div></div></div>
+
+    <div className="reports-toolbar"><div className="report-tabs">{[['students','الطلاب'],['weakness','نقاط الضعف'],['insights','التنبيهات الذكية']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</div><label><Filter size={16}/><select value={group} onChange={(event)=>setGroup(event.target.value)}><option value="all">كل المجموعات</option>{groups.map((item)=><option key={item}>{item}</option>)}</select></label></div>
+
+    {tab==='students'&&<div className="panel report-table-wrap"><table className="report-table"><thead><tr><th>الطالب</th><th>الدرجات</th><th>الحضور</th><th>غياب</th><th>مستحق</th><th>متابعة</th></tr></thead><tbody>{rows.map(({student,...stats})=><tr key={student.id}><td><strong>{student.name}</strong><small>{student.code} • {student.group}</small></td><td><b className={(stats.avg??100)<60?'danger-text':'success-text'}>{stats.avg===null?'—':`${stats.avg}%`}</b></td><td>{stats.attendanceRate===null?'—':`${stats.attendanceRate}%`}</td><td>{stats.absences}</td><td>{stats.due} ج</td><td><button className="whatsapp-btn" onClick={()=>contact(student,stats)}><MessageCircle size={15}/></button></td></tr>)}</tbody></table></div>}
+
+    {tab==='weakness'&&<div className="reports-card-grid">{rows.filter((item)=>item.weaknesses.length).map(({student,...stats})=><article className="panel weakness-card" key={student.id}><header><span className="student-code">{student.code}</span><div><h3>{student.name}</h3><p>{student.group}</p></div><b>{stats.avg??'—'}{stats.avg!==null?'%':''}</b></header><div>{stats.weaknesses.map((item)=><span key={item}>{item}</span>)}</div><small>نقاط القوة: {stats.strengths.join('، ')||'لم تسجل بعد'}</small></article>)}</div>}
+
+    {tab==='insights'&&<div className="reports-card-grid">{insights.map((item)=><article className={`panel report-insight ${item.level}`} key={item.id}><span>{item.level==='danger'?'عاجل':item.level==='warning'?'تنبيه':'اقتراح'}</span><h3>{item.title}</h3><p>{item.body}</p><strong>{item.action}</strong></article>)}</div>}
   </section>;
 }

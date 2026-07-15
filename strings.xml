@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">المُبدع</string>
-    <string name="title_activity_main">المُبدع</string>
-    <string name="package_name">com.mobdea.education</string>
-    <string name="custom_url_scheme">com.mobdea.education</string>
-</resources>

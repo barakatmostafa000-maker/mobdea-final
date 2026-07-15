@@ -11,6 +11,7 @@ export const seedData = {
     { id: 1, title: 'الصف السادس الابتدائي', group: 'مجموعة 5 مساءً', day: 'الأربعاء', time: '17:00', price: 50, current: true }
   ],
   attendance: [],
+  customQuestionBank: [],
   exams: defaultExams,
   detailedResults: [],
   grades: [
@@ -20,6 +21,11 @@ export const seedData = {
   payments: [],
   gameResults: [],
   notifications: [],
+  contentLibrary: [
+    { id: 1, title: 'شرح الوحدة الأولى — الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'وطننا العربي', type: 'pdf', url: '#', notes: 'نموذج تجريبي يمكن استبداله بملفك.' },
+    { id: 2, title: 'خريطة الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'الموقع', type: 'map', url: '#', notes: 'خريطة تعليمية مرتبطة بوضع الحصة.' }
+  ],
+  updateHistory: [],
   auditLog: [],
   settings: {
     adminPin: '123456',
@@ -31,6 +37,7 @@ export const seedData = {
     voiceGender: 'auto',
     welcomeVoice: true,
     cloudSync: { endpoint: '', workspaceId: '', token: '', lastPushAt: '', lastPullAt: '' },
+    update: { manifestUrl: '', autoCheck: true },
     visibleModules: {
       games: true,
       grades: true,

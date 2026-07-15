@@ -1,12 +1,27 @@
 import { useMemo, useState } from 'react';
+import { ContactRound } from 'lucide-react';
+import { normalizeEgyptPhone, pickPhoneFromContacts } from '../services/contacts';
 
 export default function Students({ data, updateData }) {
   const [search, setSearch] = useState('');
   const [form, setForm] = useState(null);
+  const [contactMessage, setContactMessage] = useState('');
 
   const filtered = useMemo(() => data.students.filter((s) =>
     !search || s.name.includes(search) || String(s.code).includes(search)
   ), [data.students, search]);
+
+  const chooseContact = async (field) => {
+    try {
+      const result = await pickPhoneFromContacts();
+      if (!result.supported) { setContactMessage('اختيار جهات الاتصال غير مدعوم على هذا الجهاز؛ اكتب الرقم يدويًا.'); return; }
+      const phone = normalizeEgyptPhone(result.phone);
+      if (!phone) return;
+      const duplicate = data.students.find((student) => student.id !== form?.id && (student.guardianPhone === phone || student.studentPhone === phone));
+      if (duplicate) setContactMessage(`تنبيه: الرقم مستخدم لدى ${duplicate.name}`);
+      setForm((previous) => ({ ...previous, [field]: phone }));
+    } catch { setContactMessage('تعذر فتح جهات الاتصال. تحقق من الإذن.'); }
+  };
 
   const save = () => {
     if (!form?.name?.trim()) return;
@@ -22,7 +37,7 @@ export default function Students({ data, updateData }) {
     <section className="page">
       <div className="page-heading">
         <div><span className="eyebrow">إدارة الطلاب</span><h2>الطلاب والمجموعات</h2></div>
-        <button className="primary-btn" onClick={() => setForm({ name: '', grade: '', group: '', guardianPhone: '', sessionPrice: 50, permissions:{games:true,grades:true,content:true}, parentPermissions:{attendance:true,grades:true,dues:true} })}>+ إضافة طالب</button>
+        <button className="primary-btn" onClick={() => setForm({ name: '', grade: '', group: '', guardianPhone: '', studentPhone: '', sessionPrice: 50, permissions:{games:true,grades:true,content:true}, parentPermissions:{attendance:true,grades:true,dues:true} })}>+ إضافة طالب</button>
       </div>
 
       <div className="panel">
@@ -54,7 +69,9 @@ export default function Students({ data, updateData }) {
               <input placeholder="اسم الطالب" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <input placeholder="الصف الدراسي" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
               <input placeholder="المجموعة" value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} />
-              <input placeholder="رقم ولي الأمر" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} />
+              <div className="phone-picker-field"><input placeholder="رقم ولي الأمر" value={form.guardianPhone || ''} onChange={(e) => setForm({ ...form, guardianPhone: normalizeEgyptPhone(e.target.value) })} /><button type="button" onClick={() => chooseContact('guardianPhone')} title="اختيار من جهات الاتصال"><ContactRound/></button></div>
+              <div className="phone-picker-field"><input placeholder="رقم الطالب" value={form.studentPhone || ''} onChange={(e) => setForm({ ...form, studentPhone: normalizeEgyptPhone(e.target.value) })} /><button type="button" onClick={() => chooseContact('studentPhone')} title="اختيار من جهات الاتصال"><ContactRound/></button></div>
+              {contactMessage && <div className="contact-message">{contactMessage}</div>}
               <input type="number" placeholder="سعر الحصة" value={form.sessionPrice} onChange={(e) => setForm({ ...form, sessionPrice: Number(e.target.value) })} />
               <label className="permission-check"><input type="checkbox" checked={form.permissions?.games !== false} onChange={(e)=>setForm({...form,permissions:{...form.permissions,games:e.target.checked}})}/> السماح بالألعاب</label>
               <label className="permission-check"><input type="checkbox" checked={form.permissions?.grades !== false} onChange={(e)=>setForm({...form,permissions:{...form.permissions,grades:e.target.checked}})}/> إظهار الدرجات للطالب</label>
