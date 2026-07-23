@@ -1,3 +1,5 @@
+import { isHttpUrl, normalizeHttpUrl } from '../utils/safety';
+
 const compareVersions = (left, right) => {
   const a = String(left || '0').replace(/^v/i, '').split('.').map(Number);
   const b = String(right || '0').replace(/^v/i, '').split('.').map(Number);
@@ -11,19 +13,24 @@ const compareVersions = (left, right) => {
 };
 
 export async function checkForUpdate(settings, currentVersion) {
-  const endpoint = settings?.update?.manifestUrl?.trim();
+  const endpoint = normalizeHttpUrl(settings?.update?.manifestUrl) || '/update.manifest.json';
   if (!endpoint) throw new Error('أضف رابط ملف التحديث من الإعدادات أولًا.');
   const response = await fetch(`${endpoint}${endpoint.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
   if (!response.ok) throw new Error(`تعذر فحص التحديث (${response.status})`);
   const manifest = await response.json();
-  if (!manifest.version || !manifest.apkUrl) throw new Error('ملف التحديث ناقص version أو apkUrl.');
+  const version = String(manifest?.version || '').trim();
+  const apkUrl = normalizeHttpUrl(manifest?.apkUrl);
+  if (!version || !apkUrl) throw new Error('ملف التحديث ناقص version أو apkUrl.');
   return {
     ...manifest,
-    available: compareVersions(manifest.version, currentVersion) > 0
+    version,
+    apkUrl,
+    available: compareVersions(version, currentVersion) > 0
   };
 }
 
 export function openApkDownload(url) {
-  if (!url) throw new Error('رابط APK غير موجود.');
-  window.location.href = url;
+  const safeUrl = normalizeHttpUrl(url);
+  if (!safeUrl || !isHttpUrl(safeUrl)) throw new Error('رابط APK غير صالح.');
+  window.location.href = safeUrl;
 }

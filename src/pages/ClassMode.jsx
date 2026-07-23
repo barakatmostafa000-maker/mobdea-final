@@ -1,22 +1,90 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CirclePause, CirclePlay, Dices, Eraser, FileImage, FileText, Gamepad2, Highlighter, Maximize2, Minus, PenTool, Plus, Presentation, RotateCcw, Save, ScanLine, Shuffle, Sparkles, TimerReset, Trophy, Users, X } from 'lucide-react';
+import {
+  Camera,
+  CirclePause,
+  CirclePlay,
+  Dices,
+  Eraser,
+  FileImage,
+  FileText,
+  Gamepad2,
+  Highlighter,
+  Maximize2,
+  Minus,
+  PenTool,
+  Plus,
+  Presentation,
+  RotateCcw,
+  Save,
+  ScanLine,
+  Shuffle,
+  Sparkles,
+  TimerReset,
+  Trophy,
+  Users,
+  X,
+  LayoutGrid,
+  Waves,
+  StickyNote,
+  BookOpen,
+} from 'lucide-react';
 import { encourageStudent } from '../services/voice';
 import { queueAbsenceNotification } from '../services/notifications';
 import { formatTime12, todayISO } from '../utils/time';
 
 const statusLabels = { present: 'حاضر', late: 'متأخر', absent: 'غائب', excused: 'غياب بعذر' };
 const toolLabels = { pen: 'قلم', highlighter: 'هايلايتر', eraser: 'ممحاة' };
+const flowLabels = { preview: 'تمهيد', board: 'شرح على السبورة', practice: 'تدريب', quiz: 'تقويم سريع' };
 
-function formatDuration(seconds) {
-  const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-  const secs = (seconds % 60).toString().padStart(2, '0');
-  return `${mins}:${secs}`;
+const boardTemplates = [
+  { key: 'blank', label: 'فارغ', icon: X },
+  { key: 'grid', label: 'شبكة', icon: LayoutGrid },
+  { key: 'lines', label: 'سطور', icon: Waves },
+  { key: 'focus', label: 'تركيز', icon: Presentation },
+];
+
+const normalizeSequence = (sequence) => {
+  if (Array.isArray(sequence) && sequence.length) return sequence.filter(Boolean);
+  if (typeof sequence === 'string') return sequence.split(',').map((item) => item.trim()).filter(Boolean);
+  return ['preview', 'board', 'practice'];
+};
+
+const normalizeTags = (tags) => {
+  if (Array.isArray(tags)) return tags.filter(Boolean);
+  if (typeof tags === 'string') return tags.split(',').map((item) => item.trim()).filter(Boolean);
+  return [];
+};
+
+const matchesGrade = (resource, grade) => !resource.grade || resource.grade === grade;
+
+function boardBackground(template) {
+  switch (template) {
+    case 'grid':
+      return {
+        backgroundImage: 'linear-gradient(to right, rgba(17,24,39,.09) 1px, transparent 1px), linear-gradient(to bottom, rgba(17,24,39,.09) 1px, transparent 1px)',
+        backgroundSize: '32px 32px',
+      };
+    case 'lines':
+      return {
+        backgroundImage: 'repeating-linear-gradient(to bottom, rgba(17,24,39,.06) 0, rgba(17,24,39,.06) 1px, transparent 1px, transparent 29px)',
+        backgroundSize: '100% 30px',
+      };
+    case 'focus':
+      return {
+        backgroundImage: 'radial-gradient(circle at 50% 5%, rgba(215,173,53,.12), transparent 35%), linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)',
+      };
+    default:
+      return { backgroundImage: 'linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%)' };
+  }
 }
 
 export default function ClassMode({ data, updateData, navigate }) {
   const current = data.sessions.find((session) => session.current);
   const students = current ? data.students.filter((student) => student.group === current.group) : [];
   const today = todayISO();
+  const currentGrade = students[0]?.grade || current?.title || '';
+  const resources = useMemo(() => (data.contentLibrary || []).filter((item) => matchesGrade(item, currentGrade)), [data.contentLibrary, currentGrade]);
+
   const [lastPraise, setLastPraise] = useState('');
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(true);
@@ -26,8 +94,30 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [tool, setTool] = useState('pen');
   const [notes, setNotes] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
+  const [boardTemplate, setBoardTemplate] = useState('blank');
+  const [selectedResourceId, setSelectedResourceId] = useState(data.settings?.classResourceId || resources[0]?.id || '');
+  const [flowIndex, setFlowIndex] = useState(0);
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
+
+  const selectedResource = useMemo(
+    () => resources.find((item) => String(item.id) === String(selectedResourceId)) || resources[0] || null,
+    [resources, selectedResourceId]
+  );
+  const flow = useMemo(() => normalizeSequence(selectedResource?.sequence), [selectedResource]);
+  const activeFlow = flow[flowIndex] || flow[0] || 'preview';
+
+  useEffect(() => {
+    if (!resources.length) return;
+    if (!selectedResource || !resources.some((item) => String(item.id) === String(selectedResourceId))) {
+      setSelectedResourceId(resources[0].id);
+    }
+  }, [resources, selectedResource, selectedResourceId]);
+
+  useEffect(() => {
+    setFlowIndex(0);
+    setNotes(selectedResource?.notes || '');
+  }, [selectedResource?.id]);
 
   useEffect(() => {
     if (!running) return undefined;
@@ -49,7 +139,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const mark = (student, status) => {
     const existing = data.attendance.find((item) => item.studentId === student.id && item.date === today && item.sessionId === current?.id);
     const attendance = existing
-      ? data.attendance.map((item) => item.id === existing.id ? { ...item, status } : item)
+      ? data.attendance.map((item) => (item.id === existing.id ? { ...item, status } : item))
       : [...data.attendance, { id: Date.now() + Math.random(), studentId: student.id, sessionId: current?.id || null, date: today, status }];
     let next = { ...data, attendance };
     if (status === 'absent') next = queueAbsenceNotification(next, student, current, today);
@@ -104,6 +194,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   };
 
   const stopDraw = () => { drawingRef.current = false; };
+
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -119,13 +210,44 @@ export default function ClassMode({ data, updateData, navigate }) {
     link.click();
   };
 
-  const endClass = () => {
+  const saveLessonState = async () => {
+    if (!current) return;
     const summary = {
-      id: Date.now(), sessionId: current.id, date: today, durationSeconds: seconds,
-      attendance: counts, points, notes, endedAt: new Date().toISOString()
+      id: Date.now(),
+      sessionId: current.id,
+      date: today,
+      durationSeconds: seconds,
+      attendance: counts,
+      points,
+      notes,
+      resourceId: selectedResource?.id || null,
+      resourceTitle: selectedResource?.title || '',
+      flow,
+      boardTemplate,
+      endedAt: new Date().toISOString(),
     };
-    updateData({ ...data, classSummaries: [...(data.classSummaries || []), summary] });
+    await updateData({
+      ...data,
+      classSummaries: [...(data.classSummaries || []), summary],
+      settings: {
+        ...data.settings,
+        classResourceId: selectedResource?.id || data.settings?.classResourceId || '',
+        classResourceTitle: selectedResource?.title || data.settings?.classResourceTitle || '',
+      },
+    });
+  };
+
+  const endClass = async () => {
+    await saveLessonState();
     navigate('dashboard');
+  };
+
+  const moveFlow = (direction) => {
+    setFlowIndex((value) => {
+      const next = value + direction;
+      if (next < 0 || next >= flow.length) return value;
+      return next;
+    });
   };
 
   if (!current) return <section className="page class-mode-page"><div className="panel empty-state"><h2>لا توجد حصة حالية</h2><p>حدد الحصة الحالية أولًا من قسم الحصص والمجموعات.</p><button className="primary-btn" onClick={() => navigate('sessions')}>فتح الحصص</button></div></section>;
@@ -137,7 +259,7 @@ export default function ClassMode({ data, updateData, navigate }) {
         <div><Users size={17}/><b>{students.length}</b><span>الطلاب</span></div>
         <div><b>{counts.present || 0}</b><span>حاضر</span></div>
         <div><b>{counts.absent || 0}</b><span>غائب</span></div>
-        <div className="class-clock"><b>{formatDuration(seconds)}</b><span>مدة الحصة</span></div>
+        <div className="class-clock"><b>{Math.floor(seconds / 60).toString().padStart(2, '0')}:{(seconds % 60).toString().padStart(2, '0')}</b><span>مدة الحصة</span></div>
       </div>
       <div className="class-top-actions">
         <button className="icon-action" onClick={() => setRunning(!running)}>{running ? <CirclePause/> : <CirclePlay/>}</button>
@@ -156,6 +278,21 @@ export default function ClassMode({ data, updateData, navigate }) {
 
     {lastPraise && <div className="spoken-banner">🔊 {lastPraise}</div>}
 
+    {selectedResource && <article className="panel lesson-resource-banner">
+      <div className="lesson-resource-copy">
+        <span className="eyebrow">المورد المرتبط بالحصة</span>
+        <h3>{selectedResource.title}</h3>
+        <p>{selectedResource.unit} — {selectedResource.lesson} • {selectedResource.grade}</p>
+      </div>
+      <div className="lesson-flow-strip">
+        {flow.map((step, index) => <button key={step} className={index === flowIndex ? 'active' : ''} onClick={() => setFlowIndex(index)}>{flowLabels[step] || step}</button>)}
+      </div>
+      <div className="lesson-resource-actions">
+        <button className="secondary-btn" onClick={() => setView('explain')}><Presentation size={16}/> فتح السبورة</button>
+        <button className="primary-btn" onClick={() => saveLessonState()}><Save size={16}/> حفظ الحصة</button>
+      </div>
+    </article>}
+
     {view === 'students' ? <>
       <div className="class-quick-strip">
         <button onClick={randomStudent}><Shuffle/> اختيار طالب عشوائي</button>
@@ -172,14 +309,14 @@ export default function ClassMode({ data, updateData, navigate }) {
           return <article className={`class-student-card ${selectedStudent?.id === student.id ? 'focused' : ''}`} key={student.id} onClick={() => setSelectedStudent(student)}>
             <header><span className="student-code">{student.code}</span><div><strong>{student.name}</strong><small>{student.grade}</small></div><span className={`status-pill class-status ${status || ''}`}>{statusLabels[status] || 'لم يسجل'}</span></header>
             <div className="class-attendance-actions">
-              {Object.entries(statusLabels).map(([key,label]) => <button key={key} className={status === key ? `selected ${key}-btn` : `${key}-btn`} onClick={(e) => { e.stopPropagation(); mark(student,key); }}>{label}</button>)}
+              {Object.entries(statusLabels).map(([key, label]) => <button key={key} className={status === key ? `selected ${key}-btn` : `${key}-btn`} onClick={(e) => { e.stopPropagation(); mark(student, key); }}>{label}</button>)}
             </div>
-            <div className="student-points-row"><button onClick={(e) => { e.stopPropagation(); adjustPoints(student,-1); }}><Minus/></button><b>{points[student.id] || 0}</b><button onClick={(e) => { e.stopPropagation(); adjustPoints(student,1); }}><Plus/></button></div>
+            <div className="student-points-row"><button onClick={(e) => { e.stopPropagation(); adjustPoints(student, -1); }}><Minus/></button><b>{points[student.id] || 0}</b><button onClick={(e) => { e.stopPropagation(); adjustPoints(student, 1); }}><Plus/></button></div>
             <div className="voice-shortcuts">
-              <button onClick={(e) => { e.stopPropagation(); praise(student,'excellent'); }}>⭐ ممتاز</button>
-              <button onClick={(e) => { e.stopPropagation(); praise(student,'close'); }}>🍬 ناقصها سكر</button>
-              <button onClick={(e) => { e.stopPropagation(); praise(student,'retry'); }}>🔁 حاول تاني</button>
-              <button onClick={(e) => { e.stopPropagation(); praise(student,'comic'); }}>😒 زهقان</button>
+              <button onClick={(e) => { e.stopPropagation(); praise(student, 'excellent'); }}>⭐ ممتاز</button>
+              <button onClick={(e) => { e.stopPropagation(); praise(student, 'close'); }}>🍬 ناقصها سكر</button>
+              <button onClick={(e) => { e.stopPropagation(); praise(student, 'retry'); }}>🔁 حاول تاني</button>
+              <button onClick={(e) => { e.stopPropagation(); praise(student, 'comic'); }}>😒 زهقان</button>
             </div>
           </article>;
         })}
@@ -188,15 +325,54 @@ export default function ClassMode({ data, updateData, navigate }) {
       <div className="board-panel panel">
         <div className="board-toolbar">
           <div className="tool-group">
-            {Object.entries(toolLabels).map(([key,label]) => <button key={key} className={tool === key ? 'active' : ''} onClick={() => setTool(key)}>{key === 'pen' ? <PenTool/> : key === 'highlighter' ? <Highlighter/> : <Eraser/>}{label}</button>)}
+            {Object.entries(toolLabels).map(([key, label]) => <button key={key} className={tool === key ? 'active' : ''} onClick={() => setTool(key)}>{key === 'pen' ? <PenTool/> : key === 'highlighter' ? <Highlighter/> : <Eraser/>}{label}</button>)}
+          </div>
+          <div className="tool-group">
+            {boardTemplates.map(({ key, label, icon: Icon }) => <button key={key} className={boardTemplate === key ? 'active' : ''} onClick={() => setBoardTemplate(key)}><Icon/>{label}</button>)}
           </div>
           <div className="tool-group"><button onClick={clearCanvas}><RotateCcw/> مسح</button><button onClick={saveBoard}><Save/> حفظ صورة</button></div>
         </div>
-        <div className="canvas-wrap"><canvas ref={canvasRef} width="1200" height="700" onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw} onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}/></div>
+        <div className="board-stage-summary">
+          <div><span>خطوة الحصة</span><strong>{flowLabels[activeFlow] || activeFlow}</strong></div>
+          <div><span>المورد الحالي</span><strong>{selectedResource?.title || 'بدون مورد'}</strong></div>
+          <div><span>الصفحات</span><strong>{selectedResource ? `${selectedResource.pageStart || '—'} / ${selectedResource.pageEnd || '—'}` : '—'}</strong></div>
+          <div><span>الوضع</span><strong>{boardTemplates.find((item) => item.key === boardTemplate)?.label || 'فارغ'}</strong></div>
+        </div>
+        <div className="canvas-wrap">
+          <canvas ref={canvasRef} width="1200" height="700" style={boardBackground(boardTemplate)} onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw} onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}/>
+        </div>
       </div>
       <aside className="lesson-side-panel">
-        <article className="panel"><span className="eyebrow">مصادر الشرح</span><h3>إضافة محتوى</h3><div className="resource-buttons"><button><FileText/> PDF</button><button><FileImage/> صورة</button><button><Presentation/> عرض</button><button><Camera/> تصوير السبورة</button></div></article>
-        <article className="panel"><span className="eyebrow">ملاحظات المعلم</span><h3>ملخص الحصة</h3><textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اكتب النقاط المهمة، الواجب، أو الطلاب المحتاجين للمتابعة..." rows="10"/></article>
+        <article className="panel">
+          <span className="eyebrow">مصادر الشرح</span>
+          <h3>اختيار المورد</h3>
+          <div className="resource-list">
+            {resources.slice(0, 6).map((resource) => (
+              <button key={resource.id} className={String(selectedResourceId) === String(resource.id) ? 'active' : ''} onClick={() => setSelectedResourceId(resource.id)}>
+                <BookOpen size={16} />
+                <span>{resource.title}</span>
+                <small>{resource.lesson}</small>
+              </button>
+            ))}
+          </div>
+        </article>
+        <article className="panel">
+          <span className="eyebrow">خطة العرض</span>
+          <h3>خط سير الحصة</h3>
+          <div className="resource-buttons flow-buttons">
+            {flow.map((step, index) => <button key={step} className={index === flowIndex ? 'active' : ''} onClick={() => setFlowIndex(index)}><FileText/> {flowLabels[step] || step}</button>)}
+          </div>
+          <div className="lesson-resource-note">{selectedResource?.notes || 'اختر موردًا لتظهر الملاحظات هنا.'}</div>
+          <div className="lesson-resource-meta">
+            {normalizeTags(selectedResource?.tags).map((tag) => <span key={tag}>#{tag}</span>)}
+          </div>
+        </article>
+        <article className="panel">
+          <span className="eyebrow">ملاحظات المعلم</span>
+          <h3>ملخص الحصة</h3>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اكتب النقاط المهمة، الواجب، أو الطلاب المحتاجين للمتابعة..." rows="10"/>
+          <button className="primary-btn lesson-save-btn" onClick={saveLessonState}><StickyNote size={16}/> حفظ الملخص</button>
+        </article>
       </aside>
     </div>}
   </section>;

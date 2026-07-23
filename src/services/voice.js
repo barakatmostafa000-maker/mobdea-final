@@ -1,17 +1,4 @@
 const history = new Map();
-let voiceUnlocked = false;
-
-export function unlockVoice() {
-  if (!('speechSynthesis' in window)) return false;
-  voiceUnlocked = true;
-  try {
-    const probe = new SpeechSynthesisUtterance('');
-    probe.volume = 0;
-    window.speechSynthesis.speak(probe);
-  } catch { /* old WebView may ignore the probe */ }
-  return true;
-}
-
 
 const phrases = {
   excellent: [
@@ -61,7 +48,6 @@ function pickNonRepeated(type, name) {
 
 export function speakArabic(text, settings = {}, style = 'normal') {
   if (settings.voiceEnabled === false || !text || !('speechSynthesis' in window)) return false;
-  if (!voiceUnlocked) unlockVoice();
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ar-EG';

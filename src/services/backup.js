@@ -1,4 +1,5 @@
-const BACKUP_VERSION = '6.0.0';
+const BACKUP_VERSION = '6.1.0';
+const MAX_BACKUP_BYTES = 5_000_000;
 
 function checksum(text) {
   let hash = 2166136261;
@@ -23,11 +24,13 @@ export function downloadBackup(data) {
   const link = document.createElement('a');
   link.href = url;
   link.download = `mobdea-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.rel = 'noopener';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export async function readBackupFile(file) {
+  if (!file || file.size > MAX_BACKUP_BYTES) throw new Error('ملف النسخة الاحتياطية كبير جدًا أو غير صالح');
   const text = await file.text();
   const payload = JSON.parse(text);
   if (!payload?.data || !payload.version || !payload.checksum) throw new Error('ملف النسخة الاحتياطية غير صالح');

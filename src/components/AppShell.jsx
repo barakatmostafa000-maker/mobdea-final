@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from 'react';
 import {
   Home, Users, CalendarDays, ClipboardCheck, GraduationCap, WalletCards,
@@ -5,6 +6,8 @@ import {
   IdCard, ScanLine, ListChecks, Eye, Stethoscope, ChevronLeft, Sparkles,
   ShieldCheck, Bell, BrainCircuit, MapPinned, BookOpen, DownloadCloud
 } from 'lucide-react';
+import { identity } from '../config/identity';
+import { release } from '../config/release';
 
 const baseItems = [
   ['dashboard', 'الرئيسية', Home, 'اليوم والحصة الحالية'],
@@ -61,8 +64,11 @@ export default function AppShell({ active, onChange, children, settings, data })
       <header className="mobile-header">
         <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label="فتح القائمة"><Menu size={23} /></button>
         <div className="mobile-brand-copy">
-          <strong>منصة المُبدع</strong>
-          <span>{currentSession ? currentSession.group : 'المُبدع لتعليم ممتع'}</span>
+          <img src={identity.portrait} alt={identity.teacherName} className="mobile-brand-avatar" />
+          <div>
+            <strong>{identity.teacherName}</strong>
+            <span>{currentSession ? currentSession.group : identity.teacherTitle}</span>
+          </div>
         </div>
         <button className="mobile-alert-button" onClick={() => select('messages')} aria-label="التنبيهات">
           <Bell size={20} />
@@ -77,13 +83,13 @@ export default function AppShell({ active, onChange, children, settings, data })
           <button className="drawer-close" onClick={() => setOpen(false)} aria-label="إغلاق القائمة"><X size={21} /></button>
           <div className="brand-panel">
             <div className="brand-avatar brand-avatar-photo" aria-label="صورة المُبدع مصطفى بركات">
-              <img src="/identity/mostafa-barakat.jpg" alt="المُبدع مصطفى بركات" />
+              <img src={identity.portrait} alt={identity.teacherName} />
               <i><Sparkles size={13} /></i>
             </div>
             <div>
               <h1>المُبدع</h1>
-              <p>مصطفى بركات</p>
-              <small>معلّم تاريخ ودراسات</small>
+              <p>{identity.teacherName.replace("المُبدع ", "")}</p>
+              <small>{identity.teacherTitle}</small>
             </div>
           </div>
 
@@ -109,7 +115,7 @@ export default function AppShell({ active, onChange, children, settings, data })
 
         <div className="sidebar-footer">
           <div><ShieldCheck size={18} /><span><strong>الإدارة محمية</strong><small>PIN وقفل تلقائي</small></span></div>
-          <b>V8.7 Stage 5</b>
+          <b>{release.footerLabel}</b>
         </div>
       </aside>
 

@@ -22,8 +22,8 @@ export const seedData = {
   gameResults: [],
   notifications: [],
   contentLibrary: [
-    { id: 1, title: 'شرح الوحدة الأولى — الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'وطننا العربي', type: 'pdf', url: '#', notes: 'نموذج تجريبي يمكن استبداله بملفك.' },
-    { id: 2, title: 'خريطة الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'الموقع', type: 'map', url: '#', notes: 'خريطة تعليمية مرتبطة بوضع الحصة.' }
+    { id: 1, title: 'شرح الوحدة الأولى — الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'وطننا العربي', type: 'pdf', url: '#', notes: 'نموذج تجريبي يمكن استبداله بملفك.', pageStart: 1, pageEnd: 6, tags: ['تمهيد', 'مراجعة'], sequence: ['preview', 'board', 'practice'] },
+    { id: 2, title: 'خريطة الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'الموقع', type: 'map', url: '#', notes: 'خريطة تعليمية مرتبطة بوضع الحصة.', pageStart: 7, pageEnd: 8, tags: ['خريطة', 'تطبيق'], sequence: ['preview', 'board', 'quiz'] }
   ],
   updateHistory: [],
   auditLog: [],
@@ -38,6 +38,8 @@ export const seedData = {
     welcomeVoice: true,
     cloudSync: { endpoint: '', workspaceId: '', token: '', lastPushAt: '', lastPullAt: '' },
     update: { manifestUrl: '', autoCheck: true },
+    classResourceId: '',
+    classResourceTitle: '',
     visibleModules: {
       games: true,
       grades: true,

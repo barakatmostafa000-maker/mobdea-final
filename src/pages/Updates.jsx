@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Download, RefreshCw, ShieldCheck, Smartphone, History } from 'lucide-react';
 import { checkForUpdate, openApkDownload } from '../services/updater';
+import { release } from '../config/release';
 
-const CURRENT_VERSION = '8.7.0';
+const CURRENT_VERSION = release.appVersion;
 
 export default function Updates({ data, updateData }) {
   const [checking, setChecking] = useState(false);
@@ -15,7 +16,7 @@ export default function Updates({ data, updateData }) {
       const next = await checkForUpdate(data.settings, CURRENT_VERSION);
       setResult(next);
       const history = [{ checkedAt: new Date().toISOString(), version: next.version, available: next.available }, ...(data.updateHistory || [])].slice(0, 20);
-      await updateData({ ...data, updateHistory });
+      await updateData({ ...data, updateHistory: history });
     } catch (error) { setNotice(error.message); }
     finally { setChecking(false); }
   };
@@ -24,7 +25,7 @@ export default function Updates({ data, updateData }) {
     <div className="page-heading"><div><span className="eyebrow">تحديثات آمنة</span><h2>تحديث منصة المُبدع</h2><p>فحص الإصدار، عرض التغييرات، وتنزيل APK الجديد مع الحفاظ على بياناتك.</p></div></div>
     {notice && <div className="settings-notice">{notice}</div>}
     <div className="updates-grid">
-      <article className="panel current-version-card"><Smartphone/><span>الإصدار المثبت</span><strong>V{CURRENT_VERSION}</strong><small>حزمة التطبيق: com.mobdea.education</small></article>
+      <article className="panel current-version-card"><Smartphone/><span>الإصدار المثبت</span><strong>{release.displayVersion}</strong><small>حزمة التطبيق: {release.packageName}</small></article>
       <article className="panel update-action-card"><ShieldCheck/><h3>فحص آخر إصدار</h3><p>يتم الاعتماد على ملف Manifest تحدده في الإعدادات.</p><button className="primary-btn" disabled={checking} onClick={runCheck}><RefreshCw size={18}/>{checking ? 'جارٍ الفحص...' : 'فحص الآن'}</button></article>
     </div>
     {result && <article className={`panel update-result ${result.available ? 'available' : 'latest'}`}>

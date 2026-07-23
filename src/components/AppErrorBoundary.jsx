@@ -1,4 +1,6 @@
+
 import React from 'react';
+import { identity } from '../config/identity';
 
 export default class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -18,7 +20,7 @@ export default class AppErrorBoundary extends React.Component {
     if (!this.state.error) return this.props.children;
     return <div className="fatal-screen" dir="rtl">
       <div className="fatal-card">
-        <img src="/identity/mostafa-barakat.jpg" alt="المُبدع مصطفى بركات" />
+        <img src={identity.portrait} alt={identity.teacherName} />
         <h1>تعذر فتح هذه الشاشة</h1>
         <p>تم منع الشاشة البيضاء. أعد فتح الصفحة، ولو تكرر الخطأ أرسل نص الرسالة التالية:</p>
         <code>{String(this.state.error?.message || this.state.error)}</code>

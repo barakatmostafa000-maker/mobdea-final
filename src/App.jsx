@@ -1,30 +1,33 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import AppShell from './components/AppShell';
 import LockScreen from './components/LockScreen';
-import Dashboard from './pages/Dashboard';
-import Students from './pages/Students';
-import Attendance from './pages/Attendance';
-import Sessions from './pages/Sessions';
-import Grades from './pages/Grades';
-import GradeScanner from './pages/GradeScanner';
-import ResultDetails from './pages/ResultDetails';
-import Payments from './pages/Payments';
-import Messages from './pages/Messages';
-import Reports from './pages/Reports';
-import Games from './pages/Games';
-import QuestionBankManager from './pages/QuestionBankManager';
-import MapChallenge from './pages/MapChallenge';
-import ClassMode from './pages/ClassMode';
-import StudentCards from './pages/StudentCards';
-import Settings from './pages/Settings';
-import PortalPreview from './pages/PortalPreview';
-import DeviceDiagnostics from './pages/DeviceDiagnostics';
-import SmartAssistant from './pages/SmartAssistant';
-import ContentLibrary from './pages/ContentLibrary';
-import Updates from './pages/Updates';
 import Placeholder from './pages/Placeholder';
 import { loadAppData, saveAppData, resetAppData } from './services/storage';
-import { speakWelcome, unlockVoice } from './services/voice';
+import { speakWelcome } from './services/voice';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Students = lazy(() => import('./pages/Students'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const Sessions = lazy(() => import('./pages/Sessions'));
+const Grades = lazy(() => import('./pages/Grades'));
+const GradeScanner = lazy(() => import('./pages/GradeScanner'));
+const ResultDetails = lazy(() => import('./pages/ResultDetails'));
+const Payments = lazy(() => import('./pages/Payments'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Games = lazy(() => import('./pages/Games'));
+const QuestionBankManager = lazy(() => import('./pages/QuestionBankManager'));
+const MapChallenge = lazy(() => import('./pages/MapChallenge'));
+const ClassMode = lazy(() => import('./pages/ClassMode'));
+const StudentCards = lazy(() => import('./pages/StudentCards'));
+const Settings = lazy(() => import('./pages/Settings'));
+const PortalPreview = lazy(() => import('./pages/PortalPreview'));
+const DeviceDiagnostics = lazy(() => import('./pages/DeviceDiagnostics'));
+const SmartAssistant = lazy(() => import('./pages/SmartAssistant'));
+const ContentLibrary = lazy(() => import('./pages/ContentLibrary'));
+const Updates = lazy(() => import('./pages/Updates'));
+
+const LoadingScreen = () => <div className="loading-screen"><div className="loading-mark">م</div><h1>منصة المُبدع</h1><p>جارٍ تحميل الصفحة...</p></div>;
 
 export default function App() {
   const [active, setActive] = useState('dashboard');
@@ -32,22 +35,7 @@ export default function App() {
   const [unlocked, setUnlocked] = useState(false);
   const [welcomePlayed, setWelcomePlayed] = useState(false);
 
-  useEffect(() => {
-    loadAppData().then(setData).catch((error) => {
-      console.error('Mobdea startup data error', error);
-      window.__mobdeaShowBootError?.(error?.message || 'تعذر قراءة بيانات التطبيق');
-    });
-  }, []);
-
-  useEffect(() => {
-    const unlock = () => unlockVoice();
-    window.addEventListener('touchstart', unlock, { once: true, passive: true });
-    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
-    return () => {
-      window.removeEventListener('touchstart', unlock);
-      window.removeEventListener('pointerdown', unlock);
-    };
-  }, []);
+  useEffect(() => { loadAppData().then(setData); }, []);
 
   useEffect(() => {
     if (!data?.settings?.lockEnabled || !unlocked) return;
@@ -56,7 +44,7 @@ export default function App() {
       clearTimeout(timer);
       timer = setTimeout(() => setUnlocked(false), Math.max(1, Number(data.settings.lockAfterMinutes || 10)) * 60 * 1000);
     };
-    const events = ['pointerdown','keydown','touchstart'];
+    const events = ['pointerdown', 'keydown', 'touchstart'];
     events.forEach((event) => window.addEventListener(event, resetTimer, { passive: true }));
     resetTimer();
     return () => { clearTimeout(timer); events.forEach((event) => window.removeEventListener(event, resetTimer)); };
@@ -76,33 +64,66 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [data, unlocked, welcomePlayed]);
 
-  if (!data) return <div className="loading-screen"><div className="loading-mark">م</div><h1>منصة المُبدع</h1><p>جارٍ تجهيز التطبيق...</p></div>;
-  if (data.settings.lockEnabled && !unlocked) return <LockScreen correctPin={data.settings.adminPin} onUnlock={()=>setUnlocked(true)} />;
+  if (!data) return <LoadingScreen />;
+  if (data.settings.lockEnabled && !unlocked) return <LockScreen correctPin={data.settings.adminPin} onUnlock={() => setUnlocked(true)} />;
 
   const common = { data, updateData };
-  const pages = {
-    dashboard: <Dashboard data={data} navigate={setActive} />,
-    classMode: <ClassMode {...common} navigate={setActive} />,
-    students: <Students {...common} />,
-    studentCards: <StudentCards data={data} />,
-    portalPreview: <PortalPreview data={data} />,
-    diagnostics: <DeviceDiagnostics data={data} />,
-    smartAssistant: <SmartAssistant data={data} />,
-    contentLibrary: <ContentLibrary {...common} />,
-    updates: <Updates {...common} />,
-    sessions: <Sessions {...common} />,
-    attendance: <Attendance {...common} />,
-    gradeScanner: <GradeScanner {...common} />,
-    resultDetails: <ResultDetails {...common} />,
-    grades: <Grades {...common} />,
-    payments: <Payments {...common} />,
-    questionBank: <QuestionBankManager {...common} />,
-    games: <Games {...common} />,
-    mapChallenge: <MapChallenge {...common} />,
-    messages: <Messages {...common} />,
-    reports: <Reports data={data} />,
-    settings: <Settings {...common} resetAppData={resetAppData} />
+  const screenProps = {
+    dashboard: { data, navigate: setActive },
+    classMode: { ...common, navigate: setActive },
+    students: common,
+    studentCards: { data },
+    portalPreview: { data },
+    diagnostics: { data },
+    smartAssistant: { data },
+    contentLibrary: common,
+    updates: common,
+    sessions: common,
+    attendance: common,
+    gradeScanner: common,
+    resultDetails: common,
+    grades: common,
+    payments: common,
+    questionBank: common,
+    games: common,
+    mapChallenge: common,
+    messages: common,
+    reports: { data },
+    settings: { ...common, resetAppData }
   };
 
-  return <AppShell active={active} onChange={setActive} settings={data.settings} data={data}>{pages[active] || <Placeholder title="قيد التطوير" subtitle="سيتم استكمال الوحدة في الإصدار التالي." />}</AppShell>;
+  const screenMap = {
+    dashboard: Dashboard,
+    classMode: ClassMode,
+    students: Students,
+    studentCards: StudentCards,
+    portalPreview: PortalPreview,
+    diagnostics: DeviceDiagnostics,
+    smartAssistant: SmartAssistant,
+    contentLibrary: ContentLibrary,
+    updates: Updates,
+    sessions: Sessions,
+    attendance: Attendance,
+    gradeScanner: GradeScanner,
+    resultDetails: ResultDetails,
+    grades: Grades,
+    payments: Payments,
+    questionBank: QuestionBankManager,
+    games: Games,
+    mapChallenge: MapChallenge,
+    messages: Messages,
+    reports: Reports,
+    settings: Settings
+  };
+
+  const ActiveScreen = screenMap[active] || Placeholder;
+  const props = screenProps[active] || { title: 'قيد التطوير', subtitle: 'سيتم استكمال الوحدة في الإصدار التالي.' };
+
+  return (
+    <AppShell active={active} onChange={setActive} settings={data.settings} data={data}>
+      <Suspense fallback={<LoadingScreen />}>
+        <ActiveScreen {...props} />
+      </Suspense>
+    </AppShell>
+  );
 }

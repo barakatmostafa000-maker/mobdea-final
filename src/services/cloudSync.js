@@ -1,28 +1,47 @@
+import { isHttpUrl, normalizeHttpUrl, safeTrim } from '../utils/safety';
+
 const timeoutFetch = async (url, options = {}, timeoutMs = 12000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, { ...options, signal: controller.signal, credentials: 'omit' });
   } finally {
     clearTimeout(timer);
   }
 };
 
+const validateConfig = (settings = {}) => {
+  const config = settings.cloudSync || {};
+  const endpoint = normalizeHttpUrl(config.endpoint);
+  const workspaceId = safeTrim(config.workspaceId, 80);
+  const token = safeTrim(config.token, 160);
+  if (!endpoint || !isHttpUrl(endpoint)) throw new Error('أدخل رابطًا صحيحًا يبدأ بـ http أو https');
+  if (!workspaceId) throw new Error('أكمل مساحة العمل أولًا');
+  if (!token) throw new Error('أكمل الرمز السري أولًا');
+  return { endpoint, workspaceId, token };
+};
+
 const headersFor = (config) => ({
   'Content-Type': 'application/json',
-  'X-Mobdea-Workspace': config.workspaceId || 'default',
+  'X-Mobdea-Workspace': config.workspaceId,
+  'X-Mobdea-Client': 'mobdea-mobile',
   ...(config.token ? { Authorization: `Bearer ${config.token}` } : {})
 });
 
+const buildUrl = (endpoint, path) => `${endpoint.replace(/\/$/, '')}${path}`;
+
 export function cloudConfigured(settings = {}) {
-  const config = settings.cloudSync || {};
-  return Boolean(config.endpoint && config.workspaceId && config.token);
+  try {
+    validateConfig(settings);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function testCloudConnection(settings = {}) {
-  const config = settings.cloudSync || {};
-  if (!cloudConfigured(settings)) throw new Error('أكمل رابط المزامنة ومساحة العمل والرمز السري أولًا');
-  const response = await timeoutFetch(`${config.endpoint.replace(/\/$/, '')}/health`, {
+  const config = validateConfig(settings);
+  const response = await timeoutFetch(buildUrl(config.endpoint, '/health'), {
     method: 'GET',
     headers: headersFor(config)
   });
@@ -31,21 +50,20 @@ export async function testCloudConnection(settings = {}) {
 }
 
 export async function pushCloudData(data) {
-  const config = data.settings?.cloudSync || {};
-  if (!cloudConfigured(data.settings)) throw new Error('المزامنة السحابية غير مُعدة');
+  const config = validateConfig(data.settings);
   const payload = {
-    version: 7,
+    version: 8,
     workspaceId: config.workspaceId,
     updatedAt: new Date().toISOString(),
     data: {
       ...data,
       settings: {
         ...data.settings,
-        cloudSync: { ...config, token: '' }
+        cloudSync: { ...data.settings.cloudSync, token: '' }
       }
     }
   };
-  const response = await timeoutFetch(`${config.endpoint.replace(/\/$/, '')}/sync`, {
+  const response = await timeoutFetch(buildUrl(config.endpoint, '/sync'), {
     method: 'PUT',
     headers: headersFor(config),
     body: JSON.stringify(payload)
@@ -55,9 +73,8 @@ export async function pushCloudData(data) {
 }
 
 export async function pullCloudData(settings = {}) {
-  const config = settings.cloudSync || {};
-  if (!cloudConfigured(settings)) throw new Error('المزامنة السحابية غير مُعدة');
-  const response = await timeoutFetch(`${config.endpoint.replace(/\/$/, '')}/sync`, {
+  const config = validateConfig(settings);
+  const response = await timeoutFetch(buildUrl(config.endpoint, '/sync'), {
     method: 'GET',
     headers: headersFor(config)
   }, 20000);

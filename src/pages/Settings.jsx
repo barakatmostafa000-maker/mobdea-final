@@ -104,7 +104,7 @@ export default function Settings({ data, updateData, resetAppData }) {
       </article>
 
 
-      <article className="panel"><h3>تحديث التطبيق</h3><p className="settings-help">أضف رابط ملف JSON عام يحتوي على version وapkUrl وnotes.</p>
+      <article className="panel"><h3>تحديث التطبيق</h3><p className="settings-help">يمكنك إضافة رابط ملف JSON عام يحتوي على version وapkUrl وnotes، وإن تُرك فارغًا ستستخدم المنصة ملفًا داخليًا آمنًا للمعاينة.</p>
         <label className="setting-row"><span>رابط Manifest</span><input value={data.settings.update?.manifestUrl || ''} placeholder="https://.../update.json" onChange={(e)=>patchSettings({update:{...(data.settings.update||{}),manifestUrl:e.target.value.trim()}})}/></label>
         <label className="setting-row"><span>الفحص عند فتح التطبيق</span><input type="checkbox" checked={data.settings.update?.autoCheck !== false} onChange={(e)=>patchSettings({update:{...(data.settings.update||{}),autoCheck:e.target.checked}})}/></label>
       </article>
