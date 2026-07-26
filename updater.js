@@ -1,4 +1,5 @@
 import { isHttpUrl, normalizeHttpUrl } from '../utils/safety';
+import { release } from '../config/release';
 
 const compareVersions = (left, right) => {
   const a = String(left || '0').replace(/^v/i, '').split('.').map(Number);
@@ -13,7 +14,7 @@ const compareVersions = (left, right) => {
 };
 
 export async function checkForUpdate(settings, currentVersion) {
-  const endpoint = normalizeHttpUrl(settings?.update?.manifestUrl) || '/update.manifest.json';
+  const endpoint = normalizeHttpUrl(settings?.update?.manifestUrl) || release.manifestPath || '/update.manifest.json';
   if (!endpoint) throw new Error('أضف رابط ملف التحديث من الإعدادات أولًا.');
   const response = await fetch(`${endpoint}${endpoint.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
   if (!response.ok) throw new Error(`تعذر فحص التحديث (${response.status})`);
