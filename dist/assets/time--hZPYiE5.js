@@ -1,0 +1,1 @@
+function o(r){if(!r)return"—";const[n,i="00"]=String(r).split(":");let t=Number(n);if(Number.isNaN(t))return r;const e=t>=12?"م":"ص";return t%=12,t===0&&(t=12),`${t}:${String(i).padStart(2,"0")} ${e}`}function u(){return new Date().toISOString().slice(0,10)}export{o as f,u as t};
