@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   ExternalLink,
   FileText,
   Image,
   Layers3,
+  Volume2,
   Link as LinkIcon,
   Map,
   PencilLine,
@@ -20,12 +21,14 @@ import {
   LayoutList,
   Save,
 } from 'lucide-react';
+import { questionBank } from '../data/questionBank';
 
 const resourceTypes = {
   video: { label: 'فيديو', icon: PlayCircle, hint: 'عرض مرئي سريع' },
   pdf: { label: 'PDF', icon: FileText, hint: 'شرح أو كتاب' },
   image: { label: 'صورة', icon: Image, hint: 'خريطة أو وسيلة' },
   map: { label: 'خريطة', icon: Map, hint: 'نشاط جغرافي' },
+  audio: { label: 'صوت', icon: Volume2, hint: 'تشجيع أو شرح صوتي' },
   slides: { label: 'عرض', icon: Presentation, hint: 'عرض الحصة' },
   link: { label: 'رابط', icon: LinkIcon, hint: 'مصدر خارجي' },
 };
@@ -46,10 +49,13 @@ const emptyForm = {
   lesson: 'الدرس الأول',
   type: 'pdf',
   url: '',
+  fileName: '',
+  mimeType: '',
   notes: '',
   pageStart: '',
   pageEnd: '',
   tags: '',
+  relatedQuestionIds: '',
   sequence: ['preview', 'board', 'practice'],
 };
 
@@ -103,8 +109,11 @@ export default function ContentLibrary({ data, updateData }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
+  const [uploadNotice, setUploadNotice] = useState('');
+  const fileRef = useRef(null);
 
   const items = useMemo(() => (data.contentLibrary || []).map(normalizeResource), [data.contentLibrary]);
+  const allQuestions = useMemo(() => [...questionBank, ...(data.customQuestionBank || [])], [data.customQuestionBank]);
   const grades = [...new Set(items.map((item) => item.grade).filter(Boolean))];
   const units = [...new Set(items.filter((item) => grade === 'all' || item.grade === grade).map((item) => item.unit).filter(Boolean))];
   const lessons = [...new Set(items.filter((item) => (grade === 'all' || item.grade === grade) && (unit === 'all' || item.unit === unit)).map((item) => item.lesson).filter(Boolean))];
@@ -123,7 +132,57 @@ export default function ContentLibrary({ data, updateData }) {
   const selected = filtered.find((item) => String(item.id) === String(selectedId)) || filtered[0] || null;
   const SelectedIcon = (resourceTypes[selected?.type] || resourceTypes.link).icon;
 
-  const resetForm = () => setForm(emptyForm);
+  const resetForm = () => {
+    setUploadNotice('');
+    setForm(emptyForm);
+  };
+
+  const inferTypeFromFile = (file) => {
+    const mime = String(file?.type || '').toLowerCase();
+    if (mime.startsWith('image/')) return 'image';
+    if (mime.startsWith('video/')) return 'video';
+    if (mime.startsWith('audio/')) return 'audio';
+    if (mime === 'application/pdf') return 'pdf';
+    const name = String(file?.name || '').toLowerCase();
+    if (name.endsWith('.pdf')) return 'pdf';
+    if (name.endsWith('.mp4') || name.endsWith('.webm') || name.endsWith('.mov')) return 'video';
+    if (name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.m4a') || name.endsWith('.ogg')) return 'audio';
+    if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp') || name.endsWith('.gif')) return 'image';
+    return 'link';
+  };
+
+  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('تعذر قراءة الملف.'));
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.readAsDataURL(file);
+  });
+
+  const importFile = async (file) => {
+    if (!file) return;
+    const url = await fileToDataUrl(file);
+    const type = inferTypeFromFile(file);
+    const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim() || file.name;
+    setForm((previous) => ({
+      ...previous,
+      title: previous.title || title,
+      type,
+      url,
+      fileName: file.name,
+      mimeType: file.type || '',
+    }));
+    setUploadNotice(`تم تحميل الملف: ${file.name}`);
+  };
+
+  const linkedQuestions = useMemo(() => {
+    const ids = normalizeTags(selected?.relatedQuestionIds || selected?.questionIds || []).length
+      ? normalizeTags(selected?.relatedQuestionIds || selected?.questionIds || [])
+      : [];
+    const byIds = ids.length ? ids.map((id) => allQuestions.find((question) => String(question.id) === String(id))).filter(Boolean) : [];
+    if (byIds.length) return byIds;
+    if (!selected) return [];
+    return allQuestions.filter((question) => question.grade === selected.grade && question.unit === selected.unit && question.lesson === selected.lesson).slice(0, 6);
+  }, [selected, allQuestions]);
 
   const startAdd = () => {
     resetForm();
@@ -136,6 +195,7 @@ export default function ContentLibrary({ data, updateData }) {
       ...item,
       tags: normalizeTags(item.tags).join(', '),
       sequence: normalizeSequence(item.sequence),
+      relatedQuestionIds: normalizeTags(item.relatedQuestionIds || item.questionIds).join(', '),
     });
     setShowAdd(true);
   };
@@ -151,10 +211,13 @@ export default function ContentLibrary({ data, updateData }) {
       lesson: form.lesson.trim(),
       type: form.type,
       url: form.url.trim(),
+      fileName: form.fileName || '',
+      mimeType: form.mimeType || '',
       notes: form.notes.trim(),
       pageStart: form.pageStart ? Number(form.pageStart) : '',
       pageEnd: form.pageEnd ? Number(form.pageEnd) : '',
       tags: normalizeTags(form.tags),
+      relatedQuestionIds: normalizeTags(form.relatedQuestionIds),
       sequence: form.sequence.length ? form.sequence : ['preview', 'board', 'practice'],
       createdAt: form.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -185,8 +248,12 @@ export default function ContentLibrary({ data, updateData }) {
         ...data.settings,
         classResourceId: item.id,
         classResourceTitle: item.title,
+        classResourceType: item.type,
+        classResourceFileName: item.fileName || item.title,
+        classResourcePinnedAt: new Date().toISOString(),
       },
     });
+    setUploadNotice(`تم تثبيت "${item.title}" في الحصة الحالية.`);
   };
 
   const toggleSequence = (step) => {
@@ -210,6 +277,7 @@ export default function ContentLibrary({ data, updateData }) {
           <p>فيديو وPDF وصور وخرائط وعروض وروابط مرتبة حسب الصف والوحدة والدرس، مع خط سير للحصة.</p>
         </div>
         <div className="content-page-actions">
+          <button className="secondary-btn" onClick={() => fileRef.current?.click()}><Plus size={18}/> رفع من الموبايل</button>
           <button className="secondary-btn" onClick={startAdd}><Plus size={18}/> {showAdd ? 'إغلاق النموذج' : 'إضافة محتوى'}</button>
           {selected && <button className="primary-btn" onClick={() => pinForClass(selected)}><Sparkles size={18}/> تثبيت في الحصة</button>}
         </div>
@@ -240,6 +308,15 @@ export default function ContentLibrary({ data, updateData }) {
         </div>
       </div>
 
+      <input
+        ref={fileRef}
+        hidden
+        type="file"
+        accept="image/*,video/*,audio/*,application/pdf,.pdf,.ppt,.pptx,.doc,.docx,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.png,.jpg,.jpeg,.gif,.webp"
+        onChange={(event) => importFile(event.target.files?.[0])}
+      />
+      {uploadNotice && <div className="settings-notice" style={{ marginTop: 10 }}>{uploadNotice}</div>}
+
       {showAdd && <article className="panel content-form-panel">
         <div className="form-preview-card">
           <div className="content-icon-large"><activeType.icon size={32} /></div>
@@ -257,9 +334,12 @@ export default function ContentLibrary({ data, updateData }) {
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(resourceTypes).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select>
           <input placeholder="بداية الصفحات" type="number" min="1" value={form.pageStart} onChange={(e) => setForm({ ...form, pageStart: e.target.value })} />
           <input placeholder="نهاية الصفحات" type="number" min="1" value={form.pageEnd} onChange={(e) => setForm({ ...form, pageEnd: e.target.value })} />
-          <input className="span-2" placeholder="رابط الملف أو الفيديو" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
+          <input className="span-2" placeholder="رابط الملف أو الفيديو أو ارفع ملفًا من الهاتف" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
+          <input className="span-2" placeholder="اسم الملف" value={form.fileName} onChange={(e) => setForm({ ...form, fileName: e.target.value })} />
+          <input className="span-2" placeholder="الصيغة (mime type)" value={form.mimeType} onChange={(e) => setForm({ ...form, mimeType: e.target.value })} />
+          <input className="span-2" placeholder="أسئلة مرتبطة: q-1, q-2, q-3" value={form.relatedQuestionIds} onChange={(e) => setForm({ ...form, relatedQuestionIds: e.target.value })} />
           <input className="span-2" placeholder="وسوم مفصولة بفواصل: خريطة، تمهيد، اختبار" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
-          <textarea className="span-2" placeholder="ملاحظات" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <textarea className="span-2" placeholder="ملاحظات / شرح / إجابة" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         </div>
         <div className="sequence-builder">
           {Object.entries(flowLabels).map(([key, label]) => (
@@ -288,7 +368,7 @@ export default function ContentLibrary({ data, updateData }) {
                     <span>{typeInfo.label} • {item.grade}</span>
                     <h3>{item.title}</h3>
                     <p>{item.unit} — {item.lesson}</p>
-                    <small>{formatPages(item)} • {normalizeTags(item.tags).join(' • ') || 'بدون وسوم'}</small>
+                    <small>{formatPages(item)} • {item.fileName || 'بدون اسم ملف'} • {normalizeTags(item.tags).join(' • ') || 'بدون وسوم'}</small>
                   </div>
                   <div className="content-actions">
                     <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedId(item.id); editItem(item); }}><PencilLine size={16} /></button>
@@ -323,9 +403,24 @@ export default function ContentLibrary({ data, updateData }) {
               <div className="preview-flow-strip">
                 {normalizeSequence(selected.sequence).map((step) => <span key={step}>{flowLabels[step] || step}</span>)}
               </div>
+              <div className="preview-media">
+                {selected.type === 'image' && selected.url && <img className="preview-media-image" src={selected.url} alt={selected.title} />}
+                {selected.type === 'video' && selected.url && <video className="preview-media-video" controls src={selected.url} />}
+                {selected.type === 'audio' && selected.url && <audio className="preview-media-audio" controls src={selected.url} />}
+                {selected.type === 'pdf' && selected.url && <iframe className="preview-media-pdf" title={selected.title} src={selected.url} />}
+                {!['image','video','audio','pdf'].includes(selected.type) && <div className="preview-media-fallback">{selected.fileName || 'لا توجد معاينة مباشرة لهذا النوع'}</div>}
+              </div>
               <div className="preview-notes">
-                <h4>ملاحظات</h4>
+                <h4>ملاحظات / شرح</h4>
                 <p>{selected.notes || 'لا توجد ملاحظات محفوظة لهذا المورد.'}</p>
+              </div>
+              <div className="preview-linked-questions">
+                <h4>الأسئلة المرتبطة</h4>
+                {linkedQuestions.length ? linkedQuestions.slice(0, 8).map((question) => (
+                  <button key={question.id} type="button" className="linked-question-chip" onClick={() => setSearch(question.text)}>
+                    #{question.id} — {question.lesson}
+                  </button>
+                )) : <span>لا توجد أسئلة مرتبطة بعد.</span>}
               </div>
               <div className="preview-tags">
                 {normalizeTags(selected.tags).length ? normalizeTags(selected.tags).map((tag) => <span key={tag}>#{tag}</span>) : <span>#بدون_وسوم</span>}

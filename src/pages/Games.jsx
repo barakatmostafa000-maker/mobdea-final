@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { filterQuestions, gradeOptions } from '../data/questionBank';
-import { encourageStudent } from '../services/voice';
+import { encourageStudent, playVoiceClip } from '../services/voice';
 
 const modes = [
   ['speed', '⚡', 'تحدي السرعة', 'أسئلة متتالية مع مؤقت وCombo.'],
@@ -23,7 +23,8 @@ const recentSafe = (items, history) => {
 const gradeKeyFromLabel = (label) => gradeOptions.find((item) => item.label === label)?.key || '6';
 const gradeLabelFromKey = (key) => gradeOptions.find((item) => item.key === key)?.label || '';
 
-function playTone(kind = 'correct') {
+function playTone(kind = 'correct', settings = {}) {
+  if (playVoiceClip(settings, kind)) return;
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const ctx = new AudioCtx();
@@ -77,7 +78,7 @@ export default function Games({ data, updateData }) {
       setLocked(true);
       setCombo(0);
       setFeedback(`انتهى الوقت — الإجابة الصحيحة: ${current.answer}`);
-      playTone('wrong');
+      playTone('wrong', data.settings);
       return;
     }
     const timer = setTimeout(() => setSeconds((s) => s - 1), 1000);
@@ -165,11 +166,11 @@ export default function Games({ data, updateData }) {
     award(correct, mode === 'wheel' ? 15 : mode === 'surprise' ? 20 : 10);
     if (correct) {
       setFeedback(powerUp === 'x2' ? 'إجابة صحيحة — النقاط مضاعفة!' : 'إجابة صحيحة، ممتاز!');
-      playTone('correct');
+      playTone('correct', data.settings);
       encourageStudent('excellent', selectedStudent?.name || 'يا بطل', data.settings);
     } else {
       setFeedback(`الإجابة الصحيحة: ${current.answer} — راجع: ${current.topic}`);
-      playTone('wrong');
+      playTone('wrong', data.settings);
     }
   };
 
@@ -180,7 +181,7 @@ export default function Games({ data, updateData }) {
     const correct = characterGuess.trim().replace(/\s+/g, ' ') === current.answer.trim().replace(/\s+/g, ' ');
     award(correct, 15);
     setFeedback(correct ? 'ممتاز! اكتشفت الشخصية.' : `الشخصية هي: ${current.answer}`);
-    playTone(correct ? 'correct' : 'wrong');
+    playTone(correct ? 'correct' : 'wrong', data.settings);
   };
 
   const moveTimeline = (event, direction) => setTimelineOrder((prev) => {
@@ -199,7 +200,7 @@ export default function Games({ data, updateData }) {
     const correct = timelineOrder.every((e, i) => e === current.events[i]);
     award(correct, 20);
     setFeedback(correct ? 'ترتيب صحيح بالكامل +20 نقطة' : `الترتيب الصحيح: ${current.events.join(' ← ')}`);
-    playTone(correct ? 'correct' : 'wrong');
+    playTone(correct ? 'correct' : 'wrong', data.settings);
   };
 
   const submitMatching = () => {
@@ -209,7 +210,7 @@ export default function Games({ data, updateData }) {
     persist(current.id);
     award(correct, 15);
     setFeedback(correct ? 'مطابقة صحيحة!' : `المطابقة الصحيحة: ${current.answer}`);
-    playTone(correct ? 'correct' : 'wrong');
+    playTone(correct ? 'correct' : 'wrong', data.settings);
   };
 
   const finishRound = () => {
@@ -229,7 +230,7 @@ export default function Games({ data, updateData }) {
     if (xp >= 80 && !achievements.some((a) => a.studentId === result.studentId && a.key === 'game-star')) achievements.push({ id: Date.now() + 1, studentId: result.studentId, key: 'game-star', title: 'نجم الألعاب', date: result.date });
     updateData({ ...data, gameResults: [...(data.gameResults || []), result], achievements });
     setMode('result');
-    playTone('win');
+    playTone('win', data.settings);
   };
 
   const nextQuestion = () => {

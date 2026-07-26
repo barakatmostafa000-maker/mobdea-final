@@ -22,8 +22,8 @@ export const seedData = {
   gameResults: [],
   notifications: [],
   contentLibrary: [
-    { id: 1, title: 'شرح الوحدة الأولى — الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'وطننا العربي', type: 'pdf', url: '#', notes: 'نموذج تجريبي يمكن استبداله بملفك.', pageStart: 1, pageEnd: 6, tags: ['تمهيد', 'مراجعة'], sequence: ['preview', 'board', 'practice'] },
-    { id: 2, title: 'خريطة الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'الموقع', type: 'map', url: '#', notes: 'خريطة تعليمية مرتبطة بوضع الحصة.', pageStart: 7, pageEnd: 8, tags: ['خريطة', 'تطبيق'], sequence: ['preview', 'board', 'quiz'] }
+    { id: 1, title: 'شرح الوحدة الأولى — الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'وطننا العربي', type: 'pdf', url: '#', notes: 'نموذج تجريبي يمكن استبداله بملفك.', pageStart: 1, pageEnd: 6, tags: ['تمهيد', 'مراجعة'], sequence: ['preview', 'board', 'practice'], relatedQuestionIds: ['q-10', 'q-11'], annotations: [] },
+    { id: 2, title: 'خريطة الوطن العربي', grade: 'الصف السادس الابتدائي', term: 'الترم الأول', unit: 'الوحدة الأولى', lesson: 'الموقع', type: 'map', url: '#', notes: 'خريطة تعليمية مرتبطة بوضع الحصة.', pageStart: 7, pageEnd: 8, tags: ['خريطة', 'تطبيق'], sequence: ['preview', 'board', 'quiz'], relatedQuestionIds: ['q-10'], annotations: [] }
   ],
   updateHistory: [],
   auditLog: [],
@@ -38,8 +38,12 @@ export const seedData = {
     welcomeVoice: true,
     cloudSync: { endpoint: '', workspaceId: '', token: '', lastPushAt: '', lastPullAt: '' },
     update: { manifestUrl: '', autoCheck: true },
+    voiceClips: [],
     classResourceId: '',
     classResourceTitle: '',
+    classResourceType: '',
+    classResourceFileName: '',
+    classResourcePinnedAt: '',
     visibleModules: {
       games: true,
       grades: true,

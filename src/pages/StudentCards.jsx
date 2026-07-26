@@ -117,7 +117,7 @@ function FrontCard({ student }) {
             <div className="barcode-number">{student.code}</div>
           </div>
           <div className="front-qr-card">
-            <QRCodeSVG value={`mobdea://student/${student.code}`} size={92} level="H" includeMargin />
+            <QRCodeSVG value={JSON.stringify({ type: 'mobdea-student', code: student.code, name: student.name, grade: student.grade, group: student.group })} size={92} level="H" includeMargin />
           </div>
         </div>
       </div>

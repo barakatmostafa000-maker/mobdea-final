@@ -22,6 +22,40 @@ const normalizeTags = (tags) => {
   return [];
 };
 
+const normalizeTextList = (value, limit = 20) => {
+  if (Array.isArray(value)) return value.map((item) => safeTrim(item, 120)).filter(Boolean).slice(0, limit);
+  if (typeof value === 'string') return value.split(/[,\n،]/g).map((item) => safeTrim(item, 120)).filter(Boolean).slice(0, limit);
+  return [];
+};
+
+const normalizeVoiceClips = (clips = []) => {
+  const list = Array.isArray(clips) ? clips : [];
+  return list.map((clip, index) => {
+    if (typeof clip === 'string') {
+      return {
+        id: `voice-${Date.now()}-${index}`,
+        title: safeTrim(clip, 80),
+        phraseType: 'excellent',
+        text: safeTrim(clip, 160),
+        url: '',
+        mimeType: '',
+        fileName: '',
+        createdAt: new Date().toISOString()
+      };
+    }
+    return {
+      id: clip.id || `voice-${Date.now()}-${index}`,
+      title: safeTrim(clip.title || clip.label || clip.name || 'صوت مخصص', 80),
+      phraseType: safeTrim(clip.phraseType || clip.type || 'excellent', 20) || 'excellent',
+      text: safeTrim(clip.text || clip.caption || '', 160),
+      url: safeTrim(clip.url || clip.src || '', 500),
+      mimeType: safeTrim(clip.mimeType || '', 80),
+      fileName: safeTrim(clip.fileName || clip.name || '', 120),
+      createdAt: clip.createdAt || new Date().toISOString()
+    };
+  }).filter((item) => item.url || item.text || item.title);
+};
+
 const normalizeResource = (item = {}) => ({
   ...item,
   title: safeTrim(item.title, 120),
@@ -36,6 +70,19 @@ const normalizeResource = (item = {}) => ({
   pageEnd: item.pageEnd ?? '',
   tags: normalizeTags(item.tags),
   sequence: normalizeSequence(item.sequence),
+  fileName: safeTrim(item.fileName || item.name || '', 120),
+  mimeType: safeTrim(item.mimeType || '', 80),
+  fileSize: clampNumber(item.fileSize ?? 0, 0, 50_000_000, 0),
+  relatedQuestionIds: normalizeTextList(item.relatedQuestionIds, 40),
+  annotations: Array.isArray(item.annotations) ? item.annotations.map((annotation, index) => ({
+    id: annotation.id || `anno-${Date.now()}-${index}`,
+    text: safeTrim(annotation.text || annotation.label || '', 200),
+    color: safeTrim(annotation.color || '#d7ad35', 20),
+    x: clampNumber(annotation.x ?? 0, 0, 1000, 0),
+    y: clampNumber(annotation.y ?? 0, 0, 1000, 0),
+    createdAt: annotation.createdAt || new Date().toISOString()
+  })).filter((annotation) => annotation.text) : [],
+  pinnedAt: item.pinnedAt || '',
 });
 
 const normalizeStudent = (student = {}, index = 0) => ({
@@ -48,6 +95,7 @@ const normalizeStudent = (student = {}, index = 0) => ({
   grade: safeTrim(student.grade, 80),
   group: safeTrim(student.group, 80),
   guardianPhone: safeTrim(student.guardianPhone, 20),
+  studentPhone: safeTrim(student.studentPhone, 20),
   sessionPrice: clampNumber(student.sessionPrice ?? 50, 0, 5000, 50)
 });
 
@@ -61,6 +109,7 @@ const normalizeSettings = (settings = {}) => {
     voiceVolume: clampNumber(settings.voiceVolume ?? seedSettings.voiceVolume, 0, 1, seedSettings.voiceVolume),
     voiceRate: clampNumber(settings.voiceRate ?? seedSettings.voiceRate, 0.5, 1.5, seedSettings.voiceRate),
     voiceGender: safeTrim(settings.voiceGender ?? seedSettings.voiceGender, 20),
+    voiceClips: normalizeVoiceClips(settings.voiceClips || seedSettings.voiceClips || []),
     cloudSync: {
       ...seedSettings.cloudSync,
       ...(settings.cloudSync || {}),
@@ -78,6 +127,9 @@ const normalizeSettings = (settings = {}) => {
     },
     classResourceId: settings.classResourceId ?? seedSettings.classResourceId,
     classResourceTitle: safeTrim(settings.classResourceTitle ?? seedSettings.classResourceTitle, 140),
+    classResourceType: safeTrim(settings.classResourceType ?? seedSettings.classResourceType, 30),
+    classResourceFileName: safeTrim(settings.classResourceFileName ?? seedSettings.classResourceFileName, 120),
+    classResourcePinnedAt: safeTrim(settings.classResourcePinnedAt ?? seedSettings.classResourcePinnedAt, 40),
     visibleModules: {
       ...seedSettings.visibleModules,
       ...(settings.visibleModules || {})

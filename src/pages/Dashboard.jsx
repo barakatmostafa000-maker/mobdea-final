@@ -52,6 +52,12 @@ export default function Dashboard({ data, navigate }) {
             <div><strong>{present}</strong><span>حاضر</span></div>
             <div><strong>{absent}</strong><span>غائب</span></div>
           </div>
+          {data.settings?.classResourceTitle && (
+            <div className="hero-pinned-resource">
+              <span>المورد المثبت للحصة</span>
+              <strong>{data.settings.classResourceTitle}</strong>
+            </div>
+          )}
         </div>
       </article>
 

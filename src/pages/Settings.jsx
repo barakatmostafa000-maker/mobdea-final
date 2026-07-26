@@ -1,13 +1,31 @@
 import { useRef, useState } from 'react';
-import { speakWelcome } from '../services/voice';
+import { Play, Plus, Trash2 } from 'lucide-react';
+import { speakWelcome, playVoiceClip } from '../services/voice';
 import { downloadBackup, readBackupFile } from '../services/backup';
 import { pullCloudData, pushCloudData, testCloudConnection } from '../services/cloudSync';
+
+const clipTypes = [
+  ['welcome', 'الترحيب'],
+  ['excellent', 'ممتاز'],
+  ['close', 'قريبة'],
+  ['retry', 'حاول تاني'],
+  ['calm', 'هدوء'],
+  ['comic', 'كوميدي'],
+  ['correct', 'صوت الإجابة الصحيحة'],
+  ['wrong', 'صوت الخطأ'],
+  ['win', 'صوت الفوز']
+];
 
 export default function Settings({ data, updateData, resetAppData }) {
   const [pin, setPin] = useState(data.settings.adminPin || '');
   const [notice, setNotice] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [clipTitle, setClipTitle] = useState('');
+  const [clipType, setClipType] = useState('excellent');
+  const [clipText, setClipText] = useState('');
+  const [clipInfo, setClipInfo] = useState('');
   const fileRef = useRef(null);
+  const clipFileRef = useRef(null);
 
   const patchSettings = (patch) => updateData({ ...data, settings: { ...data.settings, ...patch } });
   const patchVisible = (key, value) => patchSettings({ visibleModules: { ...data.settings.visibleModules, [key]: value } });
@@ -64,7 +82,45 @@ export default function Settings({ data, updateData, resetAppData }) {
     finally { setSyncing(false); }
   };
 
+  const addVoiceClip = async (file) => {
+    if (!file) return;
+    const url = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('تعذر قراءة الملف.'));
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.readAsDataURL(file);
+    });
+    const nextClip = {
+      id: Date.now(),
+      title: clipTitle.trim() || file.name.replace(/\.[^.]+$/, ''),
+      phraseType: clipType,
+      text: clipText.trim(),
+      url,
+      mimeType: file.type,
+      fileName: file.name,
+      createdAt: new Date().toISOString()
+    };
+    const voiceClips = [...(data.settings.voiceClips || []), nextClip];
+    patchSettings({ voiceClips });
+    setClipInfo(`تمت إضافة الصوت: ${nextClip.title}`);
+    setClipTitle('');
+    setClipText('');
+    if (clipFileRef.current) clipFileRef.current.value = '';
+  };
+
+  const removeVoiceClip = (id) => {
+    const voiceClips = (data.settings.voiceClips || []).filter((clip) => clip.id !== id);
+    patchSettings({ voiceClips });
+  };
+
+  const previewClip = (clip) => {
+    if (!clip?.url) return;
+    const played = playVoiceClip({ voiceClips: [clip] }, clip.phraseType);
+    if (!played) setNotice('تعذر تشغيل الصوت.');
+  };
+
   const cloud = data.settings.cloudSync || {};
+  const voiceClips = Array.isArray(data.settings.voiceClips) ? data.settings.voiceClips : [];
 
   return <section className="page">
     <div className="page-heading"><div><span className="eyebrow">الحماية والتحكم</span><h2>إعدادات المنصة</h2><p>حدد ما يظهر، فعّل القفل، وتحكم في الصوت والنسخ والمزامنة.</p></div></div>
@@ -88,6 +144,37 @@ export default function Settings({ data, updateData, resetAppData }) {
         <label className="setting-row"><span>الترحيب عند الفتح</span><input type="checkbox" checked={data.settings.welcomeVoice} onChange={(e)=>patchSettings({welcomeVoice:e.target.checked})}/></label>
         <label className="setting-row"><span>مستوى الصوت</span><input type="range" min="0" max="1" step="0.1" value={data.settings.voiceVolume} onChange={(e)=>patchSettings({voiceVolume:Number(e.target.value)})}/></label>
         <button className="secondary-btn" onClick={()=>speakWelcome(data.settings)}>تجربة صوت الترحيب</button>
+
+        <div className="voice-clips-box">
+          <div className="voice-clips-header">
+            <strong>أصوات مخصصة من الموبايل</strong>
+            <small>اربط كل صوت بفئة تشجيعية</small>
+          </div>
+          <div className="voice-clip-form">
+            <input placeholder="اسم الصوت" value={clipTitle} onChange={(e) => setClipTitle(e.target.value)} />
+            <select value={clipType} onChange={(e) => setClipType(e.target.value)}>
+              {clipTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <input placeholder="الجملة المكتوبة أو الوصف" value={clipText} onChange={(e) => setClipText(e.target.value)} />
+            <button type="button" className="secondary-btn" onClick={() => clipFileRef.current?.click()}><Plus size={16}/> رفع ملف صوت</button>
+          </div>
+          <input ref={clipFileRef} type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" hidden onChange={(e) => addVoiceClip(e.target.files?.[0])} />
+          <div className="voice-clips-list">
+            {voiceClips.length ? voiceClips.map((clip) => (
+              <div className="voice-clip-item" key={clip.id}>
+                <div>
+                  <strong>{clip.title}</strong>
+                  <small>{clipTypes.find(([value]) => value === clip.phraseType)?.[1] || clip.phraseType} • {clip.fileName || clip.text || 'صوت مخصص'}</small>
+                </div>
+                <div className="voice-clip-actions">
+                  <button className="secondary-btn" onClick={() => previewClip(clip)}><Play size={16}/> تشغيل</button>
+                  <button className="secondary-btn danger-text" onClick={() => removeVoiceClip(clip.id)}><Trash2 size={16}/> حذف</button>
+                </div>
+              </div>
+            )) : <small className="settings-help">لا توجد أصوات مخصصة بعد.</small>}
+          </div>
+          {clipInfo && <div className="settings-notice">{clipInfo}</div>}
+        </div>
       </article>
 
       <article className="panel cloud-settings"><h3>المزامنة السحابية</h3><p className="settings-help">تعمل المنصة Offline بدون إعداد. بعد نشر خادم المزامنة يمكنك الرفع والتنزيل من أي جهاز.</p>
@@ -102,7 +189,6 @@ export default function Settings({ data, updateData, resetAppData }) {
         <div className="backup-actions"><button className="primary-btn" onClick={()=>downloadBackup(data)}>تصدير نسخة احتياطية</button><button className="secondary-btn" onClick={()=>fileRef.current?.click()}>استعادة نسخة</button></div>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e)=>e.target.files?.[0]&&restore(e.target.files[0])}/>
       </article>
-
 
       <article className="panel"><h3>تحديث التطبيق</h3><p className="settings-help">يمكنك إضافة رابط ملف JSON عام يحتوي على version وapkUrl وnotes، وإن تُرك فارغًا ستستخدم المنصة ملفًا داخليًا آمنًا للمعاينة.</p>
         <label className="setting-row"><span>رابط Manifest</span><input value={data.settings.update?.manifestUrl || ''} placeholder="https://.../update.json" onChange={(e)=>patchSettings({update:{...(data.settings.update||{}),manifestUrl:e.target.value.trim()}})}/></label>

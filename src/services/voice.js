@@ -33,6 +33,9 @@ const phrases = {
     'هو إحنا هنفضل كده يا {name}',
     'فين المذاكرة يا {name}',
     'ده أنت هتجيبلي الضغط يا {name}'
+  ],
+  welcome: [
+    'السلام عليكم ورحمة الله وبركاته، أهلاً بك أستاذ مصطفى بركات. نورت منصة المُبدع لتعليم ممتع.'
   ]
 };
 
@@ -46,7 +49,28 @@ function pickNonRepeated(type, name) {
   return selectedText.replace('{name}', name);
 }
 
-export function speakArabic(text, settings = {}, style = 'normal') {
+function playAudioUrl(url) {
+  if (!url) return false;
+  try {
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+    audio.play().catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function findClip(settings, phraseType) {
+  const clips = Array.isArray(settings?.voiceClips) ? settings.voiceClips : [];
+  const normalized = String(phraseType || '').toLowerCase();
+  const exact = clips.filter((clip) => clip && clip.url && String(clip.phraseType || clip.type || '').toLowerCase() === normalized);
+  if (exact.length) return exact[exact.length - 1];
+  const byText = clips.find((clip) => clip?.url && clip?.text && String(clip.text).toLowerCase().includes(normalized));
+  return byText || null;
+}
+
+function speakWithFallback(text, settings = {}, style = 'normal') {
   if (settings.voiceEnabled === false || !text || !('speechSynthesis' in window)) return false;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
@@ -68,12 +92,31 @@ export function speakArabic(text, settings = {}, style = 'normal') {
   return true;
 }
 
+export function playVoiceClip(settings, phraseType) {
+  const clip = findClip(settings, phraseType);
+  if (!clip) return null;
+  const played = playAudioUrl(clip.url);
+  return played ? clip : null;
+}
+
+export function speakArabic(text, settings = {}, style = 'normal') {
+  const clipType = style === 'bored' ? 'comic' : style === 'excited' ? 'excellent' : null;
+  if (clipType && playVoiceClip(settings, clipType)) return true;
+  return speakWithFallback(text, settings, style);
+}
+
 export function encourageStudent(type, studentName, settings) {
+  const played = playVoiceClip(settings, type);
+  if (played) {
+    return played.title || played.text || pickNonRepeated(type, studentName);
+  }
   const text = pickNonRepeated(type, studentName);
-  speakArabic(text, settings, type === 'comic' ? 'bored' : type === 'excellent' ? 'excited' : 'normal');
+  speakWithFallback(text, settings, type === 'comic' ? 'bored' : type === 'excellent' ? 'excited' : 'normal');
   return text;
 }
 
 export function speakWelcome(settings) {
-  return speakArabic('السلام عليكم ورحمة الله وبركاته، أهلاً بك أستاذ مصطفى بركات. نورت منصة المُبدع لتعليم ممتع.', settings, 'normal');
+  const played = playVoiceClip(settings, 'welcome');
+  if (played) return true;
+  return speakWithFallback('السلام عليكم ورحمة الله وبركاته، أهلاً بك أستاذ مصطفى بركات. نورت منصة المُبدع لتعليم ممتع.', settings, 'normal');
 }

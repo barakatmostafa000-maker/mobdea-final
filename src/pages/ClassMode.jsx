@@ -29,6 +29,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { encourageStudent } from '../services/voice';
+import { questionBank } from '../data/questionBank';
 import { queueAbsenceNotification } from '../services/notifications';
 import { formatTime12, todayISO } from '../utils/time';
 
@@ -97,6 +98,9 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [boardTemplate, setBoardTemplate] = useState('blank');
   const [selectedResourceId, setSelectedResourceId] = useState(data.settings?.classResourceId || resources[0]?.id || '');
   const [flowIndex, setFlowIndex] = useState(0);
+  const [annotationText, setAnnotationText] = useState('');
+  const [annotationColor, setAnnotationColor] = useState('#d7ad35');
+  const [annotationMode, setAnnotationMode] = useState('note');
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
 
@@ -106,6 +110,49 @@ export default function ClassMode({ data, updateData, navigate }) {
   );
   const flow = useMemo(() => normalizeSequence(selectedResource?.sequence), [selectedResource]);
   const activeFlow = flow[flowIndex] || flow[0] || 'preview';
+  const resourceAnnotations = Array.isArray(selectedResource?.annotations) ? selectedResource.annotations : [];
+  const relatedQuestions = useMemo(() => {
+    const baseBank = [...questionBank, ...(data.customQuestionBank || [])];
+    const ids = normalizeTags(selectedResource?.relatedQuestionIds || selectedResource?.questionIds || []);
+    const byIds = ids.length ? ids.map((id) => baseBank.find((question) => String(question.id) === String(id))).filter(Boolean) : [];
+    if (byIds.length) return byIds;
+    if (!selectedResource) return [];
+    return baseBank
+      .filter((question) => question.grade === selectedResource.grade && question.unit === selectedResource.unit && question.lesson === selectedResource.lesson)
+      .slice(0, 8);
+  }, [data.customQuestionBank, selectedResource]);
+
+  const saveSelectedResource = async (patch = {}) => {
+    if (!selectedResource) return;
+    const nextResources = (data.contentLibrary || []).map((resource) =>
+      String(resource.id) === String(selectedResource.id)
+        ? { ...resource, ...patch, updatedAt: new Date().toISOString() }
+        : resource
+    );
+    await updateData({ ...data, contentLibrary: nextResources });
+  };
+
+  const addAnnotation = async () => {
+    if (!annotationText.trim() || !selectedResource) return;
+    const next = [
+      ...resourceAnnotations,
+      {
+        id: Date.now(),
+        text: annotationText.trim(),
+        color: annotationColor,
+        mode: annotationMode,
+        createdAt: new Date().toISOString()
+      }
+    ];
+    await saveSelectedResource({ annotations: next });
+    setAnnotationText('');
+  };
+
+  const removeAnnotation = async (id) => {
+    if (!selectedResource) return;
+    const next = resourceAnnotations.filter((item) => item.id !== id);
+    await saveSelectedResource({ annotations: next });
+  };
 
   useEffect(() => {
     if (!resources.length) return;
@@ -332,12 +379,33 @@ export default function ClassMode({ data, updateData, navigate }) {
           </div>
           <div className="tool-group"><button onClick={clearCanvas}><RotateCcw/> مسح</button><button onClick={saveBoard}><Save/> حفظ صورة</button></div>
         </div>
+        <div className="board-paper-header">
+          <div><span>الصف</span><strong>{currentGrade || '—'}</strong></div>
+          <div><span>الدرس</span><strong>{selectedResource?.lesson || selectedResource?.title || current.title}</strong></div>
+          <div><span>المورد</span><strong>{selectedResource?.title || 'بدون مورد'}</strong></div>
+        </div>
         <div className="board-stage-summary">
           <div><span>خطوة الحصة</span><strong>{flowLabels[activeFlow] || activeFlow}</strong></div>
-          <div><span>المورد الحالي</span><strong>{selectedResource?.title || 'بدون مورد'}</strong></div>
           <div><span>الصفحات</span><strong>{selectedResource ? `${selectedResource.pageStart || '—'} / ${selectedResource.pageEnd || '—'}` : '—'}</strong></div>
           <div><span>الوضع</span><strong>{boardTemplates.find((item) => item.key === boardTemplate)?.label || 'فارغ'}</strong></div>
+          <div><span>التثبيت</span><strong>{data.settings?.classResourceTitle ? 'نشط' : 'غير مثبت'}</strong></div>
         </div>
+        {selectedResource && <div className="resource-preview-frame">
+          <div className="resource-preview-head">
+            <strong>{selectedResource.title}</strong>
+            <small>{selectedResource.fileName || selectedResource.mimeType || selectedResource.type}</small>
+          </div>
+          <div className="resource-preview-body">
+            {selectedResource.type === 'image' && selectedResource.url && <img src={selectedResource.url} alt={selectedResource.title} />}
+            {selectedResource.type === 'video' && selectedResource.url && <video controls src={selectedResource.url} />}
+            {selectedResource.type === 'audio' && selectedResource.url && <audio controls src={selectedResource.url} />}
+            {selectedResource.type === 'pdf' && selectedResource.url && <iframe title={selectedResource.title} src={selectedResource.url} />}
+            {!['image', 'video', 'audio', 'pdf'].includes(selectedResource.type) && <div className="resource-placeholder">المورد جاهز للشرح والكتابة فوقه.</div>}
+            {resourceAnnotations.length > 0 && <div className="resource-annotation-overlay">
+              {resourceAnnotations.map((note) => <span key={note.id} style={{ background: note.color }}>{note.text}</span>)}
+            </div>}
+          </div>
+        </div>}
         <div className="canvas-wrap">
           <canvas ref={canvasRef} width="1200" height="700" style={boardBackground(boardTemplate)} onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw} onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}/>
         </div>
@@ -365,6 +433,45 @@ export default function ClassMode({ data, updateData, navigate }) {
           <div className="lesson-resource-note">{selectedResource?.notes || 'اختر موردًا لتظهر الملاحظات هنا.'}</div>
           <div className="lesson-resource-meta">
             {normalizeTags(selectedResource?.tags).map((tag) => <span key={tag}>#{tag}</span>)}
+          </div>
+        </article>
+        <article className="panel">
+          <span className="eyebrow">الكتابة على المورد</span>
+          <h3>إضافة ملاحظات فوق PDF أو الصورة</h3>
+          <div className="annotation-controls">
+            <select value={annotationMode} onChange={(e) => setAnnotationMode(e.target.value)}>
+              <option value="note">ملاحظة</option>
+              <option value="highlight">تمييز</option>
+              <option value="question">سؤال</option>
+              <option value="answer">إجابة</option>
+            </select>
+            <input value={annotationText} onChange={(e) => setAnnotationText(e.target.value)} placeholder="اكتب الملاحظة أو الشرح هنا" />
+            <input type="color" value={annotationColor} onChange={(e) => setAnnotationColor(e.target.value)} />
+          </div>
+          <div className="annotation-actions">
+            <button className="primary-btn" onClick={addAnnotation}><StickyNote size={16}/> إضافة كتابة</button>
+            <button className="secondary-btn" onClick={() => setAnnotationText('')}>مسح النص</button>
+          </div>
+          <div className="annotation-list">
+            {resourceAnnotations.length ? resourceAnnotations.map((note) => (
+              <div className="annotation-chip" key={note.id} style={{ borderColor: note.color }}>
+                <span style={{ background: note.color }}>{note.mode === 'highlight' ? 'تمييز' : note.mode === 'question' ? 'سؤال' : note.mode === 'answer' ? 'إجابة' : 'ملاحظة'}</span>
+                <p>{note.text}</p>
+                <button className="text-btn danger-text" onClick={() => removeAnnotation(note.id)}>حذف</button>
+              </div>
+            )) : <small className="settings-help">لا توجد ملاحظات فوق المورد بعد.</small>}
+          </div>
+        </article>
+        <article className="panel">
+          <span className="eyebrow">الأسئلة المرتبطة</span>
+          <h3>بنك الأسئلة المرتبط بالمورد</h3>
+          <div className="related-question-list">
+            {relatedQuestions.length ? relatedQuestions.map((question) => (
+              <button className="related-question-chip" key={question.id} onClick={() => navigate('questionBank')}>
+                <strong>{question.text}</strong>
+                <small>{question.unit} • {question.lesson}</small>
+              </button>
+            )) : <small className="settings-help">لا توجد أسئلة مرتبطة بعد.</small>}
           </div>
         </article>
         <article className="panel">

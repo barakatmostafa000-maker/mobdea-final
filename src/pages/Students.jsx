@@ -1,6 +1,20 @@
 import { useMemo, useState } from 'react';
-import { ContactRound } from 'lucide-react';
+import { ContactRound, Trash2 } from 'lucide-react';
 import { normalizeEgyptPhone, pickPhoneFromContacts } from '../services/contacts';
+
+function pruneStudentFromData(data, studentId) {
+  return {
+    ...data,
+    students: data.students.filter((student) => student.id !== studentId),
+    attendance: (data.attendance || []).filter((item) => item.studentId !== studentId),
+    grades: (data.grades || []).filter((item) => item.studentId !== studentId),
+    detailedResults: (data.detailedResults || []).filter((item) => item.studentId !== studentId),
+    payments: (data.payments || []).filter((item) => item.studentId !== studentId),
+    gameResults: (data.gameResults || []).filter((item) => item.studentId !== studentId && item.secondStudentId !== studentId),
+    notifications: (data.notifications || []).filter((item) => item.studentId !== studentId),
+    achievements: (data.achievements || []).filter((item) => item.studentId !== studentId),
+  };
+}
 
 export default function Students({ data, updateData }) {
   const [search, setSearch] = useState('');
@@ -33,6 +47,12 @@ export default function Students({ data, updateData }) {
     setForm(null);
   };
 
+  const remove = (student) => {
+    if (!window.confirm(`حذف الطالب ${student.name} نهائيًا؟ سيتم حذف بياناته المرتبطة فقط دون التأثير على بقية الطلاب.`)) return;
+    updateData(pruneStudentFromData(data, student.id));
+    if (form?.id === student.id) setForm(null);
+  };
+
   return (
     <section className="page">
       <div className="page-heading">
@@ -53,7 +73,10 @@ export default function Students({ data, updateData }) {
                   <td>{student.grade}</td>
                   <td>{student.group}</td>
                   <td>{student.guardianPhone}</td>
-                  <td><button className="text-btn" onClick={() => setForm({ ...student })}>تعديل</button></td>
+                  <td style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                    <button className="text-btn" onClick={() => setForm({ ...student })}>تعديل</button>
+                    <button className="text-btn danger-text" onClick={() => remove(student)}><Trash2 size={16} /> حذف</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
