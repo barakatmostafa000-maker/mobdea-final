@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Play, Plus, Trash2 } from 'lucide-react';
 import { speakWelcome, playVoiceClip } from '../services/voice';
-import { createPinSecret } from '../utils/security';
+import { createPinSecret, createRecoverySecret } from '../utils/security';
 import { downloadBackup, readBackupFile } from '../services/backup';
 import { pullCloudData, pushCloudData, testCloudConnection } from '../services/cloudSync';
 
@@ -19,6 +19,9 @@ const clipTypes = [
 
 export default function Settings({ data, updateData, resetAppData }) {
   const [pin, setPin] = useState('');
+  const [teacherPin, setTeacherPin] = useState('');
+  const [recoveryQuestion, setRecoveryQuestion] = useState(data.settings.staffRecoveryQuestion || '');
+  const [recoveryAnswer, setRecoveryAnswer] = useState('');
   const [notice, setNotice] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [clipTitle, setClipTitle] = useState('');
@@ -34,10 +37,27 @@ export default function Settings({ data, updateData, resetAppData }) {
 
   const savePin = async () => {
     if (!/^\d{4,6}$/.test(pin)) { setNotice('PIN يجب أن يكون من 4 إلى 6 أرقام'); return; }
-    const secret = await createPinSecret(pin);
+    const secret = await createPinSecret(pin, 'admin');
     await patchSettings({ adminPin: '', adminPinHash: secret.adminPinHash, adminPinSalt: secret.adminPinSalt });
     setPin('');
-    setNotice('تم حفظ PIN بشكل آمن');
+    setNotice('تم حفظ رقم الإدارة السري بشكل آمن');
+  };
+
+  const saveTeacherPin = async () => {
+    if (!/^\d{4,6}$/.test(teacherPin)) { setNotice('PIN يجب أن يكون من 4 إلى 6 أرقام'); return; }
+    const secret = await createPinSecret(teacherPin, 'teacher');
+    await patchSettings({ teacherPin: '', teacherPinHash: secret.teacherPinHash, teacherPinSalt: secret.teacherPinSalt });
+    setTeacherPin('');
+    setNotice('تم حفظ رقم المعلم السري بشكل آمن');
+  };
+
+  const saveRecovery = async () => {
+    if (!recoveryQuestion.trim()) { setNotice('اكتب سؤال الاسترجاع أولًا'); return; }
+    if (!recoveryAnswer.trim()) { setNotice('اكتب إجابة سؤال الاسترجاع'); return; }
+    const secret = await createRecoverySecret(recoveryAnswer);
+    await patchSettings({ staffRecoveryQuestion: recoveryQuestion.trim(), staffRecoveryAnswerHash: secret.staffRecoveryAnswerHash, staffRecoveryAnswerSalt: secret.staffRecoveryAnswerSalt });
+    setRecoveryAnswer('');
+    setNotice('تم حفظ سؤال الاسترجاع، ويمكن استخدامه من شاشة الدخول عند نسيان الرقم السري');
   };
 
   const restore = async (file) => {
@@ -131,9 +151,18 @@ export default function Settings({ data, updateData, resetAppData }) {
     <div className="settings-grid">
       <article className="panel"><h3>الحماية</h3>
         <label className="setting-row"><span>تفعيل قفل الإدارة</span><input type="checkbox" checked={data.settings.lockEnabled} onChange={(e) => patchSettings({ lockEnabled: e.target.checked })}/></label>
-        <label className="setting-row"><span>PIN الإدارة</span><input value={pin} inputMode="numeric" maxLength="6" onChange={(e) => setPin(e.target.value.replace(/\D/g,''))}/></label>
+        <label className="setting-row"><span>PIN الإدارة</span><input value={pin} inputMode="numeric" maxLength="6" placeholder={data.settings.adminPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا'} onChange={(e) => setPin(e.target.value.replace(/\D/g,''))}/></label>
         <label className="setting-row"><span>القفل بعد عدم الاستخدام</span><select value={data.settings.lockAfterMinutes || 10} onChange={(e)=>patchSettings({lockAfterMinutes:Number(e.target.value)})}><option value="5">5 دقائق</option><option value="10">10 دقائق</option><option value="20">20 دقيقة</option><option value="30">30 دقيقة</option></select></label>
-        <button className="primary-btn" onClick={savePin}>حفظ PIN</button>
+        <button className="primary-btn" onClick={savePin}>حفظ PIN الإدارة</button>
+
+        <label className="setting-row"><span>PIN المعلم</span><input value={teacherPin} inputMode="numeric" maxLength="6" placeholder={data.settings.teacherPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا للمعلم'} onChange={(e) => setTeacherPin(e.target.value.replace(/\D/g,''))}/></label>
+        <button className="secondary-btn" onClick={saveTeacherPin}>حفظ PIN المعلم</button>
+
+        <div className="settings-divider" />
+        <p className="settings-help">سؤال الاسترجاع يُستخدم لإعادة ضبط رقم المعلم أو الإدارة مباشرة من شاشة الدخول عند نسيانه.</p>
+        <label className="setting-row"><span>سؤال الاسترجاع</span><input value={recoveryQuestion} placeholder="مثال: ما اسم أول مدرسة عملت بها؟" onChange={(e)=>setRecoveryQuestion(e.target.value)}/></label>
+        <label className="setting-row"><span>الإجابة</span><input value={recoveryAnswer} placeholder={data.settings.staffRecoveryAnswerHash ? 'إجابة محفوظة — اكتب إجابة جديدة لتغييرها' : 'اكتب الإجابة'} onChange={(e)=>setRecoveryAnswer(e.target.value)}/></label>
+        <button className="secondary-btn" onClick={saveRecovery}>حفظ سؤال الاسترجاع</button>
       </article>
 
       <article className="panel"><h3>التحكم فيما يظهر</h3>

@@ -38,6 +38,10 @@ const AUTH_STORAGE_KEY = 'mobdea_mobile_auth_v1';
 
 function readAuthFromStorage() {
   try {
+    // "تذكرني" sessions are kept in localStorage so they survive app restarts;
+    // regular sessions live only in sessionStorage for the current tab.
+    const persisted = globalThis.localStorage?.getItem(AUTH_STORAGE_KEY);
+    if (persisted) return JSON.parse(persisted);
     const raw = globalThis.sessionStorage?.getItem(AUTH_STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -49,6 +53,7 @@ export default function App() {
   const [active, setActive] = useState('dashboard');
   const [data, setData] = useState(null);
   const [auth, setAuth] = useState(() => readAuthFromStorage());
+  const rememberRef = useRef(Boolean(globalThis.localStorage?.getItem(AUTH_STORAGE_KEY)));
   const [welcomePlayed, setWelcomePlayed] = useState(false);
   const [shareState, setShareState] = useState(() => readShareFromLocation(globalThis.location));
   const autoCheckedRef = useRef(false);
@@ -57,8 +62,16 @@ export default function App() {
 
   useEffect(() => {
     try {
-      if (auth) globalThis.sessionStorage?.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
-      else globalThis.sessionStorage?.removeItem(AUTH_STORAGE_KEY);
+      if (auth && rememberRef.current) {
+        globalThis.localStorage?.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+        globalThis.sessionStorage?.removeItem(AUTH_STORAGE_KEY);
+      } else if (auth) {
+        globalThis.sessionStorage?.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+        globalThis.localStorage?.removeItem(AUTH_STORAGE_KEY);
+      } else {
+        globalThis.sessionStorage?.removeItem(AUTH_STORAGE_KEY);
+        globalThis.localStorage?.removeItem(AUTH_STORAGE_KEY);
+      }
     } catch {
       // ignore storage failures
     }
@@ -140,8 +153,9 @@ export default function App() {
     };
   }, [data]);
 
-  const handleUnlock = (session) => {
+  const handleUnlock = (session, options = {}) => {
     const next = session || { role: 'admin' };
+    rememberRef.current = Boolean(options.remember);
     setAuth(next);
     setActive(ROLE_HOME[next.role] || 'dashboard');
     if (shareState.kind === 'game') setActive('games');
@@ -149,6 +163,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    rememberRef.current = false;
     setAuth(null);
     setWelcomePlayed(false);
     setActive('dashboard');
@@ -174,7 +189,7 @@ export default function App() {
   if (shareState.kind && !auth) {
     return <SharedAccess data={data} shareKind={shareState.kind} sharePayload={shareState.payload} onGoHome={goHomeFromShare} onOpenScreen={openScreenFromShare} />;
   }
-  if (!auth) return <LockScreen data={data} onUnlock={handleUnlock} />;
+  if (!auth) return <LockScreen data={data} onUnlock={handleUnlock} updateData={updateData} />;
 
   const common = { data, updateData, auth, role: auth.role };
   const screenProps = {
@@ -239,7 +254,9 @@ export default function App() {
       onLogout={handleLogout}
     >
       <Suspense fallback={<LoadingScreen />}>
-        <Screen {...ScreenProps} />
+        <div key={constrainedActive} className="screen-stage">
+          <Screen {...ScreenProps} />
+        </div>
       </Suspense>
     </AppShell>
   );

@@ -29,26 +29,47 @@ async function sha256Hex(text) {
   return Math.abs(hash).toString(16).padStart(8, '0');
 }
 
-export async function createPinSecret(pin) {
+export async function createPinSecret(pin, prefix = 'admin') {
   const normalizedPin = String(pin ?? '').replace(/\D/g, '').slice(0, 6);
   const salt = randomSalt();
   const hash = await sha256Hex(`${salt}:${normalizedPin}`);
   return {
-    adminPinHash: hash,
-    adminPinSalt: salt,
+    [`${prefix}PinHash`]: hash,
+    [`${prefix}PinSalt`]: salt,
   };
 }
 
-export async function verifyPinSecret(pin, settings = {}) {
+export async function verifyPinSecret(pin, settings = {}, prefix = 'admin') {
   const normalizedPin = String(pin ?? '').replace(/\D/g, '').slice(0, 6);
-  const hash = String(settings.adminPinHash || '').trim();
-  const salt = String(settings.adminPinSalt || '').trim();
+  const hash = String(settings[`${prefix}PinHash`] || '').trim();
+  const salt = String(settings[`${prefix}PinSalt`] || '').trim();
 
   if (hash && salt) {
     const candidate = await sha256Hex(`${salt}:${normalizedPin}`);
     return candidate === hash;
   }
 
-  const legacyPin = String(settings.adminPin || '').replace(/\D/g, '').slice(0, 6);
+  const legacyPin = String(settings[`${prefix}Pin`] || '').replace(/\D/g, '').slice(0, 6);
   return Boolean(legacyPin) && normalizedPin === legacyPin;
+}
+
+// Shared recovery question/answer used to reset the teacher/admin PIN
+// directly from the lock screen when it has been forgotten.
+export async function createRecoverySecret(answer) {
+  const normalized = String(answer ?? '').trim().toLowerCase();
+  const salt = randomSalt();
+  const hash = await sha256Hex(`${salt}:${normalized}`);
+  return {
+    staffRecoveryAnswerHash: hash,
+    staffRecoveryAnswerSalt: salt,
+  };
+}
+
+export async function verifyRecoverySecret(answer, settings = {}) {
+  const normalized = String(answer ?? '').trim().toLowerCase();
+  const hash = String(settings.staffRecoveryAnswerHash || '').trim();
+  const salt = String(settings.staffRecoveryAnswerSalt || '').trim();
+  if (!hash || !salt || !normalized) return false;
+  const candidate = await sha256Hex(`${salt}:${normalized}`);
+  return candidate === hash;
 }
