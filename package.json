@@ -1,35 +1,43 @@
 {
   "name": "mobdea-mobile",
   "private": true,
-  "version": "9.0.0",
+  "version": "9.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/sync-version.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:add:android": "npx cap add android",
+    "test": "node --test tests/*.test.mjs",
+    "lint": "node scripts/lint-source.mjs",
+    "format:check": "node scripts/check-format.mjs",
+    "verify:static": "node scripts/sync-version.mjs && node scripts/verify-project.mjs",
+    "verify": "npm run test && npm run lint && npm run format:check && npm run verify:static && npm run build",
     "cap:sync": "npm run build && npx cap sync android",
     "cap:open:android": "npx cap open android",
-    "verify": "npm run build",
-    "android:prepare": "npm run build && npx cap add android && npx cap sync android",
-    "release:prepare": "npm run build && npx cap sync android",
-    "release:android": "npm run release:prepare && npx cap open android",
-    "verify:release": "npm run build"
+    "android:prepare": "npm run cap:sync",
+    "android:debug": "npm run android:prepare && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run android:prepare && cd android && ./gradlew bundleRelease assembleRelease",
+    "release:prepare": "npm run verify && npx cap sync android",
+    "verify:release": "npm run verify"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
     "@capacitor/app": "^7.0.2",
+    "@capacitor/core": "^7.4.3",
     "@capacitor/preferences": "^7.0.2",
     "@capacitor/share": "^7.0.2",
     "lucide-react": "^0.468.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "qrcode.react": "^4.2.0"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
     "@vitejs/plugin-react": "^4.4.1",
     "vite": "^6.1.0"
+  },
+  "mobdea": {
+    "versionCode": "93"
   }
 }

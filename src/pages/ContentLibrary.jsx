@@ -1,463 +1,575 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
+  BookMarked,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
+  File,
+  FileAudio,
+  FileImage,
   FileText,
-  Image,
-  Layers3,
-  Volume2,
-  Link as LinkIcon,
+  Film,
+  FolderOpen,
+  Image as ImageIcon,
   Map,
+  Mic2,
   PencilLine,
-  PlayCircle,
   Plus,
+  Save,
   Search,
   Sparkles,
-  Presentation,
   Trash2,
-  Eye,
-  GripVertical,
-  BookMarked,
-  LayoutList,
-  Save,
+  Upload,
+  X,
 } from 'lucide-react';
-import { questionBank } from '../data/questionBank';
-import { generateQuestionsFromResource, upsertGeneratedQuestions, removeGeneratedQuestions } from '../services/contentQuestions';
+import { generateQuestionsFromResource, removeGeneratedQuestions, upsertGeneratedQuestions } from '../services/contentQuestions';
+import { deleteAsset, storeAsset } from '../services/assetStore';
+import { useAssetUrl } from '../hooks/useAssetUrl';
+import {
+  LIBRARY_KINDS,
+  getAllLibraryGrades,
+  getGradeExams,
+  getGradeTextbook,
+  getLessonMedia,
+  getLessonModeResources,
+  getLessonsForGrade,
+  gradeResourceId,
+  hasResourceSource,
+  inferMediaType,
+  librarySummary,
+} from '../services/libraryModel';
 
-const resourceTypes = {
-  video: { label: 'فيديو', icon: PlayCircle, hint: 'عرض مرئي سريع' },
-  pdf: { label: 'PDF', icon: FileText, hint: 'شرح أو كتاب' },
-  image: { label: 'صورة', icon: Image, hint: 'خريطة أو وسيلة' },
-  map: { label: 'خريطة', icon: Map, hint: 'نشاط جغرافي' },
-  audio: { label: 'صوت', icon: Volume2, hint: 'تشجيع أو شرح صوتي' },
-  slides: { label: 'عرض', icon: Presentation, hint: 'عرض الحصة' },
-  link: { label: 'رابط', icon: LinkIcon, hint: 'مصدر خارجي' },
+const defaultGrade = 'الصف السادس الابتدائي';
+const defaultSequence = ['preview', 'board', 'practice'];
+const flowLabels = { preview: 'تمهيد', board: 'شرح على السبورة', practice: 'تدريب', quiz: 'تقويم سريع' };
+const mediaLabels = {
+  image: 'صورة',
+  video: 'فيديو',
+  audio: 'ملف صوتي',
+  pdf: 'مستند PDF',
+  file: 'ملف',
+  slides: 'عرض تقديمي',
+  link: 'رابط',
+  map: 'خريطة',
 };
 
-const flowLabels = {
-  preview: 'تمهيد',
-  board: 'السبورة',
-  practice: 'تدريب',
-  quiz: 'تقويم سريع',
-};
+function createLessonForm(grade = defaultGrade) {
+  return {
+    id: '',
+    title: '',
+    grade,
+    term: 'الترم الأول',
+    unit: '',
+    lessonDate: new Date().toISOString().slice(0, 10),
+    pageStart: 1,
+    pageEnd: 1,
+    notes: '',
+    homework: '',
+    tags: '',
+    sequence: [...defaultSequence],
+    thumbnailAssetId: '',
+    thumbnailFileName: '',
+    recordingAssetId: '',
+    recordingFileName: '',
+    mapState: null,
+  };
+}
 
-const emptyForm = {
-  id: null,
-  title: '',
-  grade: 'الصف السادس الابتدائي',
-  term: 'الترم الأول',
-  unit: 'الوحدة الأولى',
-  lesson: 'الدرس الأول',
-  type: 'pdf',
-  url: '',
-  fileName: '',
-  mimeType: '',
-  notes: '',
-  pageStart: '',
-  pageEnd: '',
-  tags: '',
-  relatedQuestionIds: '',
-  sequence: ['preview', 'board', 'practice'],
-};
+function formatSize(bytes = 0) {
+  const size = Number(bytes || 0);
+  if (!size) return '';
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
 
-const normalizeSequence = (sequence) => {
-  if (Array.isArray(sequence)) return sequence.filter(Boolean);
-  if (typeof sequence === 'string') {
-    return sequence.split(',').map((item) => item.trim()).filter(Boolean);
-  }
-  return ['preview', 'board', 'practice'];
-};
+function normalizeTags(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+}
 
-const normalizeTags = (tags) => {
-  if (Array.isArray(tags)) return tags.filter(Boolean);
-  if (typeof tags === 'string') {
-    return tags.split(',').map((item) => item.trim()).filter(Boolean);
-  }
-  return [];
-};
+function MediaIcon({ type, size = 20 }) {
+  const Icon = type === 'image' ? FileImage
+    : type === 'video' ? Film
+      : type === 'audio' ? FileAudio
+        : type === 'pdf' || type === 'textbook' || type === 'exams' ? FileText
+          : File;
+  return <Icon size={size} />;
+}
 
-const normalizeResource = (item) => ({
-  ...item,
-  pageStart: item.pageStart ?? '',
-  pageEnd: item.pageEnd ?? '',
-  tags: normalizeTags(item.tags),
-  sequence: normalizeSequence(item.sequence),
-});
+function AssetAction({ resource, label = 'فتح الملف', className = 'secondary-btn' }) {
+  const url = useAssetUrl(resource?.assetId, resource?.url);
+  if (!url) return null;
+  return <a className={className} href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/>{label}</a>;
+}
 
-const formatPages = (item) => {
-  const start = item.pageStart || item.pages?.start || '';
-  const end = item.pageEnd || item.pages?.end || '';
-  if (start && end) return `ص ${start} — ${end}`;
-  if (start) return `من ص ${start}`;
-  if (end) return `حتى ص ${end}`;
-  return 'بدون صفحات';
-};
+function LessonThumbnail({ lesson }) {
+  const url = useAssetUrl(lesson?.thumbnailAssetId, lesson?.thumbnailUrl);
+  return (
+    <div className="library-lesson-thumbnail">
+      {url ? <img src={url} alt={lesson?.title || 'صورة الدرس'} /> : <BookOpen size={28}/>}
+    </div>
+  );
+}
 
-const matchesText = (resource, search) => {
-  if (!search) return true;
-  const haystack = [resource.title, resource.grade, resource.term, resource.unit, resource.lesson, resource.notes, ...(resource.tags || [])]
-    .join(' ')
-    .toLowerCase();
-  return haystack.includes(search.toLowerCase());
-};
+function LessonAccessAction({ data, lesson, canManage, onOpenLessonMode }) {
+  const firstResource = getLessonModeResources(data, lesson.grade, lesson.id)[0] || null;
+  const url = useAssetUrl(firstResource?.assetId, firstResource?.url);
+  if (canManage) return <button className="primary-btn" type="button" onClick={onOpenLessonMode}><Sparkles size={15}/> فتح الحصة</button>;
+  if (url) return <a className="primary-btn" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/> عرض محتوى الدرس</a>;
+  return <span className="library-content-unavailable">لا يوجد ملف متاح للعرض</span>;
+}
 
-export default function ContentLibrary({ data, updateData }) {
+function PermanentCard({ kind, resource, grade, canManage, busy, onUpload, onRemove }) {
+  const isTextbook = kind === LIBRARY_KINDS.GRADE_TEXTBOOK;
+  const Icon = isTextbook ? BookOpen : BookMarked;
+  const title = isTextbook ? 'كتاب المنهج الرئيسي' : 'ملف الامتحانات الرئيسي';
+  const description = isTextbook
+    ? 'كتاب واحد دائم للصف؛ يستخدمه وضع الحصة تلقائيًا ولا يُطلب رفعه داخل كل درس.'
+    : 'مرجع دائم لبنك الأسئلة ومولد الامتحانات والمساعد الذكي.';
+  return (
+    <article className={`library-permanent-card ${hasResourceSource(resource || {}) ? 'ready' : 'missing'}`}>
+      <div className="library-permanent-icon"><Icon size={30}/></div>
+      <div className="library-permanent-copy">
+        <span className="eyebrow">{grade}</span>
+        <h3>{title}</h3>
+        <p>{description}</p>
+        {resource ? <small>{resource.fileName || resource.title} {resource.fileSize ? `• ${formatSize(resource.fileSize)}` : ''}</small> : <small>لم يُرفع ملف لهذا الصف بعد.</small>}
+      </div>
+      <div className="library-permanent-actions">
+        <AssetAction resource={resource} label="فتح" />
+        {canManage && <button className="primary-btn" type="button" disabled={busy} onClick={onUpload}><Upload size={16}/>{resource ? 'استبدال PDF' : 'رفع PDF'}</button>}
+        {canManage && resource && <button className="icon-action danger-text" type="button" disabled={busy} onClick={onRemove} title="إزالة الملف مع إبقاء البطاقة"><Trash2 size={16}/></button>}
+      </div>
+    </article>
+  );
+}
+
+export default function ContentLibrary({ data, updateData, auth, navigate }) {
+  const canManage = !auth || ['admin', 'teacher'].includes(auth.role);
+  const grades = useMemo(() => getAllLibraryGrades(data), [data]);
+  const [selectedGrade, setSelectedGrade] = useState(data.settings?.libraryGrade || grades.find((item) => item === defaultGrade) || grades[0] || defaultGrade);
+  const [expandedGrades, setExpandedGrades] = useState(() => new Set([selectedGrade]));
   const [search, setSearch] = useState('');
-  const [grade, setGrade] = useState('all');
-  const [unit, setUnit] = useState('all');
-  const [lesson, setLesson] = useState('all');
-  const [type, setType] = useState('all');
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [selectedId, setSelectedId] = useState(null);
-  const [uploadNotice, setUploadNotice] = useState('');
-  const fileRef = useRef(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [form, setForm] = useState(() => createLessonForm(selectedGrade));
+  const [pendingMedia, setPendingMedia] = useState([]);
+  const [removedMediaIds, setRemovedMediaIds] = useState([]);
+  const [replacedAssetIds, setReplacedAssetIds] = useState([]);
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const textbookInputRef = useRef(null);
+  const examsInputRef = useRef(null);
+  const mediaInputRef = useRef(null);
+  const thumbnailInputRef = useRef(null);
+  const recordingInputRef = useRef(null);
 
-  const items = useMemo(() => (data.contentLibrary || []).map(normalizeResource), [data.contentLibrary]);
-  const allQuestions = useMemo(() => [...questionBank, ...(data.customQuestionBank || [])], [data.customQuestionBank]);
-  const grades = [...new Set(items.map((item) => item.grade).filter(Boolean))];
-  const units = [...new Set(items.filter((item) => grade === 'all' || item.grade === grade).map((item) => item.unit).filter(Boolean))];
-  const lessons = [...new Set(items.filter((item) => (grade === 'all' || item.grade === grade) && (unit === 'all' || item.unit === unit)).map((item) => item.lesson).filter(Boolean))];
-  const filtered = useMemo(() => items.filter((item) => (grade === 'all' || item.grade === grade) && (unit === 'all' || item.unit === unit) && (lesson === 'all' || item.lesson === lesson) && (type === 'all' || item.type === type) && matchesText(item, search)), [items, grade, unit, lesson, type, search]);
+  const summary = useMemo(() => librarySummary(data), [data]);
+  const selectedTextbook = useMemo(() => getGradeTextbook(data, selectedGrade), [data, selectedGrade]);
+  const selectedExams = useMemo(() => getGradeExams(data, selectedGrade), [data, selectedGrade]);
+  const editingMedia = useMemo(() => form.id ? getLessonMedia(data, form.id).filter((item) => !removedMediaIds.includes(String(item.id))) : [], [data, form.id, removedMediaIds]);
 
-  useEffect(() => {
-    if (!filtered.length) {
-      setSelectedId(null);
+  const cleanupPending = async () => {
+    await Promise.all(pendingMedia.map((item) => deleteAsset(item.assetId).catch(() => {})));
+    const current = (data.contentLibrary || []).find((item) => String(item.id) === String(form.id));
+    const keep = new Set([current?.thumbnailAssetId, current?.recordingAssetId].filter(Boolean).map(String));
+    const stagedSpecial = [form.thumbnailAssetId, form.recordingAssetId]
+      .filter((id) => id && !keep.has(String(id)));
+    await Promise.all([...replacedAssetIds, ...stagedSpecial]
+      .filter((id, index, list) => id && !keep.has(String(id)) && list.indexOf(id) === index)
+      .map((id) => deleteAsset(id).catch(() => {})));
+  };
+
+  const closeEditor = async () => {
+    await cleanupPending();
+    setPendingMedia([]);
+    setRemovedMediaIds([]);
+    setReplacedAssetIds([]);
+    setEditorOpen(false);
+    setForm(createLessonForm(selectedGrade));
+    setNotice('');
+  };
+
+  const openCreateLesson = (grade = selectedGrade) => {
+    setSelectedGrade(grade);
+    setExpandedGrades((current) => new Set([...current, grade]));
+    setForm(createLessonForm(grade));
+    setPendingMedia([]);
+    setRemovedMediaIds([]);
+    setReplacedAssetIds([]);
+    setEditorOpen(true);
+    setNotice(getGradeTextbook(data, grade) ? 'سيستخدم الدرس كتاب الصف الرئيسي تلقائيًا.' : 'تنبيه: ارفع كتاب الصف الرئيسي قبل فتح صفحات الدرس داخل وضع الحصة.');
+  };
+
+  const openEditLesson = (lesson) => {
+    setSelectedGrade(lesson.grade);
+    setForm({
+      ...createLessonForm(lesson.grade),
+      ...lesson,
+      tags: normalizeTags(lesson.tags).join(', '),
+      sequence: Array.isArray(lesson.sequence) && lesson.sequence.length ? lesson.sequence : [...defaultSequence],
+      pageStart: lesson.pageStart || 1,
+      pageEnd: lesson.pageEnd || lesson.pageStart || 1,
+    });
+    setPendingMedia([]);
+    setRemovedMediaIds([]);
+    setReplacedAssetIds([]);
+    setEditorOpen(true);
+    setNotice('يمكن تعديل بيانات الدرس وإضافة وسائط جديدة دون إعادة رفع كتاب المنهج.');
+  };
+
+  const replaceFormAsset = async (file, type) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const isThumbnail = type === 'thumbnail';
+      if (isThumbnail && !String(file.type || '').startsWith('image/')) throw new Error('الصورة المصغرة يجب أن تكون ملف صورة.');
+      if (type === 'recording' && !String(file.type || '').startsWith('audio/') && !String(file.type || '').startsWith('video/')) throw new Error('تسجيل الدرس يجب أن يكون صوتًا أو فيديو.');
+      const asset = await storeAsset(file, { name: file.name, type: file.type, kind: `lesson-${type}` });
+      const idField = isThumbnail ? 'thumbnailAssetId' : 'recordingAssetId';
+      const nameField = isThumbnail ? 'thumbnailFileName' : 'recordingFileName';
+      if (form[idField]) setReplacedAssetIds((current) => [...current, form[idField]]);
+      setForm((current) => ({ ...current, [idField]: asset.id, [nameField]: asset.name }));
+      setNotice(`تم تجهيز ${isThumbnail ? 'الصورة المصغرة' : 'تسجيل الدرس'} للحفظ.`);
+    } catch (error) {
+      setNotice(error?.message || 'تعذر حفظ الملف.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stageLessonMedia = async (files) => {
+    const list = [...(files || [])];
+    if (!list.length) return;
+    setBusy(true);
+    const staged = [];
+    try {
+      for (const file of list) {
+        const mediaType = inferMediaType(file);
+        const asset = await storeAsset(file, { name: file.name, type: file.type, kind: 'lesson-media' });
+        staged.push({
+          id: `lesson-media:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+          kind: LIBRARY_KINDS.LESSON_MEDIA,
+          type: mediaType,
+          title: file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+          assetId: asset.id,
+          fileName: asset.name,
+          mimeType: asset.type,
+          fileSize: asset.size,
+          notes: '',
+          order: editingMedia.length + pendingMedia.length + staged.length,
+        });
+      }
+      setPendingMedia((current) => [...current, ...staged]);
+      setNotice(`تم تجهيز ${staged.length} ملف/ملفات لإضافتها إلى الدرس.`);
+    } catch (error) {
+      await Promise.all(staged.map((item) => deleteAsset(item.assetId).catch(() => {})));
+      setNotice(error?.message || 'تعذر تجهيز وسائط الدرس.');
+    } finally {
+      setBusy(false);
+      if (mediaInputRef.current) mediaInputRef.current.value = '';
+    }
+  };
+
+  const uploadPermanent = async (kind, file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) {
+      setNotice('الكتاب وملف الامتحانات يجب أن يكونا بصيغة PDF.');
       return;
     }
-    if (!selectedId || !filtered.some((item) => String(item.id) === String(selectedId))) {
-      setSelectedId(filtered[0].id);
+    setBusy(true);
+    let created;
+    try {
+      created = await storeAsset(file, { name: file.name, type: file.type || 'application/pdf', kind });
+      const old = kind === LIBRARY_KINDS.GRADE_TEXTBOOK ? getGradeTextbook(data, selectedGrade) : getGradeExams(data, selectedGrade);
+      const now = new Date().toISOString();
+      const resource = {
+        ...(old || {}),
+        id: old?.id || gradeResourceId(kind, selectedGrade),
+        kind,
+        type: kind === LIBRARY_KINDS.GRADE_TEXTBOOK ? 'textbook' : 'exams',
+        permanent: true,
+        title: `${kind === LIBRARY_KINDS.GRADE_TEXTBOOK ? 'كتاب المنهج الرئيسي' : 'ملف الامتحانات الرئيسي'} — ${selectedGrade}`,
+        grade: selectedGrade,
+        term: old?.term || '',
+        unit: '',
+        lesson: '',
+        assetId: created.id,
+        url: '',
+        fileName: created.name,
+        mimeType: created.type,
+        fileSize: created.size,
+        createdAt: old?.createdAt || now,
+        updatedAt: now,
+      };
+      const contentLibrary = old
+        ? (data.contentLibrary || []).map((item) => String(item.id) === String(old.id) ? resource : item)
+        : [...(data.contentLibrary || []), resource];
+      await updateData({ ...data, contentLibrary, settings: { ...data.settings, libraryGrade: selectedGrade } });
+      if (old?.assetId && old.assetId !== created.id) await deleteAsset(old.assetId).catch(() => {});
+      setNotice(`تم حفظ ${resource.title} بصورة دائمة.`);
+    } catch (error) {
+      if (created?.id) await deleteAsset(created.id).catch(() => {});
+      setNotice(error?.message || 'تعذر حفظ ملف الصف.');
+    } finally {
+      setBusy(false);
+      if (textbookInputRef.current) textbookInputRef.current.value = '';
+      if (examsInputRef.current) examsInputRef.current.value = '';
     }
-  }, [filtered, selectedId]);
-
-  const selected = filtered.find((item) => String(item.id) === String(selectedId)) || filtered[0] || null;
-  const SelectedIcon = (resourceTypes[selected?.type] || resourceTypes.link).icon;
-
-  const resetForm = () => {
-    setUploadNotice('');
-    setForm(emptyForm);
   };
 
-  const inferTypeFromFile = (file) => {
-    const mime = String(file?.type || '').toLowerCase();
-    if (mime.startsWith('image/')) return 'image';
-    if (mime.startsWith('video/')) return 'video';
-    if (mime.startsWith('audio/')) return 'audio';
-    if (mime === 'application/pdf') return 'pdf';
-    const name = String(file?.name || '').toLowerCase();
-    if (name.endsWith('.pdf')) return 'pdf';
-    if (name.endsWith('.mp4') || name.endsWith('.webm') || name.endsWith('.mov')) return 'video';
-    if (name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.m4a') || name.endsWith('.ogg')) return 'audio';
-    if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp') || name.endsWith('.gif')) return 'image';
-    return 'link';
+  const removePermanentFile = async (kind) => {
+    const resource = kind === LIBRARY_KINDS.GRADE_TEXTBOOK ? selectedTextbook : selectedExams;
+    if (!resource) return;
+    const contentLibrary = (data.contentLibrary || []).map((item) => String(item.id) === String(resource.id)
+      ? { ...item, assetId: '', url: '', fileName: '', mimeType: '', fileSize: 0, updatedAt: new Date().toISOString() }
+      : item);
+    await updateData({ ...data, contentLibrary });
+    if (resource.assetId) await deleteAsset(resource.assetId).catch(() => {});
+    setNotice('تمت إزالة الملف، وستظل البطاقة الدائمة متاحة لرفع بديل.');
   };
 
-  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('تعذر قراءة الملف.'));
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.readAsDataURL(file);
-  });
-
-  const importFile = async (file) => {
-    if (!file) return;
-    const url = await fileToDataUrl(file);
-    const type = inferTypeFromFile(file);
-    const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim() || file.name;
-    setForm((previous) => ({
-      ...previous,
-      title: previous.title || title,
-      type,
-      url,
-      fileName: file.name,
-      mimeType: file.type || '',
-    }));
-    setUploadNotice(`تم تحميل الملف: ${file.name}`);
-  };
-
-  const linkedQuestions = useMemo(() => {
-    const ids = normalizeTags(selected?.relatedQuestionIds || selected?.questionIds || []).length
-      ? normalizeTags(selected?.relatedQuestionIds || selected?.questionIds || [])
-      : [];
-    const byIds = ids.length ? ids.map((id) => allQuestions.find((question) => String(question.id) === String(id))).filter(Boolean) : [];
-    if (byIds.length) return byIds;
-    if (!selected) return [];
-    return allQuestions.filter((question) => question.grade === selected.grade && question.unit === selected.unit && question.lesson === selected.lesson).slice(0, 6);
-  }, [selected, allQuestions]);
-
-  const startAdd = () => {
-    resetForm();
-    setShowAdd((value) => !value);
-  };
-
-  const editItem = (item) => {
-    setForm({
-      ...emptyForm,
-      ...item,
-      tags: normalizeTags(item.tags).join(', '),
-      sequence: normalizeSequence(item.sequence),
-      relatedQuestionIds: normalizeTags(item.relatedQuestionIds || item.questionIds).join(', '),
-    });
-    setShowAdd(true);
-  };
-
-  const saveItem = async () => {
-    if (!form.title.trim() || !form.url.trim()) return;
-    const nextItem = normalizeResource({
-      id: form.id ?? Date.now(),
+  const saveLesson = async () => {
+    if (!form.title.trim() || !form.grade.trim()) {
+      setNotice('اكتب اسم الدرس وحدد الصف.');
+      return;
+    }
+    const pageStart = Math.max(1, Number(form.pageStart || 1));
+    const pageEnd = Math.max(pageStart, Number(form.pageEnd || pageStart));
+    setBusy(true);
+    const now = new Date().toISOString();
+    const lessonId = form.id || `lesson:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    const existing = (data.contentLibrary || []).find((item) => String(item.id) === String(lessonId));
+    const lesson = {
+      ...(existing || {}),
+      id: lessonId,
+      kind: LIBRARY_KINDS.LESSON,
+      type: 'lesson',
       title: form.title.trim(),
+      lesson: form.title.trim(),
       grade: form.grade.trim(),
       term: form.term.trim(),
       unit: form.unit.trim(),
-      lesson: form.lesson.trim(),
-      type: form.type,
-      url: form.url.trim(),
-      fileName: form.fileName || '',
-      mimeType: form.mimeType || '',
+      lessonDate: form.lessonDate || '',
+      pageStart,
+      pageEnd,
       notes: form.notes.trim(),
-      pageStart: form.pageStart ? Number(form.pageStart) : '',
-      pageEnd: form.pageEnd ? Number(form.pageEnd) : '',
+      homework: form.homework.trim(),
       tags: normalizeTags(form.tags),
-      sequence: form.sequence.length ? form.sequence : ['preview', 'board', 'practice'],
-      createdAt: form.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      sequence: form.sequence.length ? form.sequence : [...defaultSequence],
+      thumbnailAssetId: form.thumbnailAssetId || '',
+      thumbnailFileName: form.thumbnailFileName || '',
+      recordingAssetId: form.recordingAssetId || '',
+      recordingFileName: form.recordingFileName || '',
+      mapState: form.mapState || existing?.mapState || null,
+      permanent: true,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+    const removedSet = new Set(removedMediaIds.map(String));
+    const keptItems = (data.contentLibrary || []).filter((item) => !removedSet.has(String(item.id)));
+    const withLesson = existing
+      ? keptItems.map((item) => String(item.id) === String(lessonId) ? lesson : item)
+      : [...keptItems, lesson];
+    const mediaRecords = pendingMedia.map((item, index) => ({
+      ...item,
+      lessonId,
+      parentLessonId: lessonId,
+      grade: lesson.grade,
+      term: lesson.term,
+      unit: lesson.unit,
+      lesson: lesson.title,
+      order: editingMedia.length + index,
+      createdAt: item.createdAt || now,
+      updatedAt: now,
+    }));
+    const examSource = getGradeExams(data, lesson.grade);
+    const generated = generateQuestionsFromResource({
+      ...lesson,
+      sourceExamResourceId: examSource?.id || '',
+      sourceExamAssetId: examSource?.assetId || '',
+      sourceExamFileName: examSource?.fileName || '',
     });
-
-    const manualIds = normalizeTags(form.relatedQuestionIds).filter(Boolean);
-    const matchingIds = manualIds.length
-      ? manualIds
-      : allQuestions
-        .filter((question) => question.grade === nextItem.grade && question.unit === nextItem.unit && question.lesson === nextItem.lesson)
-        .slice(0, 12)
-        .map((question) => question.id);
-    const generated = generateQuestionsFromResource(nextItem);
-    const mergedCustomBank = upsertGeneratedQuestions(data.customQuestionBank || [], nextItem, generated);
-    const derivedIds = matchingIds.length ? matchingIds : generated.map((question) => question.id);
-    const savedItem = { ...nextItem, relatedQuestionIds: derivedIds };
-
-    const remaining = items.filter((item) => item.id !== savedItem.id);
-    await updateData({
-      ...data,
-      customQuestionBank: mergedCustomBank,
-      contentLibrary: [...remaining, savedItem].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')),
-    });
-    setSelectedId(savedItem.id);
-    setShowAdd(false);
-    resetForm();
+    const customQuestionBank = upsertGeneratedQuestions(data.customQuestionBank || [], lesson, generated);
+    try {
+      await updateData({
+        ...data,
+        contentLibrary: [...withLesson, ...mediaRecords],
+        customQuestionBank,
+        settings: { ...data.settings, libraryGrade: lesson.grade },
+      });
+      const removedAssets = (data.contentLibrary || [])
+        .filter((item) => removedSet.has(String(item.id)))
+        .map((item) => item.assetId)
+        .filter(Boolean);
+      const oldAssets = replacedAssetIds.filter((id) => id && id !== lesson.thumbnailAssetId && id !== lesson.recordingAssetId);
+      await Promise.all([...removedAssets, ...oldAssets].map((id) => deleteAsset(id).catch(() => {})));
+      setPendingMedia([]);
+      setRemovedMediaIds([]);
+      setReplacedAssetIds([]);
+      setForm({ ...lesson, tags: lesson.tags.join(', ') });
+      setNotice('تم حفظ الدرس وكل وسائطه وربطه تلقائيًا بوضع الحصة وبنك الأسئلة.');
+    } catch (error) {
+      setNotice(error?.message || 'تعذر حفظ الدرس.');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const removeItem = async (id) => {
-    const nextCustomBank = removeGeneratedQuestions(data.customQuestionBank || [], id);
-    await updateData({
-      ...data,
-      customQuestionBank: nextCustomBank,
-      contentLibrary: items.filter((item) => item.id !== id),
-    });
-    if (String(selectedId) === String(id)) setSelectedId(null);
+  const deleteLesson = async (lesson) => {
+    const media = getLessonMedia(data, lesson.id);
+    const ids = new Set([String(lesson.id), ...media.map((item) => String(item.id))]);
+    const assets = [lesson.thumbnailAssetId, lesson.recordingAssetId, ...media.map((item) => item.assetId)].filter(Boolean);
+    const contentLibrary = (data.contentLibrary || []).filter((item) => !ids.has(String(item.id)));
+    let customQuestionBank = removeGeneratedQuestions(data.customQuestionBank || [], lesson.id);
+    for (const item of media) customQuestionBank = removeGeneratedQuestions(customQuestionBank, item.id);
+    const settings = String(data.settings?.classLessonId) === String(lesson.id)
+      ? { ...data.settings, classLessonId: '', classResourceId: '', classResourceQueue: [] }
+      : data.settings;
+    await updateData({ ...data, contentLibrary, customQuestionBank, settings });
+    await Promise.all(assets.map((id) => deleteAsset(id).catch(() => {})));
+    setNotice(`تم حذف درس «${lesson.title}» ووسائطه فقط.`);
   };
 
-  const pinForClass = async (item) => {
+  const openInLessonMode = async (lesson) => {
+    const resources = getLessonModeResources(data, lesson.grade, lesson.id);
     await updateData({
       ...data,
       settings: {
         ...data.settings,
-        classResourceId: item.id,
-        classResourceTitle: item.title,
-        classResourceType: item.type,
-        classResourceFileName: item.fileName || item.title,
-        classResourcePinnedAt: new Date().toISOString(),
+        classLessonId: lesson.id,
+        classResourceId: resources[0]?.id || '',
+        classResourceQueue: resources.map((item) => ({ id: item.id, title: item.title, type: item.type, lessonId: lesson.id })),
+        libraryGrade: lesson.grade,
       },
     });
-    setUploadNotice(`تم تثبيت "${item.title}" في الحصة الحالية.`);
+    setNotice(resources.length ? 'تم تجهيز الدرس وكتابه ووسائطه في وضع الحصة.' : 'تم تجهيز الدرس؛ ارفع كتاب الصف أو وسائطه لإظهار المحتوى.');
+    navigate?.('classMode');
   };
 
-  const toggleSequence = (step) => {
-    setForm((previous) => {
-      const exists = previous.sequence.includes(step);
-      return {
-        ...previous,
-        sequence: exists ? previous.sequence.filter((item) => item !== step) : [...previous.sequence, step],
-      };
-    });
-  };
+  const toggleSequence = (key) => setForm((current) => ({
+    ...current,
+    sequence: current.sequence.includes(key) ? current.sequence.filter((item) => item !== key) : [...current.sequence, key],
+  }));
 
-  const activeType = resourceTypes[form.type] || resourceTypes.link;
+  const filteredLessons = (grade) => {
+    const query = search.trim().toLowerCase();
+    return getLessonsForGrade(data, grade).filter((lesson) => !query || [lesson.title, lesson.unit, lesson.notes, ...normalizeTags(lesson.tags)].join(' ').toLowerCase().includes(query));
+  };
 
   return (
-    <section className="page content-page">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">صفحة الشرح والمحتوى</span>
-          <h2>مكتبة المُبدع التعليمية</h2>
-          <p>فيديو وPDF وصور وخرائط وعروض وروابط مرتبة حسب الصف والوحدة والدرس، مع خط سير للحصة.</p>
-        </div>
-        <div className="content-page-actions">
-          <button className="secondary-btn" onClick={() => fileRef.current?.click()}><Plus size={18}/> رفع من الموبايل</button>
-          <button className="secondary-btn" onClick={startAdd}><Plus size={18}/> {showAdd ? 'إغلاق النموذج' : 'إضافة محتوى'}</button>
-          {selected && <button className="primary-btn" onClick={() => pinForClass(selected)}><Sparkles size={18}/> تثبيت في الحصة</button>}
+    <section className="page content-page library-system-page">
+      <input ref={textbookInputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => void uploadPermanent(LIBRARY_KINDS.GRADE_TEXTBOOK, event.target.files?.[0])}/>
+      <input ref={examsInputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => void uploadPermanent(LIBRARY_KINDS.GRADE_EXAMS, event.target.files?.[0])}/>
+      <input ref={mediaInputRef} type="file" multiple hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" onChange={(event) => void stageLessonMedia(event.target.files)}/>
+      <input ref={thumbnailInputRef} type="file" accept="image/*" hidden onChange={(event) => void replaceFormAsset(event.target.files?.[0], 'thumbnail')}/>
+      <input ref={recordingInputRef} type="file" accept="audio/*,video/*" hidden onChange={(event) => void replaceFormAsset(event.target.files?.[0], 'recording')}/>
+
+      <div className="page-heading library-heading">
+        <div><span className="eyebrow">المصدر الموحد للمحتوى</span><h2>المكتبة وإدارة الدروس</h2><p>الكتاب والامتحانات والدروس ووسائطها تُدار من هنا، وتفتح تلقائيًا داخل وضع الحصة.</p></div>
+        <div className="library-heading-actions">
+          <label>الصف النشط<select value={selectedGrade} onChange={(event) => { setSelectedGrade(event.target.value); setExpandedGrades((current) => new Set([...current, event.target.value])); }}>
+            {grades.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select></label>
+          {canManage && <button className="primary-btn" type="button" onClick={() => openCreateLesson(selectedGrade)}><Plus size={17}/> درس جديد</button>}
         </div>
       </div>
 
-      <div className="content-toolbar panel">
-        <div className="content-search-box">
-          <Search size={18} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث بالعنوان أو الوحدة أو الدرس أو الوسم" />
-        </div>
-        <div className="content-filters-grid">
-          <select value={grade} onChange={(e) => { setGrade(e.target.value); setUnit('all'); setLesson('all'); }}>
-            <option value="all">كل الصفوف</option>
-            {grades.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-          <select value={unit} onChange={(e) => { setUnit(e.target.value); setLesson('all'); }}>
-            <option value="all">كل الوحدات</option>
-            {units.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-          <select value={lesson} onChange={(e) => setLesson(e.target.value)}>
-            <option value="all">كل الدروس</option>
-            {lessons.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="all">كل الأنواع</option>
-            {Object.entries(resourceTypes).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}
-          </select>
-        </div>
+      <div className="library-summary-strip">
+        <article><BookOpen/><span>كتب جاهزة</span><strong>{summary.textbooks}</strong></article>
+        <article><BookMarked/><span>ملفات امتحانات</span><strong>{summary.exams}</strong></article>
+        <article><CalendarDays/><span>الدروس</span><strong>{summary.lessons}</strong></article>
+        <article><FolderOpen/><span>وسائط الدروس</span><strong>{summary.media}</strong></article>
       </div>
 
-      <input
-        ref={fileRef}
-        hidden
-        type="file"
-        accept="image/*,video/*,audio/*,application/pdf,.pdf,.ppt,.pptx,.doc,.docx,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.png,.jpg,.jpeg,.gif,.webp"
-        onChange={(event) => importFile(event.target.files?.[0])}
-      />
-      {uploadNotice && <div className="settings-notice" style={{ marginTop: 10 }}>{uploadNotice}</div>}
+      <div className="library-permanent-grid">
+        <PermanentCard kind={LIBRARY_KINDS.GRADE_TEXTBOOK} resource={selectedTextbook} grade={selectedGrade} canManage={canManage} busy={busy} onUpload={() => textbookInputRef.current?.click()} onRemove={() => void removePermanentFile(LIBRARY_KINDS.GRADE_TEXTBOOK)}/>
+        <PermanentCard kind={LIBRARY_KINDS.GRADE_EXAMS} resource={selectedExams} grade={selectedGrade} canManage={canManage} busy={busy} onUpload={() => examsInputRef.current?.click()} onRemove={() => void removePermanentFile(LIBRARY_KINDS.GRADE_EXAMS)}/>
+      </div>
 
-      {showAdd && <article className="panel content-form-panel">
-        <div className="form-preview-card">
-          <div className="content-icon-large"><activeType.icon size={32} /></div>
-          <div>
-            <strong>{activeType.label}</strong>
-            <small>{activeType.hint}</small>
+      {notice && <div className="settings-notice library-notice">{notice}</div>}
+
+      <div className="library-search-bar"><Search size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث باسم الدرس أو الوحدة أو الملاحظات"/><span>{summary.lessons} درس</span></div>
+
+      <div className="library-grade-accordions">
+        {grades.map((grade) => {
+          const opened = expandedGrades.has(grade);
+          const lessons = filteredLessons(grade);
+          const textbook = getGradeTextbook(data, grade);
+          const exams = getGradeExams(data, grade);
+          return (
+            <section className={`library-grade-section ${opened ? 'open' : ''}`} key={grade}>
+              <div className="library-grade-header">
+                <button className="library-grade-toggle" type="button" aria-expanded={opened} onClick={() => setExpandedGrades((current) => { const next = new Set(current); if (next.has(grade)) next.delete(grade); else next.add(grade); return next; })}>
+                  <div className="library-grade-title"><span>{opened ? <ChevronUp/> : <ChevronDown/>}</span><div><strong>{grade}</strong><small>{lessons.length} درس • الكتاب {hasResourceSource(textbook || {}) ? 'جاهز' : 'غير مرفوع'} • الامتحانات {hasResourceSource(exams || {}) ? 'جاهزة' : 'غير مرفوعة'}</small></div></div>
+                </button>
+                {canManage && <button className="library-grade-add" type="button" onClick={() => openCreateLesson(grade)}><Plus size={16}/> إضافة درس</button>}
+              </div>
+              {opened && <div className="library-lessons-grid">
+                {lessons.map((lesson) => {
+                  const media = getLessonMedia(data, lesson.id);
+                  return (
+                    <article className="library-lesson-card" key={lesson.id}>
+                      <LessonThumbnail lesson={lesson}/>
+                      <div className="library-lesson-main">
+                        <span className="eyebrow">{lesson.unit || 'بدون وحدة'} {lesson.lessonDate ? `• ${lesson.lessonDate}` : ''}</span>
+                        <h3>{lesson.title}</h3>
+                        <p>{lesson.notes || 'لا توجد ملاحظات للدرس.'}{lesson.homework ? ` • الواجب: ${lesson.homework}` : ''}</p>
+                        <div className="library-lesson-meta"><span><FileText size={14}/> ص {lesson.pageStart || 1}–{lesson.pageEnd || lesson.pageStart || 1}</span><span><FolderOpen size={14}/> {media.length} وسائط</span><span><Map size={14}/> {lesson.mapState ? 'خريطة محفوظة' : 'خريطة تلقائية'}</span></div>
+                        <div className="library-media-chips">{media.slice(0, 6).map((item) => <span key={item.id}><MediaIcon type={item.type} size={13}/>{item.title}</span>)}{media.length > 6 && <span>+{media.length - 6}</span>}</div>
+                      </div>
+                      <div className="library-lesson-actions">
+                        <LessonAccessAction data={data} lesson={lesson} canManage={canManage} onOpenLessonMode={() => void openInLessonMode(lesson)}/>
+                        {canManage && <button className="secondary-btn" type="button" onClick={() => openEditLesson(lesson)}><PencilLine size={15}/> تعديل</button>}
+                        {canManage && <button className="icon-action danger-text" type="button" onClick={() => void deleteLesson(lesson)} title="حذف الدرس"><Trash2 size={16}/></button>}
+                      </div>
+                    </article>
+                  );
+                })}
+                {!lessons.length && <div className="empty-state library-empty-grade"><BookOpen size={32}/><p>{search ? 'لا يوجد درس مطابق للبحث في هذا الصف.' : 'لا توجد دروس في هذا الصف بعد.'}</p>{canManage && <button className="secondary-btn" type="button" onClick={() => openCreateLesson(grade)}><Plus size={15}/> إنشاء أول درس</button>}</div>}
+              </div>}
+            </section>
+          );
+        })}
+      </div>
+
+      {editorOpen && <div className="library-editor-backdrop" role="presentation" onClick={() => void closeEditor()}>
+        <aside className="library-lesson-editor" role="dialog" aria-modal="true" aria-label="محرر الدرس" onClick={(event) => event.stopPropagation()}>
+          <header><div><span className="eyebrow">{form.id ? 'تعديل الدرس' : 'درس جديد'}</span><h2>{form.title || 'إنشاء محتوى الدرس'}</h2><p>الكتاب الرئيسي للصف يُستخدم تلقائيًا؛ حدد الصفحات وأرفق الوسائط فقط.</p></div><button className="icon-action" type="button" onClick={() => void closeEditor()}><X/></button></header>
+          <div className="library-editor-textbook-state"><BookOpen size={22}/><div><strong>{getGradeTextbook(data, form.grade)?.fileName || `كتاب ${form.grade} غير مرفوع`}</strong><small>{getGradeTextbook(data, form.grade) ? 'سيظهر تلقائيًا في الحصة ضمن نطاق الصفحات المحدد.' : 'يمكن حفظ الدرس الآن، لكن يجب رفع الكتاب من بطاقته الدائمة.'}</small></div></div>
+          <div className="library-editor-grid">
+            <label className="span-2">اسم الدرس<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="مثال: مفهوم الدولة وعناصرها"/></label>
+            <label>الصف<select value={form.grade} onChange={(event) => setForm({ ...form, grade: event.target.value })}>{grades.map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label>تاريخ الدرس<input type="date" value={form.lessonDate || ''} onChange={(event) => setForm({ ...form, lessonDate: event.target.value })}/></label>
+            <label>الترم<input value={form.term} onChange={(event) => setForm({ ...form, term: event.target.value })}/></label>
+            <label>الوحدة<input value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} placeholder="الوحدة الأولى"/></label>
+            <label>الصفحات من<input type="number" min="1" value={form.pageStart} onChange={(event) => setForm({ ...form, pageStart: event.target.value })}/></label>
+            <label>الصفحات إلى<input type="number" min={form.pageStart || 1} value={form.pageEnd} onChange={(event) => setForm({ ...form, pageEnd: event.target.value })}/></label>
+            <label className="span-2">ملاحظات الدرس<textarea rows="4" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="أهداف الدرس والنقاط المهمة وخطة الشرح..."/></label>
+            <label className="span-2">الواجب المنزلي<textarea rows="3" value={form.homework || ''} onChange={(event) => setForm({ ...form, homework: event.target.value })} placeholder="اكتب واجب الدرس؛ سيظهر في تسجيل الحصة والتقارير."/></label>
+            <label className="span-2">الوسوم<input value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="مصر، خريطة، حضارة"/></label>
           </div>
-        </div>
-        <div className="content-form-grid">
-          <input placeholder="عنوان المحتوى" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <input placeholder="الصف" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
-          <input placeholder="الترم" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} />
-          <input placeholder="الوحدة" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-          <input placeholder="الدرس" value={form.lesson} onChange={(e) => setForm({ ...form, lesson: e.target.value })} />
-          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(resourceTypes).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select>
-          <input placeholder="بداية الصفحات" type="number" min="1" value={form.pageStart} onChange={(e) => setForm({ ...form, pageStart: e.target.value })} />
-          <input placeholder="نهاية الصفحات" type="number" min="1" value={form.pageEnd} onChange={(e) => setForm({ ...form, pageEnd: e.target.value })} />
-          <input className="span-2" placeholder="رابط الملف أو الفيديو أو ارفع ملفًا من الهاتف" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
-          <input className="span-2" placeholder="اسم الملف" value={form.fileName} onChange={(e) => setForm({ ...form, fileName: e.target.value })} />
-          <input className="span-2" placeholder="الصيغة (mime type)" value={form.mimeType} onChange={(e) => setForm({ ...form, mimeType: e.target.value })} />
-          <input className="span-2" placeholder="أسئلة مرتبطة: q-1, q-2, q-3" value={form.relatedQuestionIds} onChange={(e) => setForm({ ...form, relatedQuestionIds: e.target.value })} />
-          <input className="span-2" placeholder="وسوم مفصولة بفواصل: خريطة، تمهيد، اختبار" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
-          <textarea className="span-2" placeholder="ملاحظات / شرح / إجابة" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-        </div>
-        <div className="sequence-builder">
-          {Object.entries(flowLabels).map(([key, label]) => (
-            <button key={key} type="button" className={form.sequence.includes(key) ? 'active' : ''} onClick={() => toggleSequence(key)}>
-              <GripVertical size={15} /> {label}
-            </button>
-          ))}
-        </div>
-        <div className="content-form-actions">
-          <button className="secondary-btn" onClick={resetForm}><LayoutList size={16}/> تفريغ</button>
-          <button className="primary-btn" onClick={saveItem}><Save size={16}/> {form.id ? 'تحديث المحتوى' : 'حفظ المحتوى'}</button>
-        </div>
-      </article>}
 
-      <div className="content-workspace">
-        <div className="content-grid-shell">
-          <div className="content-grid">
-            {filtered.map((item) => {
-              const typeInfo = resourceTypes[item.type] || resourceTypes.link;
-              const Icon = typeInfo.icon;
-              const isSelected = String(selectedId) === String(item.id);
-              return (
-                <article className={`content-card ${isSelected ? 'selected' : ''}`} key={item.id} onClick={() => setSelectedId(item.id)}>
-                  <div className="content-icon"><Icon /></div>
-                  <div className="content-main-copy">
-                    <span>{typeInfo.label} • {item.grade}</span>
-                    <h3>{item.title}</h3>
-                    <p>{item.unit} — {item.lesson}</p>
-                    <small>{formatPages(item)} • {item.fileName || 'بدون اسم ملف'} • {normalizeTags(item.tags).join(' • ') || 'بدون وسوم'}</small>
-                  </div>
-                  <div className="content-actions">
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedId(item.id); editItem(item); }}><PencilLine size={16} /></button>
-                    <a href={item.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><ExternalLink size={16} /></a>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); pinForClass(item); }}><Sparkles size={16} /></button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}><Trash2 size={16} /></button>
-                  </div>
-                </article>
-              );
-            })}
-            {!filtered.length && <div className="panel empty-state content-empty-state"><BookOpen size={34} /><p>لا يوجد محتوى مطابق للفلترة.</p></div>}
-          </div>
-        </div>
+          <section className="library-editor-section"><div className="library-editor-section-head"><div><strong>خط سير الحصة</strong><small>يظهر بنفس الترتيب داخل وضع الحصة.</small></div></div><div className="library-sequence-row">{Object.entries(flowLabels).map(([key, label]) => <button key={key} type="button" className={form.sequence.includes(key) ? 'active' : ''} onClick={() => toggleSequence(key)}>{label}</button>)}</div></section>
 
-        <aside className="content-preview-panel panel">
-          {selected ? (
-            <>
-              <div className="preview-hero">
-                <div className="content-icon-large"><SelectedIcon size={28} /></div>
-                <div>
-                  <span className="eyebrow">معاينة المورد</span>
-                  <h3>{selected.title}</h3>
-                  <p>{selected.grade} • {selected.unit} • {selected.lesson}</p>
-                </div>
-              </div>
-              <div className="preview-meta-grid">
-                <article><span>النوع</span><strong>{(resourceTypes[selected.type] || resourceTypes.link).label}</strong></article>
-                <article><span>الصفحات</span><strong>{formatPages(selected)}</strong></article>
-                <article><span>الخط الزمني</span><strong>{normalizeSequence(selected.sequence).length} خطوات</strong></article>
-                <article><span>الحالة</span><strong>{String(selected.id) === String(data.settings?.classResourceId || '') ? 'مثبت في الحصة' : 'جاهز'}</strong></article>
-              </div>
-              <div className="preview-flow-strip">
-                {normalizeSequence(selected.sequence).map((step) => <span key={step}>{flowLabels[step] || step}</span>)}
-              </div>
-              <div className="preview-media">
-                {selected.type === 'image' && selected.url && <img className="preview-media-image" src={selected.url} alt={selected.title} />}
-                {selected.type === 'video' && selected.url && <video className="preview-media-video" controls src={selected.url} />}
-                {selected.type === 'audio' && selected.url && <audio className="preview-media-audio" controls src={selected.url} />}
-                {selected.type === 'pdf' && selected.url && <iframe className="preview-media-pdf" title={selected.title} src={selected.url} />}
-                {!['image','video','audio','pdf'].includes(selected.type) && <div className="preview-media-fallback">{selected.fileName || 'لا توجد معاينة مباشرة لهذا النوع'}</div>}
-              </div>
-              <div className="preview-notes">
-                <h4>ملاحظات / شرح</h4>
-                <p>{selected.notes || 'لا توجد ملاحظات محفوظة لهذا المورد.'}</p>
-              </div>
-              <div className="preview-linked-questions">
-                <h4>الأسئلة المرتبطة</h4>
-                {linkedQuestions.length ? linkedQuestions.slice(0, 8).map((question) => (
-                  <button key={question.id} type="button" className="linked-question-chip" onClick={() => setSearch(question.text)}>
-                    #{question.id} — {question.lesson}
-                  </button>
-                )) : <span>لا توجد أسئلة مرتبطة بعد.</span>}
-              </div>
-              <div className="preview-tags">
-                {normalizeTags(selected.tags).length ? normalizeTags(selected.tags).map((tag) => <span key={tag}>#{tag}</span>) : <span>#بدون_وسوم</span>}
-              </div>
-              <div className="preview-actions">
-                <a className="primary-btn" href={selected.url} target="_blank" rel="noreferrer"><Eye size={16}/> فتح المورد</a>
-                <button className="secondary-btn" onClick={() => editItem(selected)}><PencilLine size={16}/> تعديل</button>
-                <button className="secondary-btn" onClick={() => pinForClass(selected)}><Sparkles size={16}/> تثبيت في الحصة</button>
-              </div>
-              <div className="preview-summary-box">
-                <BookMarked size={18} />
-                <div>
-                  <strong>خطة الحصة المقترحة</strong>
-                  <p>{normalizeSequence(selected.sequence).map((step) => flowLabels[step] || step).join(' • ')}</p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="empty-state"><BookOpen size={34} /><p>اختر موردًا من المكتبة لعرض تفاصيله هنا.</p></div>
-          )}
+          <section className="library-editor-section">
+            <div className="library-editor-section-head"><div><strong>وسائط الدرس الدائمة</strong><small>صور، فيديو، صوت، PDF ومستندات؛ تُفتح تلقائيًا مع الدرس.</small></div><button className="secondary-btn" type="button" disabled={busy} onClick={() => mediaInputRef.current?.click()}><Plus size={15}/> إضافة ملفات</button></div>
+            <div className="library-editor-media-grid">
+              {[...editingMedia, ...pendingMedia].map((item) => {
+                const pending = pendingMedia.some((entry) => String(entry.id) === String(item.id));
+                return <article key={item.id}><span className="library-editor-media-icon"><MediaIcon type={item.type}/></span><div><strong>{item.title}</strong><small>{mediaLabels[item.type] || 'ملف'} {item.fileSize ? `• ${formatSize(item.fileSize)}` : ''}</small></div><button className="icon-action danger-text" type="button" onClick={() => { if (pending) { setPendingMedia((current) => current.filter((entry) => String(entry.id) !== String(item.id))); deleteAsset(item.assetId).catch(() => {}); } else setRemovedMediaIds((current) => [...current, String(item.id)]); }}><Trash2 size={15}/></button></article>;
+              })}
+              {!editingMedia.length && !pendingMedia.length && <div className="library-editor-empty-media"><FolderOpen size={28}/><span>لا توجد وسائط بعد.</span></div>}
+            </div>
+          </section>
+
+          <section className="library-editor-section library-special-assets"><div><ImageIcon size={20}/><span><strong>صورة الدرس المصغرة</strong><small>{form.thumbnailFileName || 'اختيارية وتظهر في المكتبة.'}</small></span><button className="secondary-btn" type="button" onClick={() => thumbnailInputRef.current?.click()}><Upload size={15}/> {form.thumbnailAssetId ? 'استبدال' : 'رفع'}</button></div><div><Mic2 size={20}/><span><strong>تسجيل الدرس</strong><small>{form.recordingFileName || 'صوت أو فيديو محفوظ مع الدرس.'}</small></span><button className="secondary-btn" type="button" onClick={() => recordingInputRef.current?.click()}><Upload size={15}/> {form.recordingAssetId ? 'استبدال' : 'رفع'}</button></div></section>
+
+          {notice && <div className="settings-notice">{notice}</div>}
+          <footer><button className="secondary-btn" type="button" onClick={() => void closeEditor()}>إلغاء</button><button className="primary-btn" type="button" disabled={busy} onClick={() => void saveLesson()}><Save size={16}/>{busy ? 'جارٍ الحفظ...' : 'حفظ الدرس وكل محتواه'}</button></footer>
         </aside>
-      </div>
+      </div>}
     </section>
   );
 }

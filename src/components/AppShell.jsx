@@ -3,7 +3,7 @@ import {
   Home, Users, CalendarDays, ClipboardCheck, GraduationCap, WalletCards,
   Gamepad2, MessageCircle, BarChart3, Settings, Menu, X, Presentation,
   IdCard, ScanLine, ListChecks, Eye, Stethoscope, ChevronLeft, Sparkles,
-  ShieldCheck, Bell, BrainCircuit, MapPinned, BookOpen, DownloadCloud, LogOut
+  ShieldCheck, Bell, BrainCircuit, MapPinned, BookOpen, DownloadCloud, LogOut, PenTool
 } from 'lucide-react';
 import { identity } from '../config/identity';
 import { release } from '../config/release';
@@ -12,6 +12,7 @@ import { ROLE_LABELS, getRoleModules } from '../utils/auth';
 const baseItems = [
   ['dashboard', 'الرئيسية', Home, 'اليوم والحصة الحالية'],
   ['classMode', 'وضع الحصة', Presentation, 'الشرح والتفاعل والحضور'],
+  ['whiteboard', 'السبورة', PenTool, 'الرسم والكتابة والشرح'],
   ['students', 'الطلاب', Users, 'البيانات والمجموعات'],
   ['studentCards', 'كروت الطلاب', IdCard, 'QR والطباعة'],
   ['sessions', 'الحصص والمجموعات', CalendarDays, 'الجدول والحصة الحالية'],
@@ -39,6 +40,7 @@ const moduleMap = {
 
 export default function AppShell({ active, onChange, children, settings, data, auth, onLogout }) {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const roleModules = useMemo(() => getRoleModules(auth?.role), [auth?.role]);
   const items = useMemo(() => baseItems.filter(([id]) => {
     const key = moduleMap[id];
@@ -64,8 +66,12 @@ export default function AppShell({ active, onChange, children, settings, data, a
 
   const roleLabel = ROLE_LABELS[auth?.role] || 'المستخدم';
 
+  if (active === 'classMode' || active === 'whiteboard') {
+    return <div className="app-shell lesson-mode-shell">{children}</div>;
+  }
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <header className="mobile-header">
         <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label="فتح القائمة"><Menu size={23} /></button>
         <div className="mobile-brand-copy">
@@ -76,7 +82,7 @@ export default function AppShell({ active, onChange, children, settings, data, a
           </div>
         </div>
         <div className="mobile-header-actions">
-          <button className="mobile-role-pill" type="button">{roleLabel}</button>
+          <span className="mobile-role-pill" aria-label={`الدور الحالي: ${roleLabel}`}>{roleLabel}</span>
           <button className="mobile-alert-button" onClick={() => select('messages')} aria-label="التنبيهات">
             <Bell size={20} />
             {readyNotifications > 0 && <b>{readyNotifications}</b>}
@@ -86,14 +92,21 @@ export default function AppShell({ active, onChange, children, settings, data, a
 
       {open && <button className="drawer-overlay" onClick={() => setOpen(false)} aria-label="إغلاق القائمة" />}
 
-      <aside className={`sidebar ${open ? 'open' : ''}`}>
+      <aside className={`sidebar ${open ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-top">
+          <button
+            className="sidebar-desktop-toggle"
+            type="button"
+            onClick={() => setCollapsed((value) => !value)}
+            aria-label={collapsed ? 'توسيع القائمة الجانبية' : 'تصغير القائمة الجانبية'}
+            title={collapsed ? 'توسيع القائمة' : 'تصغير القائمة'}
+          ><Menu size={22} /></button>
           <button className="drawer-close" onClick={() => setOpen(false)} aria-label="إغلاق القائمة"><X size={21} /></button>
           <div className="brand-panel">
-            <div className="brand-avatar brand-avatar-photo" aria-label="صورة المُبدع مصطفى بركات">
-              <img src={identity.portrait} alt={identity.teacherName} />
+            <button className="brand-avatar brand-avatar-photo" type="button" onClick={() => select('dashboard')} aria-label="الانتقال إلى الرئيسية">
+              <img src={identity.logo || identity.icon} alt={identity.schoolName} />
               <i><Sparkles size={13} /></i>
-            </div>
+            </button>
             <div>
               <h1>المُبدع</h1>
               <p>{identity.teacherName.replace('المُبدع ', '')}</p>

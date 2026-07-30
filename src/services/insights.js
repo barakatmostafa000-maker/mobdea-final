@@ -1,3 +1,4 @@
+import { getAllLibraryGrades, getGradeExams, getGradeTextbook, getLessonsForGrade, librarySummary } from './libraryModel';
 function percentage(score, total) {
   return total ? Math.round((Number(score) / Number(total)) * 100) : 0;
 }
@@ -25,6 +26,38 @@ export function studentAnalytics(data, student) {
 export function buildSmartInsights(data) {
   const insights = [];
   const students = data.students || [];
+  const contentSummary = librarySummary(data);
+  const activeGrades = getAllLibraryGrades(data).filter((grade) =>
+    (data.students || []).some((student) => student.grade === grade)
+    || getLessonsForGrade(data, grade).length
+  );
+  activeGrades.forEach((grade) => {
+    const lessonCount = getLessonsForGrade(data, grade).length;
+    if (lessonCount && !getGradeTextbook(data, grade)) insights.push({
+      id: `library-textbook-${grade}`,
+      level: 'warning',
+      type: 'lesson',
+      title: `كتاب ${grade} غير مرفوع`,
+      body: `${lessonCount} درس/دروس في المكتبة لن تعرض صفحات الكتاب تلقائيًا داخل وضع الحصة.`,
+      action: 'ارفع كتاب المنهج الرئيسي من أعلى المكتبة.'
+    });
+    if (lessonCount && !getGradeExams(data, grade)) insights.push({
+      id: `library-exams-${grade}`,
+      level: 'info',
+      type: 'lesson',
+      title: `ملف امتحانات ${grade} غير مرفوع`,
+      body: 'بنك الأسئلة ومولد الامتحانات لا يملكان المرجع الرسمي الدائم لهذا الصف.',
+      action: 'أضف ملف الامتحانات الرئيسي من المكتبة.'
+    });
+  });
+  if (!contentSummary.lessons) insights.push({
+    id: 'library-empty-lessons',
+    level: 'info',
+    type: 'lesson',
+    title: 'المكتبة لا تحتوي دروسًا منظمة بعد',
+    body: 'وضع الحصة سيعمل بالموارد القديمة، لكنه لن يفتح كتابًا ووسائط وصفحات الدرس تلقائيًا.',
+    action: 'أنشئ أول درس من المكتبة واربطه بصفحات الكتاب.'
+  });
 
   students.forEach((student) => {
     const stats = studentAnalytics(data, student);

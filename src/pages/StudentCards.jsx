@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckSquare, Eye, Printer, Search, ShieldCheck, Square, BadgeCheck, IdCard, School, CalendarDays, UserRound, WalletCards, UsersRound, Sparkles, ArrowLeftRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { identity } from '../config/identity';
+import { currentAcademicYear, mirrorCardsForDuplex } from '../utils/printLayout';
 
 const CARD_PRESETS = {
   4: { cols: 2, rows: 2, label: '2 × 2' },
-  6: { cols: 2, rows: 3, label: '2 × 3' },
+  6: { cols: 3, rows: 2, label: '3 × 2' },
+  9: { cols: 3, rows: 3, label: '3 × 3 — مقاس عملي' },
   8: { cols: 2, rows: 4, label: '2 × 4' },
   12: { cols: 3, rows: 4, label: '3 × 4' },
   16: { cols: 4, rows: 4, label: '4 × 4' },
@@ -58,7 +60,7 @@ function CardField({ label, value, icon, wide = false }) {
 }
 
 function FrontCard({ student }) {
-  const year = student.year || student.schoolYear || '2026 - 2026';
+  const year = student.year || student.schoolYear || currentAcademicYear();
   const subscription = student.sessionPrice != null ? `${student.sessionPrice} ج للحصة` : '—';
 
   return (
@@ -82,7 +84,7 @@ function FrontCard({ student }) {
             <p>{identity.teacherTitle}</p>
           </div>
           <div className="front-round-mark">
-            <img src={identity.icon} alt={identity.schoolName} />
+            <img src={identity.logo || identity.icon} alt={identity.schoolName} />
           </div>
         </div>
 
@@ -119,7 +121,7 @@ function BackCard() {
     <article className="student-card-face back-card">
       <div className="back-banner">
         <div className="back-banner-logo">
-          <img src={identity.icon} alt={identity.schoolName} />
+          <img src={identity.logo || identity.icon} alt={identity.schoolName} />
         </div>
         <div>
           <strong>المبدع</strong>
@@ -165,13 +167,14 @@ function BackCard() {
   );
 }
 
-function PrintSheet({ students, side, columns, rows }) {
+function PrintSheet({ students, side, columns, rows, duplexMode = 'none' }) {
   const slots = columns * rows;
   const filler = Array.from({ length: Math.max(0, slots - students.length) }, () => null);
-  const cards = [...students, ...filler].slice(0, slots);
+  const rawCards = [...students, ...filler].slice(0, slots);
+  const cards = side === 'back' ? mirrorCardsForDuplex(rawCards, columns, duplexMode) : rawCards;
 
   return (
-    <section className="print-sheet">
+    <section className={`print-sheet ${side === 'back' && duplexMode !== 'none' ? 'duplex-mirrored' : ''}`} data-side={side}>
       <div className="print-sheet-grid" style={{ '--print-columns': columns, '--print-rows': rows }}>
         {cards.map((student, index) => (
           <div key={student ? student.id : `empty-${index}`} className={`print-slot ${student ? 'has-card' : 'empty-slot'}`}>
@@ -183,7 +186,7 @@ function PrintSheet({ students, side, columns, rows }) {
   );
 }
 
-function PrintRun({ title, students, side, columns, rows }) {
+function PrintRun({ title, students, side, columns, rows, duplexMode = 'none' }) {
   const pages = chunk(students, columns * rows);
 
   return (
@@ -194,9 +197,9 @@ function PrintRun({ title, students, side, columns, rows }) {
       </div>
       <div className="print-pack">
         {pages.map((pageStudents, index) => (
-          <div className="print-pack-page" key={`${side}-${index}`}>
+          <div className={`print-pack-page ${index === pages.length - 1 ? 'last-page' : ''}`} key={`${side}-${index}`}>
             <div className="print-pack-label">الصفحة {index + 1} — {side === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}</div>
-            <PrintSheet students={pageStudents} side={side} columns={columns} rows={rows} />
+            <PrintSheet students={pageStudents} side={side} columns={columns} rows={rows} duplexMode={duplexMode} />
           </div>
         ))}
       </div>
@@ -204,23 +207,29 @@ function PrintRun({ title, students, side, columns, rows }) {
   );
 }
 
-export default function StudentCards({ data }) {
+export default function StudentCards({ data, auth }) {
+  const isOwnCardOnly = auth?.role === 'student';
+  const rosterStudents = useMemo(
+    () => (isOwnCardOnly ? data.students.filter((student) => String(student.id) === String(auth.studentId)) : data.students),
+    [data.students, isOwnCardOnly, auth?.studentId]
+  );
   const [group, setGroup] = useState('all');
   const [query, setQuery] = useState('');
   const [side, setSide] = useState('front');
   const [printMode, setPrintMode] = useState('front');
-  const [cardsPerPage, setCardsPerPage] = useState(24);
-  const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id || null);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [cardsPerPage, setCardsPerPage] = useState(9);
+  const [duplexMode, setDuplexMode] = useState('flip-long-edge');
+  const [selectedStudentId, setSelectedStudentId] = useState(rosterStudents[0]?.id || null);
+  const [selectedIds, setSelectedIds] = useState(isOwnCardOnly && rosterStudents[0] ? [rosterStudents[0].id] : []);
 
-  const groups = [...new Set(data.students.map((student) => student.group).filter(Boolean))];
+  const groups = [...new Set(rosterStudents.map((student) => student.group).filter(Boolean))];
   const filteredStudents = useMemo(() => {
     const search = query.trim().toLowerCase();
-    return data.students.filter((student) => {
+    return rosterStudents.filter((student) => {
       const haystack = `${student.name} ${student.code} ${student.grade} ${student.group}`.toLowerCase();
       return (group === 'all' || student.group === group) && (!search || haystack.includes(search));
     });
-  }, [data.students, group, query]);
+  }, [rosterStudents, group, query]);
 
   const visibleIds = useMemo(() => filteredStudents.map((student) => student.id), [filteredStudents]);
 
@@ -230,9 +239,9 @@ export default function StudentCards({ data }) {
       return;
     }
     if (!filteredStudents.some((student) => student.id === selectedStudentId)) {
-      setSelectedStudentId(filteredStudents[0]?.id || data.students[0]?.id || null);
+      setSelectedStudentId(filteredStudents[0]?.id || rosterStudents[0]?.id || null);
     }
-  }, [filteredStudents, selectedStudentId, data.students]);
+  }, [filteredStudents, selectedStudentId, rosterStudents]);
 
   const selectedVisibleStudents = useMemo(() => {
     const selectedSet = new Set(selectedIds);
@@ -240,7 +249,7 @@ export default function StudentCards({ data }) {
     return pick.length ? pick : filteredStudents;
   }, [filteredStudents, selectedIds]);
 
-  const activeStudent = filteredStudents.find((student) => student.id === selectedStudentId) || filteredStudents[0] || data.students[0];
+  const activeStudent = filteredStudents.find((student) => student.id === selectedStudentId) || filteredStudents[0] || rosterStudents[0];
   const preset = CARD_PRESETS[cardsPerPage] || CARD_PRESETS[24];
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
 
@@ -272,16 +281,20 @@ export default function StudentCards({ data }) {
 
         <label>
           <span>المجموعة</span>
-          <select value={group} onChange={(event) => setGroup(event.target.value)}>
+        {!isOwnCardOnly && (
+        <select value={group} onChange={(event) => setGroup(event.target.value)}>
             <option value="all">كل المجموعات</option>
             {groups.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
+        )}
         </label>
 
+        {!isOwnCardOnly && (
         <label className="card-search">
           <Search size={17} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث بالاسم أو الكود أو الصف" />
         </label>
+        )}
 
         <label>
           <span>عدد الكروت في الصفحة</span>
@@ -327,16 +340,18 @@ export default function StudentCards({ data }) {
           </div>
 
           <div className="print-summary-list">
-            <div><span>إجمالي الطلاب</span><strong>{data.students.length}</strong></div>
+            <div><span>إجمالي الطلاب</span><strong>{rosterStudents.length}</strong></div>
             <div><span>الطلاب بعد الفلترة</span><strong>{filteredStudents.length}</strong></div>
             <div><span>الطلاب المحددون</span><strong>{selectedVisibleStudents.length}</strong></div>
             <div><span>تنسيق الصفحة</span><strong>{preset.label} — {cardsPerPage} كارت</strong></div>
           </div>
 
+          {!isOwnCardOnly && (
           <div className="selection-actions">
             <button className="secondary-btn" onClick={selectAllVisible} disabled={!visibleIds.length || allVisibleSelected} type="button"><CheckSquare size={16} /> تحديد الكل</button>
             <button className="secondary-btn" onClick={clearSelection} type="button"><Square size={16} /> إلغاء التحديد</button>
           </div>
+          )}
 
           <div className="print-mode-group">
             <span>نوع الطباعة</span>
@@ -347,6 +362,17 @@ export default function StudentCards({ data }) {
             </div>
           </div>
 
+          <label className="duplex-mode-control">
+            <span>محاذاة ظهر الكارت عند الطباعة على الوجهين</span>
+            <select value={duplexMode} onChange={(event) => setDuplexMode(event.target.value)}>
+              <option value="flip-long-edge">قلب على الحافة الطويلة — عكس الأعمدة</option>
+              <option value="flip-short-edge">قلب على الحافة القصيرة — تدوير ترتيب الصفحة</option>
+              <option value="none">بدون عكس — للطباعة اليدوية</option>
+            </select>
+            <small>استخدم الإعداد المطابق لطريقة Duplex في الطابعة حتى يأتي الظهر خلف نفس الطالب.</small>
+          </label>
+
+          {!isOwnCardOnly && (
           <div className="card-student-select-list">
             {filteredStudents.map((student) => (
               <label key={student.id} className={`card-student-select-row ${selectedIds.includes(student.id) ? 'selected' : ''}`}>
@@ -359,6 +385,7 @@ export default function StudentCards({ data }) {
               </label>
             ))}
           </div>
+          )}
 
           <div className="card-print-actions">
             <button className="primary-btn icon-button" onClick={() => window.print()} type="button"><Printer size={18} /> طباعة {printMode === 'both' ? 'الوجهين' : (printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي')}</button>
@@ -369,9 +396,9 @@ export default function StudentCards({ data }) {
       <div className="print-pack no-print">
         {printMode === 'both' ? (
           <>
-            <PrintRun title="الوجه الأمامي" students={selectedVisibleStudents} side="front" columns={preset.cols} rows={preset.rows} />
+            <PrintRun title="الوجه الأمامي" students={selectedVisibleStudents} side="front" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
             <div className="print-run-separator" />
-            <PrintRun title="الوجه الخلفي" students={selectedVisibleStudents} side="back" columns={preset.cols} rows={preset.rows} />
+            <PrintRun title="الوجه الخلفي" students={selectedVisibleStudents} side="back" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
           </>
         ) : (
           <PrintRun
@@ -380,6 +407,7 @@ export default function StudentCards({ data }) {
             side={printMode}
             columns={preset.cols}
             rows={preset.rows}
+            duplexMode={duplexMode}
           />
         )}
       </div>
@@ -387,9 +415,9 @@ export default function StudentCards({ data }) {
       <div className="print-only">
         {printMode === 'both' ? (
           <>
-            <PrintRun title="الوجه الأمامي" students={selectedVisibleStudents} side="front" columns={preset.cols} rows={preset.rows} />
+            <PrintRun title="الوجه الأمامي" students={selectedVisibleStudents} side="front" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
             <div className="print-run-separator" />
-            <PrintRun title="الوجه الخلفي" students={selectedVisibleStudents} side="back" columns={preset.cols} rows={preset.rows} />
+            <PrintRun title="الوجه الخلفي" students={selectedVisibleStudents} side="back" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
           </>
         ) : (
           <PrintRun
@@ -398,6 +426,7 @@ export default function StudentCards({ data }) {
             side={printMode}
             columns={preset.cols}
             rows={preset.rows}
+            duplexMode={duplexMode}
           />
         )}
       </div>

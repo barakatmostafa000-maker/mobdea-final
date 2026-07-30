@@ -1,0 +1,95 @@
+package com.mobdea.education.pdf;
+
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.pdf.PdfRenderer;
+import android.os.ParcelFileDescriptor;
+import android.util.Base64;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.security.MessageDigest;
+import java.util.Locale;
+
+@CapacitorPlugin(name = "MobdeaPdfRenderer")
+public class MobdeaPdfRendererPlugin extends Plugin {
+    private static final long MAX_PDF_BYTES = 80L * 1024L * 1024L;
+    private static final int MAX_RENDER_WIDTH = 2200;
+
+    @PluginMethod
+    public void renderPage(PluginCall call) {
+        final String base64 = call.getString("base64", "");
+        final int requestedPage = Math.max(1, call.getInt("page", 1));
+        final int requestedWidth = Math.min(MAX_RENDER_WIDTH, Math.max(640, call.getInt("maxWidth", 1600)));
+        if (base64.isEmpty()) {
+            call.reject("PDF data is required.");
+            return;
+        }
+
+        new Thread(() -> {
+            File pdfFile = null;
+            ParcelFileDescriptor descriptor = null;
+            PdfRenderer renderer = null;
+            PdfRenderer.Page page = null;
+            Bitmap bitmap = null;
+            try {
+                byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
+                if (bytes.length == 0 || bytes.length > MAX_PDF_BYTES) throw new IllegalArgumentException("PDF size is not supported.");
+                String hash = toHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+                File cacheDir = new File(getContext().getCacheDir(), "pdf-pages");
+                if (!cacheDir.exists() && !cacheDir.mkdirs()) throw new IllegalStateException("Unable to create PDF cache.");
+                pdfFile = new File(cacheDir, hash + ".pdf");
+                if (!pdfFile.exists() || pdfFile.length() != bytes.length) {
+                    try (FileOutputStream output = new FileOutputStream(pdfFile)) {
+                        output.write(bytes);
+                        output.flush();
+                    }
+                }
+
+                descriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY);
+                renderer = new PdfRenderer(descriptor);
+                int pageCount = renderer.getPageCount();
+                if (pageCount < 1) throw new IllegalArgumentException("PDF has no pages.");
+                int pageIndex = Math.min(pageCount - 1, requestedPage - 1);
+                page = renderer.openPage(pageIndex);
+                float ratio = requestedWidth / (float) Math.max(1, page.getWidth());
+                int height = Math.max(1, Math.round(page.getHeight() * ratio));
+                bitmap = Bitmap.createBitmap(requestedWidth, height, Bitmap.Config.ARGB_8888);
+                bitmap.eraseColor(Color.WHITE);
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+
+                ByteArrayOutputStream png = new ByteArrayOutputStream();
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 92, png)) throw new IllegalStateException("Unable to encode PDF page.");
+                JSObject result = new JSObject();
+                result.put("dataUrl", "data:image/png;base64," + Base64.encodeToString(png.toByteArray(), Base64.NO_WRAP));
+                result.put("page", pageIndex + 1);
+                result.put("pageCount", pageCount);
+                result.put("width", requestedWidth);
+                result.put("height", height);
+                result.put("sha256", hash);
+                getActivity().runOnUiThread(() -> call.resolve(result));
+            } catch (Exception error) {
+                String message = error.getMessage() == null ? "Unable to render PDF page." : error.getMessage();
+                getActivity().runOnUiThread(() -> call.reject(message, error));
+            } finally {
+                if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
+                if (page != null) page.close();
+                if (renderer != null) renderer.close();
+                try { if (descriptor != null) descriptor.close(); } catch (Exception ignored) { }
+            }
+        }).start();
+    }
+
+    private String toHex(byte[] bytes) {
+        StringBuilder builder = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) builder.append(String.format(Locale.US, "%02x", value));
+        return builder.toString();
+    }
+}

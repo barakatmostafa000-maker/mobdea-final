@@ -30,7 +30,7 @@ export default function Updates({ data, updateData }) {
     </div>
     {result && <article className={`panel update-result ${result.available ? 'available' : 'latest'}`}>
       <div><span>{result.available ? 'إصدار جديد متاح' : 'أنت على أحدث إصدار'}</span><h3>V{result.version}</h3><p>{result.notes || 'تحسينات وإصلاحات جديدة.'}</p></div>
-      {result.available && <button className="primary-btn" onClick={() => openApkDownload(result.apkUrl)}><Download size={18}/>تنزيل التحديث</button>}
+      {result.available && <button className="primary-btn" onClick={() => openApkDownload(result)}><Download size={18}/>تنزيل التحديث</button>}
     </article>}
     <article className="panel"><div className="panel-title"><h3>سجل الفحص</h3><History size={19}/></div>
       {(data.updateHistory || []).length ? data.updateHistory.map((item, i)=><div className="update-history-row" key={`${item.checkedAt}-${i}`}><span>{new Date(item.checkedAt).toLocaleString('ar-EG')}</span><b>V{item.version}</b><small>{item.available ? 'كان متاحًا' : 'أحدث إصدار'}</small></div>) : <div className="empty-state">لم يتم فحص أي تحديث بعد.</div>}

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { BarChart3, Download, Filter, MessageCircle, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { BarChart3, BookMarked, BookOpen, ClipboardList, Download, Filter, FolderOpen, MessageCircle, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { buildExamAnalytics, buildAssessmentSummary } from '../services/assessment';
 import { buildSmartInsights, studentAnalytics } from '../services/insights';
 import { openWhatsApp } from '../services/whatsapp';
+import { getAllLibraryGrades, getGradeExams, getGradeTextbook, getLessonsForGrade, librarySummary } from '../services/libraryModel';
 
 function csvCell(value) {
   return `"${String(value ?? '').replaceAll('"', '""')}"`;
@@ -21,6 +22,23 @@ export default function Reports({ data }) {
   const avg = data.grades.length ? Math.round(data.grades.reduce((sum, item) => sum + (item.score / item.total) * 100, 0) / data.grades.length) : 0;
   const due = data.payments.filter((item) => item.type === 'due').reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const insights = useMemo(() => buildSmartInsights(data), [data]);
+  const contentSummary = useMemo(() => librarySummary(data), [data]);
+  const libraryRows = useMemo(() => getAllLibraryGrades(data).map((grade) => ({
+    grade,
+    textbook: getGradeTextbook(data, grade),
+    exams: getGradeExams(data, grade),
+    lessons: getLessonsForGrade(data, grade),
+  })).filter((row) => row.lessons.length || row.textbook || row.exams), [data]);
+  const homeworkRows = useMemo(() => {
+    const allowedGrades = group === 'all'
+      ? null
+      : new Set(students.map((student) => student.grade).filter(Boolean));
+    return getAllLibraryGrades(data)
+      .filter((grade) => !allowedGrades || allowedGrades.has(grade))
+      .flatMap((grade) => getLessonsForGrade(data, grade))
+      .filter((lesson) => String(lesson.homework || '').trim())
+      .sort((a, b) => String(b.lessonDate || '').localeCompare(String(a.lessonDate || '')));
+  }, [data, group, students]);
 
   const examGroups = useMemo(() => {
     const grouped = new Map();
@@ -73,7 +91,9 @@ export default function Reports({ data }) {
             ['students', 'الطلاب'],
             ['weakness', 'نقاط الضعف'],
             ['insights', 'التنبيهات الذكية'],
-            ['exams', 'الامتحانات']
+            ['exams', 'الامتحانات'],
+            ['homework', 'الواجبات'],
+            ['library', 'جاهزية المحتوى']
           ].map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}
         </div>
         <label><Filter size={16} /><select value={group} onChange={(event) => setGroup(event.target.value)}><option value="all">كل المجموعات</option>{groups.map((item) => <option key={item}>{item}</option>)}</select></label>
@@ -142,6 +162,45 @@ export default function Reports({ data }) {
               <strong>{exam.weakest.length ? `أضعف موضوع: ${exam.weakest[0][0]}` : 'لا توجد موضوعات ضعيفة واضحة بعد.'}</strong>
             </article>
           )) : <div className="panel empty-state">لا توجد نتائج تفصيلية للامتحانات بعد.</div>}
+        </div>
+      )}
+
+
+      {tab === 'homework' && (
+        <div className="reports-card-grid homework-report-grid">
+          {homeworkRows.map((lesson) => (
+            <article className="panel homework-report-card" key={lesson.id}>
+              <div className="homework-report-icon"><ClipboardList size={21}/></div>
+              <div>
+                <span className="eyebrow">{lesson.grade}{lesson.lessonDate ? ` • ${lesson.lessonDate}` : ''}</span>
+                <h3>{lesson.title}</h3>
+                <p>{lesson.homework}</p>
+                <small>{lesson.unit || 'بدون وحدة'} • صفحات {lesson.pageStart || 1}–{lesson.pageEnd || lesson.pageStart || 1}</small>
+              </div>
+            </article>
+          ))}
+          {!homeworkRows.length && <div className="panel empty-state">لا توجد واجبات محفوظة داخل دروس المكتبة لهذا الاختيار.</div>}
+        </div>
+      )}
+
+      {tab === 'library' && (
+        <div className="library-report-section">
+          <div className="library-report-summary">
+            <article><BookOpen/><span>كتب الصفوف</span><strong>{contentSummary.textbooks}</strong></article>
+            <article><BookMarked/><span>مراجع الامتحانات</span><strong>{contentSummary.exams}</strong></article>
+            <article><FolderOpen/><span>الدروس المنظمة</span><strong>{contentSummary.lessons}</strong></article>
+            <article><BarChart3/><span>الدروس بلا كتاب</span><strong>{contentSummary.lessonsWithoutTextbook}</strong></article>
+          </div>
+          <div className="panel report-table-wrap">
+            <table className="report-table">
+              <thead><tr><th>الصف</th><th>كتاب المنهج</th><th>ملف الامتحانات</th><th>الدروس</th><th>الحالة</th></tr></thead>
+              <tbody>{libraryRows.map((row) => {
+                const ready = Boolean(row.textbook?.assetId || row.textbook?.url) && Boolean(row.exams?.assetId || row.exams?.url) && row.lessons.length > 0;
+                return <tr key={row.grade}><td><strong>{row.grade}</strong></td><td>{row.textbook?.assetId || row.textbook?.url ? 'جاهز' : 'غير مرفوع'}</td><td>{row.exams?.assetId || row.exams?.url ? 'جاهز' : 'غير مرفوع'}</td><td>{row.lessons.length}</td><td><b className={ready ? 'success-text' : 'danger-text'}>{ready ? 'جاهز للحصة' : 'يحتاج استكمال'}</b></td></tr>;
+              })}</tbody>
+            </table>
+            {!libraryRows.length && <div className="empty-state">لم تُنظم محتويات المكتبة حسب الصفوف بعد.</div>}
+          </div>
         </div>
       )}
     </section>

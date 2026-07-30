@@ -296,6 +296,8 @@ export default function Games({ data, updateData, shareState }) {
       grade: focusResource.grade,
       type: focusResource.type,
       url: focusResource.url,
+      assetId: focusResource.assetId || '',
+      fileName: focusResource.fileName || '',
     } : null,
     roomTitle: `${gradeLabel || 'الصف'} • ${focusResource?.lesson || focusResource?.title || 'تحدي'}`,
     createdAt: new Date().toISOString(),
@@ -303,7 +305,13 @@ export default function Games({ data, updateData, shareState }) {
 
   const copyGameLink = async (selectedMode = 'battle') => {
     const payload = buildGamePayload(selectedMode);
-    const share = buildShareLink('game', payload);
+    let share;
+    try {
+      share = await buildShareLink('game', payload, { cloudSync: data.settings?.cloudSync });
+    } catch (error) {
+      setShareNotice(error?.message || 'تعذر إنشاء رابط التحدي.');
+      return null;
+    }
     const room = {
       id: share.token || `room-${Date.now()}`,
       mode: selectedMode,

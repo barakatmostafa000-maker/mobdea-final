@@ -1,5 +1,5 @@
-import { sanitizeQuestion } from './assessment';
-import { gradeOptions } from '../data/questionBank';
+import { sanitizeQuestion } from './assessment.js';
+import { gradeOptions } from '../data/questionBank.js';
 
 const RESOURCE_TYPE_LABELS = {
   video: 'فيديو',
@@ -44,43 +44,32 @@ export function generateQuestionsFromResource(resource = {}) {
   const unit = normalize(resource.unit || 'الوحدة');
   const lesson = normalize(resource.lesson || title);
   const topic = inferTopic(resource);
-  const typeLabel = RESOURCE_TYPE_LABELS[resource.type] || 'مورد تعليمي';
+  const notes = normalize(resource.notes || resource.summary || '');
+  const homework = normalize(resource.homework || '');
+  const modelIdea = normalize(notes.split(/[.!؟؛]/)[0] || notes || `المفاهيم الأساسية في درس ${lesson}`);
   const pages = resource.pageStart && resource.pageEnd
-    ? `ص ${resource.pageStart} إلى ص ${resource.pageEnd}`
+    ? `من صفحة ${resource.pageStart} إلى صفحة ${resource.pageEnd}`
     : resource.pageStart
-      ? `من ص ${resource.pageStart}`
-      : resource.pageEnd
-        ? `حتى ص ${resource.pageEnd}`
-        : 'غير محددة';
-  const typeHint = /خريطة|map|خرائط/i.test(title + ' ' + topic) || resource.type === 'map'
-    ? 'خرائط ومواقع' 
-    : resource.type === 'video'
-      ? 'الشرح والمشاهدة'
-      : resource.type === 'audio'
-        ? 'الاستماع والتشجيع'
-        : resource.type === 'image'
-          ? 'الملاحظة والفهم'
-          : 'المراجعة والشرح';
+      ? `ابتداءً من صفحة ${resource.pageStart}`
+      : 'داخل محتوى الدرس المحفوظ في المكتبة';
   const base = `auto-${resource.id}`;
 
   const items = [
-    buildQuestion(`${base}-type`, {
+    buildQuestion(`${base}-main-idea`, {
       gradeKey,
       grade,
       term: normalize(resource.term || 'الترم الأول'),
       unit,
       lesson,
       topic,
-      type: 'mcq',
-      text: `ما نوع المورد "${title}"؟`,
-      options: [typeLabel, 'اختبار نهائي', 'واجب منزلي', 'سجل درجات'],
-      answerIndex: 0,
-      answer: typeLabel,
-      difficulty: 'سهل',
-      maxScore: 1,
+      type: 'essay',
+      text: `اشرح الفكرة الرئيسة في درس «${lesson}» بأسلوبك.`,
+      answer: modelIdea,
+      difficulty: 'متوسط',
+      maxScore: 3,
       source: 'auto',
     }),
-    buildQuestion(`${base}-lesson`, {
+    buildQuestion(`${base}-concept`, {
       gradeKey,
       grade,
       term: normalize(resource.term || 'الترم الأول'),
@@ -88,52 +77,29 @@ export function generateQuestionsFromResource(resource = {}) {
       lesson,
       topic,
       type: 'fill',
-      text: 'اكتب اسم الدرس المرتبط بالمورد:',
+      text: `${pages}: اكتب اسم المفهوم أو الدرس الذي تشرحه هذه الصفحات.`,
       answer: lesson,
       difficulty: 'سهل',
       maxScore: 1,
       source: 'auto',
     }),
-    buildQuestion(`${base}-grade`, {
+    buildQuestion(`${base}-review`, {
       gradeKey,
       grade,
       term: normalize(resource.term || 'الترم الأول'),
       unit,
       lesson,
       topic,
-      type: 'tf',
-      text: `هذا المورد مخصص للصف ${grade}.`,
-      options: ['صح', 'خطأ'],
-      answerIndex: 0,
-      answer: 'صح',
-      difficulty: 'سهل',
-      maxScore: 1,
-      source: 'auto',
-    }),
-    buildQuestion(`${base}-pages`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
-      type: 'mcq',
-      text: `صفحات هذا المورد ${pages} تعني أنه مناسب لـ...`,
-      options: [
-        typeHint,
-        'تنظيم الدفاتر فقط',
-        'الامتحان الشفوي فقط',
-        'الملفات الإدارية فقط',
-      ],
-      answerIndex: 0,
-      answer: typeHint,
+      type: 'essay',
+      text: `اذكر نقطتين مهمتين يجب مراجعتهما بعد دراسة «${lesson}».`,
+      answer: notes || `تُراجع أهداف الدرس والمفاهيم والأمثلة الواردة ${pages}.`,
       difficulty: 'متوسط',
-      maxScore: 1,
+      maxScore: 2,
       source: 'auto',
     }),
   ];
 
-  if (/خريطة|map|خرائط/i.test(title + ' ' + lesson + ' ' + unit + ' ' + topic) || resource.type === 'map') {
+  if (/خريطة|map|خرائط|جغراف/i.test(title + ' ' + lesson + ' ' + unit + ' ' + topic) || resource.type === 'map' || resource.mapState) {
     items.push(buildQuestion(`${base}-map`, {
       gradeKey,
       grade,
@@ -141,13 +107,28 @@ export function generateQuestionsFromResource(resource = {}) {
       unit,
       lesson,
       topic: 'الخريطة والظاهرات الجغرافية',
-      type: 'mcq',
-      text: 'ما الفكرة الأساسية من هذا المورد الجغرافي؟',
-      options: ['تحديد المواقع والظاهرات على الخريطة', 'حفظ النصوص الأدبية', 'حل مسائل الحساب', 'كتابة تقارير فقط'],
-      answerIndex: 0,
-      answer: 'تحديد المواقع والظاهرات على الخريطة',
+      type: 'map',
+      text: `حدد على الخريطة أهم موقع أو ظاهرة جغرافية مرتبطة بدرس «${lesson}»، ثم وضح أهميتها.`,
+      answer: notes || `يُقبل التحديد الصحيح مع تفسير علاقته بموضوع ${lesson}.`,
       difficulty: 'متوسط',
-      maxScore: 1,
+      maxScore: 3,
+      source: 'auto',
+    }));
+  }
+
+  if (homework) {
+    items.push(buildQuestion(`${base}-homework`, {
+      gradeKey,
+      grade,
+      term: normalize(resource.term || 'الترم الأول'),
+      unit,
+      lesson,
+      topic,
+      type: 'essay',
+      text: `سؤال الواجب المرتبط بدرس «${lesson}»: ${homework}`,
+      answer: `تُراجع إجابة الطالب وفق عناصر الواجب المحفوظة في درس ${lesson}.`,
+      difficulty: 'متوسط',
+      maxScore: 3,
       source: 'auto',
     }));
   }
@@ -156,6 +137,11 @@ export function generateQuestionsFromResource(resource = {}) {
     ...question,
     resourceId: resource.id,
     resourceTitle: title,
+    sourceExamResourceId: resource.sourceExamResourceId || '',
+    sourceExamAssetId: resource.sourceExamAssetId || '',
+    sourceExamFileName: resource.sourceExamFileName || '',
+    sourcePageStart: resource.pageStart || '',
+    sourcePageEnd: resource.pageEnd || '',
     source: 'auto',
   }));
 }

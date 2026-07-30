@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { BookMarked, ExternalLink } from 'lucide-react';
 import { questionBank, gradeOptions } from '../data/questionBank';
 import {
   buildExamFromPool,
@@ -9,6 +10,8 @@ import {
   sanitizeQuestion,
   questionTypeMeta
 } from '../services/assessment';
+import { getGradeExams } from '../services/libraryModel';
+import { useAssetUrl } from '../hooks/useAssetUrl';
 
 const TYPE_KEYS = Object.keys(questionTypeMeta);
 
@@ -45,6 +48,21 @@ function downloadJson(payload, filename) {
   URL.revokeObjectURL(url);
 }
 
+function OfficialExamsSource({ resource, gradeLabel }) {
+  const url = useAssetUrl(resource?.assetId, resource?.url);
+  return (
+    <div className={`panel question-bank-official-source ${url ? 'ready' : 'missing'}`}>
+      <BookMarked size={24}/>
+      <div>
+        <span className="eyebrow">المصدر الرسمي من المكتبة</span>
+        <h3>{gradeLabel ? `ملف الامتحانات الرئيسي — ${gradeLabel}` : 'اختر صفًا لعرض ملف امتحاناته'}</h3>
+        <p>{url ? (resource.fileName || 'ملف الامتحانات محفوظ ومتاح كمرجع دائم للمولد.') : 'لم يتم رفع ملف الامتحانات الرئيسي لهذا الصف بعد.'}</p>
+      </div>
+      {url && <a className="secondary-btn" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/> فتح المرجع</a>}
+    </div>
+  );
+}
+
 export default function QuestionBankManager({ data, updateData }) {
   const inputRef = useRef(null);
   const [gradeKey, setGradeKey] = useState('all');
@@ -59,6 +77,8 @@ export default function QuestionBankManager({ data, updateData }) {
 
   const custom = data.customQuestionBank || [];
   const merged = useMemo(() => mergeQuestionBanks(questionBank, custom), [custom]);
+  const selectedGradeLabel = gradeKey === 'all' ? '' : (gradeOptions.find((item) => item.key === gradeKey)?.label || '');
+  const officialExamSource = selectedGradeLabel ? getGradeExams(data, selectedGradeLabel) : null;
 
   const filtered = useMemo(() => merged.filter((question) => {
     const matchesGrade = gradeKey === 'all' || question.gradeKey === gradeKey;
@@ -236,10 +256,13 @@ export default function QuestionBankManager({ data, updateData }) {
     const pool = filtered.filter((q) => ['mcq', 'tf', 'fill', 'essay'].includes(q.type));
     const exam = buildExamFromPool(pool, {
       title: examTitle,
-      grade: pool[0]?.grade,
+      grade: selectedGradeLabel || pool[0]?.grade,
       count: Number(examCount || 0),
       shuffle: shuffleExam,
-      generated: true
+      generated: true,
+      sourceResourceId: officialExamSource?.id || '',
+      sourceAssetId: officialExamSource?.assetId || '',
+      sourceFileName: officialExamSource?.fileName || '',
     });
     if (!exam) {
       setMessage('لا توجد أسئلة مناسبة لتوليد امتحان بهذا الاختيار.');
@@ -271,6 +294,8 @@ export default function QuestionBankManager({ data, updateData }) {
         <div className="stat-card"><div><span>الأسئلة المضافة</span><strong>{custom.length}</strong><small>قابلة للتعديل والاستيراد</small></div></div>
         <div className="stat-card"><div><span>التكرارات المكتشفة</span><strong>{duplicateCount}</strong><small>يمكن تنظيفها بضغطة</small></div></div>
       </div>
+
+      <OfficialExamsSource resource={officialExamSource} gradeLabel={selectedGradeLabel} />
 
       <div className="panel bank-toolbar">
         <select value={gradeKey} onChange={(event) => setGradeKey(event.target.value)}>

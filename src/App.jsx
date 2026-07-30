@@ -1,14 +1,17 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './components/AppShell';
 import LockScreen from './components/LockScreen';
 import Placeholder from './pages/Placeholder';
 import SharedAccess from './pages/SharedAccess';
 import { loadAppData, saveAppData, resetAppData } from './services/storage';
-import { checkForUpdate } from './services/updater';
+import { checkForUpdate, openApkDownload } from './services/updater';
+import { registerServiceWorker, applyServiceWorkerUpdate } from './services/pwaUpdate';
+import UpdatePrompt from './components/UpdatePrompt';
 import { speakWelcome } from './services/voice';
-import { readShareFromLocation } from './services/share';
+import { readShareFromLocation, resolveShareFromLocation } from './services/share';
 import { release } from './config/release';
-import { ROLE_HOME, getRoleModules } from './utils/auth';
+import { ROLE_HOME, getRoleModules, buildWelcomeMessage } from './utils/auth';
+import { identity } from './config/identity';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Students = lazy(() => import('./pages/Students'));
@@ -24,6 +27,7 @@ const Games = lazy(() => import('./pages/Games'));
 const QuestionBankManager = lazy(() => import('./pages/QuestionBankManager'));
 const MapChallenge = lazy(() => import('./pages/MapChallenge'));
 const ClassMode = lazy(() => import('./pages/ClassMode'));
+const Whiteboard = lazy(() => import('./pages/Whiteboard'));
 const StudentCards = lazy(() => import('./pages/StudentCards'));
 const Settings = lazy(() => import('./pages/Settings'));
 const PortalPreview = lazy(() => import('./pages/PortalPreview'));
@@ -34,16 +38,34 @@ const Updates = lazy(() => import('./pages/Updates'));
 
 const LoadingScreen = () => <div className="loading-screen"><div className="loading-mark">م</div><h1>منصة المُبدع</h1><p>جارٍ تحميل الصفحة...</p></div>;
 
-const AUTH_STORAGE_KEY = 'mobdea_mobile_auth_v1';
+const AUTH_STORAGE_KEY = 'mobdea_mobile_auth_v2';
+const AUTH_TTL_REMEMBERED = 7 * 24 * 60 * 60 * 1000;
+const AUTH_TTL_SESSION = 12 * 60 * 60 * 1000;
+const VALID_ROLES = new Set(['admin', 'teacher', 'student', 'guardian', 'visitor']);
+
+function validateStoredAuth(raw, storage) {
+  try {
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !VALID_ROLES.has(parsed.role) || !Number.isFinite(Number(parsed.expiresAt)) || Number(parsed.expiresAt) <= Date.now()) {
+      storage?.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    storage?.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+}
 
 function readAuthFromStorage() {
   try {
     // "تذكرني" sessions are kept in localStorage so they survive app restarts;
     // regular sessions live only in sessionStorage for the current tab.
     const persisted = globalThis.localStorage?.getItem(AUTH_STORAGE_KEY);
-    if (persisted) return JSON.parse(persisted);
-    const raw = globalThis.sessionStorage?.getItem(AUTH_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const remembered = validateStoredAuth(persisted, globalThis.localStorage);
+    if (remembered) return remembered;
+    return validateStoredAuth(globalThis.sessionStorage?.getItem(AUTH_STORAGE_KEY), globalThis.sessionStorage);
   } catch {
     return null;
   }
@@ -52,13 +74,39 @@ function readAuthFromStorage() {
 export default function App() {
   const [active, setActive] = useState('dashboard');
   const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [auth, setAuth] = useState(() => readAuthFromStorage());
   const rememberRef = useRef(Boolean(globalThis.localStorage?.getItem(AUTH_STORAGE_KEY)));
   const [welcomePlayed, setWelcomePlayed] = useState(false);
+  const [welcomeToast, setWelcomeToast] = useState('');
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const swReadyRef = useRef(false);
+  const dataRef = useRef(null);
+  const persistedDataRef = useRef(null);
+  const saveQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => registerServiceWorker(() => { swReadyRef.current = true; }), []);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    if (!welcomeToast) return undefined;
+    const timer = setTimeout(() => setWelcomeToast(''), 5000);
+    return () => clearTimeout(timer);
+  }, [welcomeToast]);
   const [shareState, setShareState] = useState(() => readShareFromLocation(globalThis.location));
   const autoCheckedRef = useRef(false);
 
-  useEffect(() => { loadAppData().then(setData); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    loadAppData()
+      .then((loaded) => { if (!cancelled) { dataRef.current = loaded; persistedDataRef.current = loaded; setData(loaded); } })
+      .catch((error) => { if (!cancelled) setLoadError(error?.message || 'تعذر فتح بيانات التطبيق المشفرة.'); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     try {
@@ -78,7 +126,30 @@ export default function App() {
   }, [auth]);
 
   useEffect(() => {
-    setShareState(readShareFromLocation(globalThis.location));
+    if (!auth) return undefined;
+    const expiresIn = Number(auth.expiresAt) - Date.now();
+    if (expiresIn <= 0) {
+      handleLogout();
+      return undefined;
+    }
+    const timer = setTimeout(handleLogout, Math.min(expiresIn, 2_147_000_000));
+    return () => clearTimeout(timer);
+  }, [auth?.expiresAt]);
+
+  useEffect(() => {
+    if (!data || !auth || !['student', 'guardian'].includes(auth.role)) return;
+    const stillExists = data.students.some((student) => String(student.id) === String(auth.studentId));
+    if (!stillExists) handleLogout();
+  }, [data?.students, auth?.role, auth?.studentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const initial = readShareFromLocation(globalThis.location);
+    setShareState(initial);
+    if (initial.mode === 'remote') {
+      resolveShareFromLocation(globalThis.location).then((resolved) => { if (!cancelled) setShareState(resolved); });
+    }
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -94,10 +165,32 @@ export default function App() {
     return () => { clearTimeout(timer); events.forEach((event) => window.removeEventListener(event, resetTimer)); };
   }, [data?.settings?.lockEnabled, data?.settings?.lockAfterMinutes, auth]);
 
-  const updateData = async (next) => {
-    setData(next);
-    await saveAppData(next);
-  };
+  const updateData = useCallback((nextOrUpdater) => {
+    const candidate = typeof nextOrUpdater === 'function' ? nextOrUpdater(dataRef.current) : nextOrUpdater;
+    if (!candidate || typeof candidate !== 'object') return Promise.reject(new Error('بيانات الحفظ غير صالحة.'));
+    dataRef.current = candidate;
+    setData(candidate);
+
+    const operation = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveAppData(candidate));
+    saveQueueRef.current = operation.catch(() => undefined);
+
+    return operation.then((saved) => {
+      persistedDataRef.current = saved;
+      if (dataRef.current === candidate) {
+        dataRef.current = saved;
+        setData(saved);
+      }
+      return saved;
+    }).catch((error) => {
+      if (dataRef.current === candidate) {
+        dataRef.current = persistedDataRef.current;
+        setData(persistedDataRef.current);
+      }
+      throw error;
+    });
+  }, []);
 
   useEffect(() => {
     if (!data || !auth || welcomePlayed || !data.settings.welcomeVoice) return;
@@ -109,41 +202,53 @@ export default function App() {
   }, [data, auth, welcomePlayed]);
 
   useEffect(() => {
-    if (!data?.settings?.update?.autoCheck || !data) return undefined;
+    if (!data?.settings?.update?.autoCheck) return undefined;
     let cancelled = false;
+    let running = false;
+
     const run = async () => {
+      const current = dataRef.current;
+      if (!current?.settings?.update?.autoCheck || running) return;
+      running = true;
       try {
-        const result = await checkForUpdate(data.settings, release.appVersion);
+        const result = await checkForUpdate(current.settings, release.appVersion);
         if (cancelled) return;
-        const history = [{ checkedAt: new Date().toISOString(), version: result.version, available: result.available }, ...(data.updateHistory || [])].slice(0, 20);
+        const checkedAt = new Date().toISOString();
+        const latest = dataRef.current || current;
+        const history = [{ checkedAt, version: result.version, available: result.available }, ...(latest.updateHistory || [])].slice(0, 20);
         const next = {
-          ...data,
+          ...latest,
           updateHistory: history,
           settings: {
-            ...data.settings,
+            ...latest.settings,
             update: {
-              ...(data.settings.update || {}),
-              manifestUrl: data.settings.update?.manifestUrl || release.manifestPath,
+              ...(latest.settings.update || {}),
+              manifestUrl: latest.settings.update?.manifestUrl || release.manifestPath,
               autoCheck: true,
-              lastAutoCheckAt: new Date().toISOString(),
+              lastAutoCheckAt: checkedAt,
               lastAutoCheckVersion: result.version,
               lastAutoCheckAvailable: result.available,
-            }
-          }
+            },
+          },
         };
-        setData(next);
-        await saveAppData(next);
+        const saved = await updateData(next);
+        if (cancelled) return;
+        const dismissed = saved.settings.update?.dismissedVersion;
+        if (result.available && (result.mandatory || dismissed !== result.version)) setUpdateInfo(result);
       } catch {
-        // silently ignore update check failures
+        // Update checks must never interrupt normal app use.
+      } finally {
+        running = false;
       }
     };
+
     if (!autoCheckedRef.current) {
       autoCheckedRef.current = true;
-      run();
+      void run();
     }
     const interval = setInterval(run, 60 * 60 * 1000);
     const onVisible = () => {
-      if (!document.hidden) run();
+      if (!document.hidden) void run();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
@@ -151,22 +256,50 @@ export default function App() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [data]);
+  }, [data?.settings?.update?.autoCheck, data?.settings?.update?.manifestUrl, updateData]);
 
   const handleUnlock = (session, options = {}) => {
-    const next = session || { role: 'admin' };
-    rememberRef.current = Boolean(options.remember);
+    const remember = Boolean(options.remember);
+    const next = { ...(session || { role: 'admin' }), expiresAt: Date.now() + (remember ? AUTH_TTL_REMEMBERED : AUTH_TTL_SESSION) };
+    rememberRef.current = remember;
     setAuth(next);
     setActive(ROLE_HOME[next.role] || 'dashboard');
     if (shareState.kind === 'game') setActive('games');
     if (shareState.kind === 'lesson' || shareState.kind === 'portal') setActive('classMode');
+    setWelcomeToast(buildWelcomeMessage(next, identity));
   };
 
   const handleLogout = () => {
     rememberRef.current = false;
     setAuth(null);
     setWelcomePlayed(false);
+    setWelcomeToast('');
     setActive('dashboard');
+  };
+
+  const handleUpdateNow = async () => {
+    if (!updateInfo) return;
+    setUpdateBusy(true);
+    try {
+      if (window.Capacitor?.isNativePlatform?.()) {
+        await openApkDownload(updateInfo);
+      } else if (swReadyRef.current) {
+        applyServiceWorkerUpdate();
+      } else {
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    } finally {
+      setUpdateBusy(false);
+    }
+  };
+
+  const handleUpdateLater = async () => {
+    if (!updateInfo || updateInfo.mandatory) return;
+    const next = { ...data, settings: { ...data.settings, update: { ...(data.settings.update || {}), dismissedVersion: updateInfo.version } } };
+    await updateData(next);
+    setUpdateInfo(null);
   };
 
   const allowedModules = useMemo(() => getRoleModules(auth?.role), [auth?.role]);
@@ -180,27 +313,36 @@ export default function App() {
     if (auth) setActive('dashboard');
   };
 
-  const openScreenFromShare = (screen) => {
-    const target = screen === 'games' ? 'games' : 'classMode';
-    if (auth) setActive(target);
-  };
-
+  if (loadError) return <div className="loading-screen"><div className="loading-mark">!</div><h1>تعذر فتح المنصة</h1><p>{loadError}</p><button className="primary-btn" type="button" onClick={() => globalThis.location?.reload?.()}>إعادة المحاولة</button></div>;
   if (!data) return <LoadingScreen />;
   if (shareState.kind && !auth) {
-    return <SharedAccess data={data} shareKind={shareState.kind} sharePayload={shareState.payload} onGoHome={goHomeFromShare} onOpenScreen={openScreenFromShare} />;
+    return (
+      <>
+        {updateInfo && <UpdatePrompt currentVersion={release.displayVersion} newVersion={updateInfo.version} notes={updateInfo.notes} mandatory={updateInfo.mandatory} busy={updateBusy} onUpdateNow={handleUpdateNow} onLater={handleUpdateLater} />}
+        <SharedAccess shareKind={shareState.kind} sharePayload={shareState.payload} shareLoading={shareState.loading} shareError={shareState.error} onGoHome={goHomeFromShare} />
+      </>
+    );
   }
-  if (!auth) return <LockScreen data={data} onUnlock={handleUnlock} updateData={updateData} />;
+  if (!auth) {
+    return (
+      <>
+        {updateInfo && <UpdatePrompt currentVersion={release.displayVersion} newVersion={updateInfo.version} notes={updateInfo.notes} mandatory={updateInfo.mandatory} busy={updateBusy} onUpdateNow={handleUpdateNow} onLater={handleUpdateLater} />}
+        <LockScreen data={data} onUnlock={handleUnlock} updateData={updateData} />
+      </>
+    );
+  }
 
   const common = { data, updateData, auth, role: auth.role };
   const screenProps = {
     dashboard: { data, navigate: setActive, auth },
     classMode: { ...common, navigate: setActive, shareState },
+    whiteboard: { ...common, navigate: setActive },
     students: common,
     studentCards: { data, auth },
     portalPreview: { data, auth },
     diagnostics: { data, auth },
     smartAssistant: { data, auth },
-    contentLibrary: common,
+    contentLibrary: { ...common, navigate: setActive },
     updates: common,
     sessions: common,
     attendance: common,
@@ -210,7 +352,7 @@ export default function App() {
     payments: common,
     questionBank: common,
     games: { ...common, shareState },
-    mapChallenge: common,
+    mapChallenge: { ...common, navigate: setActive },
     messages: common,
     reports: { data, auth },
     settings: { ...common, resetAppData },
@@ -219,6 +361,7 @@ export default function App() {
   const screenMap = {
     dashboard: Dashboard,
     classMode: ClassMode,
+    whiteboard: Whiteboard,
     students: Students,
     studentCards: StudentCards,
     portalPreview: PortalPreview,
@@ -245,19 +388,27 @@ export default function App() {
   const ScreenProps = screenProps[constrainedActive] || { title: 'قيد التطوير', subtitle: 'سيتم استكمال الوحدة في الإصدار التالي.' };
 
   return (
-    <AppShell
-      active={constrainedActive}
-      onChange={setActive}
-      settings={data.settings}
-      data={data}
-      auth={auth}
-      onLogout={handleLogout}
-    >
-      <Suspense fallback={<LoadingScreen />}>
-        <div key={constrainedActive} className="screen-stage">
-          <Screen {...ScreenProps} />
+    <>
+      {updateInfo && <UpdatePrompt currentVersion={release.displayVersion} newVersion={updateInfo.version} notes={updateInfo.notes} mandatory={updateInfo.mandatory} busy={updateBusy} onUpdateNow={handleUpdateNow} onLater={handleUpdateLater} />}
+      {welcomeToast && (
+        <div className="welcome-toast" role="status">
+          <span>{welcomeToast}</span>
         </div>
-      </Suspense>
-    </AppShell>
+      )}
+      <AppShell
+        active={constrainedActive}
+        onChange={setActive}
+        settings={data.settings}
+        data={data}
+        auth={auth}
+        onLogout={handleLogout}
+      >
+        <Suspense fallback={<LoadingScreen />}>
+          <div key={constrainedActive} className="screen-stage">
+            <Screen {...ScreenProps} />
+          </div>
+        </Suspense>
+      </AppShell>
+    </>
   );
 }

@@ -3,5 +3,6 @@ export const identity = {
   teacherTitle: 'معلم تاريخ ودراسات',
   schoolName: 'المُبدع لتعليم ممتع',
   portrait: '/identity/mostafa-barakat.jpg',
-  icon: '/identity/mostafa-barakat-icon.png'
+  icon: '/identity/mostafa-barakat-icon.png',
+  logo: '/identity/mobdea-logo.png'
 };

@@ -1,86 +1,181 @@
-import { isHttpUrl, normalizeHttpUrl, safeTrim } from '../utils/safety';
+import { APP_VERSION, DATA_SCHEMA_VERSION } from '../config/version';
+import { isHttpsUrl, normalizeHttpUrl, safeTrim, byteLength } from '../utils/safety';
+import { prepareDataForTransfer } from './storage';
+import { getAssetBlob, getAssetMetadata, importAssetBlob } from './assetStore';
+import { collectLibraryAssetIds } from './libraryModel';
 
-const timeoutFetch = async (url, options = {}, timeoutMs = 12000) => {
+const MAX_SYNC_BYTES = 8_000_000;
+const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+const MAX_SYNC_ASSETS = 500;
+
+export const timeoutFetch = async (url, options = {}, timeoutMs = 15000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal, credentials: 'omit' });
+    return await fetch(url, { ...options, signal: controller.signal, credentials: 'omit', cache: 'no-store' });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('انتهت مهلة الاتصال بالخادم.');
+    throw error;
   } finally {
     clearTimeout(timer);
   }
 };
 
-const validateConfig = (settings = {}) => {
-  const config = settings.cloudSync || {};
+export const validateCloudConfig = (settings = {}) => {
+  const config = settings.cloudSync || settings || {};
   const endpoint = normalizeHttpUrl(config.endpoint);
-  const workspaceId = safeTrim(config.workspaceId, 80);
-  const token = safeTrim(config.token, 160);
-  if (!endpoint || !isHttpUrl(endpoint)) throw new Error('أدخل رابطًا صحيحًا يبدأ بـ http أو https');
-  if (!workspaceId) throw new Error('أكمل مساحة العمل أولًا');
-  if (!token) throw new Error('أكمل الرمز السري أولًا');
-  return { endpoint, workspaceId, token };
+  const workspaceId = safeTrim(config.workspaceId, 80).replace(/[^a-zA-Z0-9_-]/g, '');
+  const token = safeTrim(config.token, 260);
+  const revision = safeTrim(config.revision, 120);
+  if (!endpoint || !isHttpsUrl(endpoint)) throw new Error('أدخل رابط HTTPS صحيحًا لخادم المزامنة.');
+  if (!/^[a-zA-Z0-9_-]{3,80}$/.test(workspaceId)) throw new Error('مساحة العمل يجب أن تكون من 3 إلى 80 حرفًا إنجليزيًا أو رقمًا أو _ أو -.');
+  if (token.length < 24) throw new Error('رمز مساحة العمل قصير أو غير صالح.');
+  return { endpoint, workspaceId, token, revision };
 };
 
-const headersFor = (config) => ({
+export const cloudHeaders = (config, extra = {}) => ({
   'Content-Type': 'application/json',
   'X-Mobdea-Workspace': config.workspaceId,
-  'X-Mobdea-Client': 'mobdea-mobile',
-  ...(config.token ? { Authorization: `Bearer ${config.token}` } : {})
+  'X-Mobdea-Client': `mobdea-mobile/${APP_VERSION}`,
+  Authorization: `Bearer ${config.token}`,
+  ...extra,
 });
 
-const buildUrl = (endpoint, path) => `${endpoint.replace(/\/$/, '')}${path}`;
+export const buildCloudUrl = (endpoint, path) => `${endpoint.replace(/\/$/, '')}${path}`;
 
-export function cloudConfigured(settings = {}) {
-  try {
-    validateConfig(settings);
-    return true;
-  } catch {
-    return false;
+function collectReferencedAssetIds(data = {}) {
+  const ids = new Set(collectLibraryAssetIds(data));
+  for (const clip of data.settings?.voiceClips || []) if (clip.assetId) ids.add(String(clip.assetId));
+  for (const recording of data.lessonRecordings || []) if (recording.boardAssetId) ids.add(String(recording.boardAssetId));
+  return [...ids].slice(0, MAX_SYNC_ASSETS);
+}
+
+function assetUrl(config, id) {
+  return buildCloudUrl(config.endpoint, `/assets/${encodeURIComponent(id)}`);
+}
+
+async function readRemoteAssetHashes(ids, config) {
+  if (!ids.length) return {};
+  const response = await timeoutFetch(buildCloudUrl(config.endpoint, '/assets/status'), {
+    method: 'POST',
+    headers: cloudHeaders(config),
+    body: JSON.stringify({ ids }),
+  }, 30000);
+  if (!response.ok) throw new Error(await readError(response, `تعذر فحص الملفات السحابية (${response.status})`));
+  const payload = await response.json();
+  return payload?.assets && typeof payload.assets === 'object' ? payload.assets : {};
+}
+
+async function pushCloudAssets(data, config) {
+  const ids = collectReferencedAssetIds(data);
+  const remoteHashes = await readRemoteAssetHashes(ids, config);
+  const manifest = [];
+  for (const id of ids) {
+    const metadata = await getAssetMetadata(id);
+    if (!metadata) throw new Error(`الملف المحلي ${id} غير موجود. أعد رفع المورد قبل المزامنة.`);
+    if (!metadata.sha256 || !/^[a-f0-9]{64}$/.test(metadata.sha256)) throw new Error(`تعذر التحقق من بصمة الملف ${metadata.name}.`);
+    if (metadata.size <= 0 || metadata.size > MAX_ASSET_BYTES) throw new Error(`حجم الملف ${metadata.name} غير صالح للمزامنة.`);
+    const remoteHash = String(remoteHashes[id] || '').toLowerCase();
+    if (remoteHash !== metadata.sha256) {
+      const blob = await getAssetBlob(id);
+      if (!blob) throw new Error(`تعذر قراءة الملف ${metadata.name}.`);
+      const response = await timeoutFetch(assetUrl(config, id), {
+        method: 'PUT',
+        headers: cloudHeaders(config, {
+          'Content-Type': metadata.type || 'application/octet-stream',
+          'X-Mobdea-Asset-Name': encodeURIComponent(metadata.name || 'file'),
+          'X-Mobdea-Asset-Kind': encodeURIComponent(metadata.kind || 'resource'),
+          'X-Mobdea-Asset-Sha256': metadata.sha256,
+          'X-Mobdea-Asset-Size': String(metadata.size),
+        }),
+        body: blob,
+      }, 90000);
+      if (!response.ok) throw new Error(await readError(response, `فشل رفع الملف ${metadata.name} (${response.status})`));
+    }
+    manifest.push(metadata);
+  }
+  return manifest;
+}
+
+async function pullCloudAssets(manifest, config) {
+  for (const item of Array.isArray(manifest) ? manifest.slice(0, MAX_SYNC_ASSETS) : []) {
+    const id = safeTrim(item?.id, 100);
+    const sha256 = safeTrim(item?.sha256, 64).toLowerCase();
+    const size = Number(item?.size || 0);
+    if (!id || !/^[a-f0-9]{64}$/.test(sha256) || size <= 0 || size > MAX_ASSET_BYTES) throw new Error('قائمة الملفات السحابية غير صالحة.');
+    const local = await getAssetMetadata(id);
+    if (local?.sha256 === sha256 && local.size === size) continue;
+    const response = await timeoutFetch(assetUrl(config, id), { method: 'GET', headers: cloudHeaders(config, { Accept: '*/*' }) }, 90000);
+    if (!response.ok) throw new Error(await readError(response, `تعذر تنزيل الملف ${item.name || id} (${response.status})`));
+    const blob = await response.blob();
+    if (blob.size !== size) throw new Error(`حجم الملف ${item.name || id} لا يطابق القائمة السحابية.`);
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+    const actualHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    if (actualHash !== sha256) throw new Error(`فشل التحقق من سلامة الملف ${item.name || id}.`);
+    await importAssetBlob(blob, { ...item, id, sha256, size });
   }
 }
 
+async function readError(response, fallback) {
+  try {
+    const body = await response.json();
+    if (body?.error === 'revision_conflict') return 'توجد نسخة سحابية أحدث. نزّلها أولًا ثم أعد الدمج والرفع.';
+    if (body?.error === 'rate_limited') return 'تم تجاوز عدد الطلبات المسموح. حاول بعد قليل.';
+    if (body?.error === 'unauthorized') return 'رمز مساحة العمل غير صحيح.';
+    return body?.message || body?.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function cloudConfigured(settings = {}) {
+  try { validateCloudConfig(settings); return true; } catch { return false; }
+}
+
 export async function testCloudConnection(settings = {}) {
-  const config = validateConfig(settings);
-  const response = await timeoutFetch(buildUrl(config.endpoint, '/health'), {
-    method: 'GET',
-    headers: headersFor(config)
-  });
-  if (!response.ok) throw new Error(`فشل الاتصال بالخادم (${response.status})`);
+  const config = validateCloudConfig(settings);
+  const response = await timeoutFetch(buildCloudUrl(config.endpoint, '/health'), { method: 'GET', headers: cloudHeaders(config) });
+  if (!response.ok) throw new Error(await readError(response, `فشل الاتصال بالخادم (${response.status})`));
   return response.json();
 }
 
 export async function pushCloudData(data) {
-  const config = validateConfig(data.settings);
+  const config = validateCloudConfig(data.settings);
+  const transferable = prepareDataForTransfer(data);
+  const assetManifest = await pushCloudAssets(transferable, config);
   const payload = {
-    version: 8,
+    schemaVersion: DATA_SCHEMA_VERSION,
+    appVersion: APP_VERSION,
     workspaceId: config.workspaceId,
     updatedAt: new Date().toISOString(),
+    baseRevision: config.revision,
+    assetManifest,
     data: {
-      ...data,
+      ...transferable,
       settings: {
-        ...data.settings,
-        cloudSync: { ...data.settings.cloudSync, token: '' }
-      }
-    }
+        ...transferable.settings,
+        cloudSync: { ...transferable.settings.cloudSync, token: '' },
+      },
+    },
   };
-  const response = await timeoutFetch(buildUrl(config.endpoint, '/sync'), {
+  const body = JSON.stringify(payload);
+  if (byteLength(body) > MAX_SYNC_BYTES) throw new Error('حجم بيانات المزامنة يتجاوز 8 ميجابايت. احذف السجلات القديمة أو الملفات المضمّنة.');
+  const response = await timeoutFetch(buildCloudUrl(config.endpoint, '/sync'), {
     method: 'PUT',
-    headers: headersFor(config),
-    body: JSON.stringify(payload)
-  }, 20000);
-  if (!response.ok) throw new Error(`فشل رفع البيانات (${response.status})`);
+    headers: cloudHeaders(config, config.revision ? { 'If-Match': config.revision } : {}),
+    body,
+  }, 25000);
+  if (!response.ok) throw new Error(await readError(response, `فشل رفع البيانات (${response.status})`));
   return response.json();
 }
 
 export async function pullCloudData(settings = {}) {
-  const config = validateConfig(settings);
-  const response = await timeoutFetch(buildUrl(config.endpoint, '/sync'), {
-    method: 'GET',
-    headers: headersFor(config)
-  }, 20000);
-  if (response.status === 404) throw new Error('لا توجد نسخة سحابية محفوظة لهذه المساحة');
-  if (!response.ok) throw new Error(`فشل تنزيل البيانات (${response.status})`);
+  const config = validateCloudConfig(settings);
+  const response = await timeoutFetch(buildCloudUrl(config.endpoint, '/sync'), { method: 'GET', headers: cloudHeaders(config) }, 25000);
+  if (response.status === 404) throw new Error('لا توجد نسخة سحابية محفوظة لهذه المساحة.');
+  if (!response.ok) throw new Error(await readError(response, `فشل تنزيل البيانات (${response.status})`));
   const payload = await response.json();
-  if (!payload?.data) throw new Error('النسخة السحابية غير صالحة');
+  if (!payload?.data || !payload.revision || Number(payload.schemaVersion || 0) > DATA_SCHEMA_VERSION) throw new Error('النسخة السحابية غير صالحة أو أحدث من إصدار التطبيق.');
+  await pullCloudAssets(payload.assetManifest || [], config);
   return payload;
 }

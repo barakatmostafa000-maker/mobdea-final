@@ -1,0 +1,21 @@
+{
+  "name": "منصة المُبدع لتعليم ممتع",
+  "short_name": "المُبدع",
+  "description": "منصة تعليمية لإدارة الطلاب والحضور والدرجات والمحتوى والحصص التفاعلية.",
+  "lang": "ar-EG",
+  "dir": "rtl",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "icons": [
+    {
+      "src": "./identity/mostafa-barakat-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

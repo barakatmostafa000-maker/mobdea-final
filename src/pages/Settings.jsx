@@ -2,8 +2,13 @@ import { useRef, useState } from 'react';
 import { Play, Plus, Trash2 } from 'lucide-react';
 import { speakWelcome, playVoiceClip } from '../services/voice';
 import { createPinSecret, createRecoverySecret } from '../utils/security';
-import { downloadBackup, readBackupFile } from '../services/backup';
+import { downloadBackup, readBackupFile, restoreBackupAssets } from '../services/backup';
 import { pullCloudData, pushCloudData, testCloudConnection } from '../services/cloudSync';
+import { checkForUpdate } from '../services/updater';
+import { release } from '../config/release';
+import { deleteAsset, storeAsset } from '../services/assetStore';
+import { normalizeAppData } from '../services/storage';
+import { secureVaultLevel } from '../services/secureVault';
 
 const clipTypes = [
   ['welcome', 'الترحيب'],
@@ -23,6 +28,26 @@ export default function Settings({ data, updateData, resetAppData }) {
   const [recoveryQuestion, setRecoveryQuestion] = useState(data.settings.staffRecoveryQuestion || '');
   const [recoveryAnswer, setRecoveryAnswer] = useState('');
   const [notice, setNotice] = useState('');
+  const [updateCheckResult, setUpdateCheckResult] = useState(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [backupPassword, setBackupPassword] = useState('');
+  const [backupIncludeAssets, setBackupIncludeAssets] = useState(true);
+  const [backupBusy, setBackupBusy] = useState(false);
+
+  const runManualUpdateCheck = async () => {
+    setUpdateChecking(true);
+    setUpdateCheckResult(null);
+    try {
+      const result = await checkForUpdate(data.settings, release.appVersion);
+      setUpdateCheckResult(result.available
+        ? `يتوفر إصدار جديد: ${result.version} (الحالي: ${release.displayVersion})`
+        : `التطبيق محدّث بالفعل (${release.displayVersion}).`);
+    } catch (error) {
+      setUpdateCheckResult(error.message || 'تعذر التحقق من التحديث.');
+    } finally {
+      setUpdateChecking(false);
+    }
+  };
   const [syncing, setSyncing] = useState(false);
   const [clipTitle, setClipTitle] = useState('');
   const [clipType, setClipType] = useState('excellent');
@@ -31,39 +56,45 @@ export default function Settings({ data, updateData, resetAppData }) {
   const fileRef = useRef(null);
   const clipFileRef = useRef(null);
 
-  const patchSettings = (patch) => updateData({ ...data, settings: { ...data.settings, ...patch } });
-  const patchVisible = (key, value) => patchSettings({ visibleModules: { ...data.settings.visibleModules, [key]: value } });
-  const patchCloud = (patch) => patchSettings({ cloudSync: { ...data.settings.cloudSync, ...patch } });
+  const patchSettings = (patch) => updateData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
+  const patchVisible = (key, value) => updateData((current) => ({
+    ...current,
+    settings: { ...current.settings, visibleModules: { ...current.settings.visibleModules, [key]: value } },
+  }));
+  const patchCloud = (patch) => updateData((current) => ({
+    ...current,
+    settings: { ...current.settings, cloudSync: { ...current.settings.cloudSync, ...patch } },
+  }));
 
   const savePin = async () => {
-    if (!/^\d{4,6}$/.test(pin)) { setNotice('PIN يجب أن يكون من 4 إلى 6 أرقام'); return; }
+    if (!/^\d{6,10}$/.test(pin)) { setNotice('PIN يجب أن يكون من 6 إلى 10 أرقام'); return; }
     const secret = await createPinSecret(pin, 'admin');
-    await patchSettings({ adminPin: '', adminPinHash: secret.adminPinHash, adminPinSalt: secret.adminPinSalt });
+    await patchSettings({ adminPin: '', ...secret });
     setPin('');
     setNotice('تم حفظ رقم الإدارة السري بشكل آمن');
   };
 
   const saveTeacherPin = async () => {
-    if (!/^\d{4,6}$/.test(teacherPin)) { setNotice('PIN يجب أن يكون من 4 إلى 6 أرقام'); return; }
+    if (!/^\d{6,10}$/.test(teacherPin)) { setNotice('PIN يجب أن يكون من 6 إلى 10 أرقام'); return; }
     const secret = await createPinSecret(teacherPin, 'teacher');
-    await patchSettings({ teacherPin: '', teacherPinHash: secret.teacherPinHash, teacherPinSalt: secret.teacherPinSalt });
+    await patchSettings({ teacherPin: '', ...secret });
     setTeacherPin('');
     setNotice('تم حفظ رقم المعلم السري بشكل آمن');
   };
 
   const saveRecovery = async () => {
-    if (!recoveryQuestion.trim()) { setNotice('اكتب سؤال الاسترجاع أولًا'); return; }
-    if (!recoveryAnswer.trim()) { setNotice('اكتب إجابة سؤال الاسترجاع'); return; }
+    if (recoveryAnswer.trim().length < 10) { setNotice('عبارة الاسترجاع يجب ألا تقل عن 10 أحرف ويُفضّل أن تكون جملة لا يعرفها غيرك.'); return; }
     const secret = await createRecoverySecret(recoveryAnswer);
-    await patchSettings({ staffRecoveryQuestion: recoveryQuestion.trim(), staffRecoveryAnswerHash: secret.staffRecoveryAnswerHash, staffRecoveryAnswerSalt: secret.staffRecoveryAnswerSalt });
+    await patchSettings({ staffRecoveryQuestion: recoveryQuestion.trim(), ...secret });
     setRecoveryAnswer('');
-    setNotice('تم حفظ سؤال الاسترجاع، ويمكن استخدامه من شاشة الدخول عند نسيان الرقم السري');
+    setNotice('تم حفظ عبارة الاسترجاع، ويمكن استخدامها من شاشة الدخول عند نسيان الرقم السري');
   };
 
   const restore = async (file) => {
     try {
-      const restored = await readBackupFile(file);
-      await updateData(restored);
+      const restored = await readBackupFile(file, backupPassword);
+      await restoreBackupAssets(restored.assets);
+      await updateData(normalizeAppData(restored.data));
       setNotice('تمت استعادة النسخة الاحتياطية بنجاح');
     } catch (error) {
       setNotice(error.message || 'تعذر استعادة النسخة');
@@ -80,8 +111,8 @@ export default function Settings({ data, updateData, resetAppData }) {
   const pushCloud = async () => {
     setSyncing(true);
     try {
-      await pushCloudData(data);
-      await patchCloud({ lastPushAt: new Date().toISOString() });
+      const result = await pushCloudData(data);
+      await patchCloud({ revision: result.revision, lastPushAt: result.updatedAt || new Date().toISOString() });
       setNotice('تم رفع نسخة المنصة إلى السحابة');
     } catch (error) { setNotice(error.message); }
     finally { setSyncing(false); }
@@ -96,7 +127,7 @@ export default function Settings({ data, updateData, resetAppData }) {
         ...payload.data,
         settings: {
           ...payload.data.settings,
-          cloudSync: { ...data.settings.cloudSync, lastPullAt: new Date().toISOString() }
+          cloudSync: { ...data.settings.cloudSync, revision: payload.revision, lastPullAt: new Date().toISOString() }
         }
       };
       await updateData(restored);
@@ -107,39 +138,54 @@ export default function Settings({ data, updateData, resetAppData }) {
 
   const addVoiceClip = async (file) => {
     if (!file) return;
-    const url = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('تعذر قراءة الملف.'));
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.readAsDataURL(file);
-    });
-    const nextClip = {
-      id: Date.now(),
-      title: clipTitle.trim() || file.name.replace(/\.[^.]+$/, ''),
-      phraseType: clipType,
-      text: clipText.trim(),
-      url,
-      mimeType: file.type,
-      fileName: file.name,
-      createdAt: new Date().toISOString()
-    };
-    const voiceClips = [...(data.settings.voiceClips || []), nextClip];
-    patchSettings({ voiceClips });
-    setClipInfo(`تمت إضافة الصوت: ${nextClip.title}`);
-    setClipTitle('');
-    setClipText('');
-    if (clipFileRef.current) clipFileRef.current.value = '';
+    try {
+      const asset = await storeAsset(file, { name: file.name, type: file.type, kind: 'voice' });
+      const nextClip = {
+        id: Date.now(),
+        title: clipTitle.trim() || file.name.replace(/\.[^.]+$/, ''),
+        phraseType: clipType,
+        text: clipText.trim(),
+        url: '',
+        assetId: asset.id,
+        mimeType: asset.type,
+        fileName: asset.name,
+        fileSize: asset.size,
+        createdAt: new Date().toISOString(),
+      };
+      const voiceClips = [...(data.settings.voiceClips || []), nextClip];
+      await patchSettings({ voiceClips });
+      setClipInfo(`تم تشفير الصوت وإضافته: ${nextClip.title}`);
+      setClipTitle('');
+      setClipText('');
+    } catch (error) {
+      setClipInfo(error?.message || 'تعذر إضافة الملف الصوتي.');
+    } finally {
+      if (clipFileRef.current) clipFileRef.current.value = '';
+    }
   };
 
-  const removeVoiceClip = (id) => {
-    const voiceClips = (data.settings.voiceClips || []).filter((clip) => clip.id !== id);
-    patchSettings({ voiceClips });
+  const removeVoiceClip = async (id) => {
+    const clip = (data.settings.voiceClips || []).find((item) => item.id === id);
+    const voiceClips = (data.settings.voiceClips || []).filter((item) => item.id !== id);
+    await patchSettings({ voiceClips });
+    if (clip?.assetId) await deleteAsset(clip.assetId).catch(() => {});
   };
 
   const previewClip = (clip) => {
-    if (!clip?.url) return;
     const played = playVoiceClip({ voiceClips: [clip] }, clip.phraseType);
     if (!played) setNotice('تعذر تشغيل الصوت.');
+  };
+
+  const exportBackup = async () => {
+    setBackupBusy(true);
+    try {
+      await downloadBackup(data, backupPassword, { includeAssets: backupIncludeAssets });
+      setNotice('تم إنشاء نسخة احتياطية مشفرة. احتفظ بكلمة المرور؛ لا يمكن فتح النسخة بدونها.');
+    } catch (error) {
+      setNotice(error?.message || 'تعذر إنشاء النسخة الاحتياطية.');
+    } finally {
+      setBackupBusy(false);
+    }
   };
 
   const cloud = data.settings.cloudSync || {};
@@ -151,18 +197,18 @@ export default function Settings({ data, updateData, resetAppData }) {
     <div className="settings-grid">
       <article className="panel"><h3>الحماية</h3>
         <label className="setting-row"><span>تفعيل قفل الإدارة</span><input type="checkbox" checked={data.settings.lockEnabled} onChange={(e) => patchSettings({ lockEnabled: e.target.checked })}/></label>
-        <label className="setting-row"><span>PIN الإدارة</span><input value={pin} inputMode="numeric" maxLength="6" placeholder={data.settings.adminPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا'} onChange={(e) => setPin(e.target.value.replace(/\D/g,''))}/></label>
+        <label className="setting-row"><span>PIN الإدارة</span><input value={pin} inputMode="numeric" maxLength="10" placeholder={data.settings.adminPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا'} onChange={(e) => setPin(e.target.value.replace(/\D/g,''))}/></label>
         <label className="setting-row"><span>القفل بعد عدم الاستخدام</span><select value={data.settings.lockAfterMinutes || 10} onChange={(e)=>patchSettings({lockAfterMinutes:Number(e.target.value)})}><option value="5">5 دقائق</option><option value="10">10 دقائق</option><option value="20">20 دقيقة</option><option value="30">30 دقيقة</option></select></label>
         <button className="primary-btn" onClick={savePin}>حفظ PIN الإدارة</button>
 
-        <label className="setting-row"><span>PIN المعلم</span><input value={teacherPin} inputMode="numeric" maxLength="6" placeholder={data.settings.teacherPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا للمعلم'} onChange={(e) => setTeacherPin(e.target.value.replace(/\D/g,''))}/></label>
+        <label className="setting-row"><span>PIN المعلم</span><input value={teacherPin} inputMode="numeric" maxLength="10" placeholder={data.settings.teacherPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا للمعلم'} onChange={(e) => setTeacherPin(e.target.value.replace(/\D/g,''))}/></label>
         <button className="secondary-btn" onClick={saveTeacherPin}>حفظ PIN المعلم</button>
 
         <div className="settings-divider" />
-        <p className="settings-help">سؤال الاسترجاع يُستخدم لإعادة ضبط رقم المعلم أو الإدارة مباشرة من شاشة الدخول عند نسيانه.</p>
-        <label className="setting-row"><span>سؤال الاسترجاع</span><input value={recoveryQuestion} placeholder="مثال: ما اسم أول مدرسة عملت بها؟" onChange={(e)=>setRecoveryQuestion(e.target.value)}/></label>
-        <label className="setting-row"><span>الإجابة</span><input value={recoveryAnswer} placeholder={data.settings.staffRecoveryAnswerHash ? 'إجابة محفوظة — اكتب إجابة جديدة لتغييرها' : 'اكتب الإجابة'} onChange={(e)=>setRecoveryAnswer(e.target.value)}/></label>
-        <button className="secondary-btn" onClick={saveRecovery}>حفظ سؤال الاسترجاع</button>
+        <p className="settings-help">استخدم عبارة استرجاع طويلة لا يعرفها غيرك. التلميح اختياري ولا تُكتب فيه العبارة نفسها.</p>
+        <label className="setting-row"><span>تلميح اختياري</span><input value={recoveryQuestion} placeholder="تلميح يساعدك على تذكر العبارة" onChange={(e)=>setRecoveryQuestion(e.target.value)}/></label>
+        <label className="setting-row"><span>عبارة الاسترجاع</span><input type="password" value={recoveryAnswer} placeholder={data.settings.staffRecoveryAnswerHash ? 'إجابة محفوظة — اكتب إجابة جديدة لتغييرها' : 'اكتب الإجابة'} onChange={(e)=>setRecoveryAnswer(e.target.value)}/></label>
+        <button className="secondary-btn" onClick={saveRecovery}>حفظ عبارة الاسترجاع</button>
       </article>
 
       <article className="panel"><h3>التحكم فيما يظهر</h3>
@@ -217,14 +263,18 @@ export default function Settings({ data, updateData, resetAppData }) {
         {(cloud.lastPushAt || cloud.lastPullAt) && <small className="sync-times">آخر رفع: {cloud.lastPushAt || '—'}<br/>آخر تنزيل: {cloud.lastPullAt || '—'}</small>}
       </article>
 
-      <article className="panel"><h3>النسخ الاحتياطي</h3><p className="settings-help">صدّر كل الطلاب والحضور والدرجات والحسابات والرسائل والألعاب في ملف واحد مع فحص سلامة.</p>
-        <div className="backup-actions"><button className="primary-btn" onClick={()=>downloadBackup(data)}>تصدير نسخة احتياطية</button><button className="secondary-btn" onClick={()=>fileRef.current?.click()}>استعادة نسخة</button></div>
-        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e)=>e.target.files?.[0]&&restore(e.target.files[0])}/>
+      <article className="panel"><h3>النسخ الاحتياطي المشفّر</h3><p className="settings-help">تُشفّر النسخة بـ AES-256 ولا يمكن استعادتها دون كلمة المرور. مستوى حماية المفاتيح الحالي: {secureVaultLevel() === 'android-keystore' ? 'Android Keystore' : 'تخزين المتصفح (أضعف من تطبيق Android)'}.</p>
+        <label className="setting-row"><span>كلمة مرور النسخة</span><input type="password" minLength="10" value={backupPassword} placeholder="10 أحرف على الأقل" onChange={(e)=>setBackupPassword(e.target.value)}/></label>
+        <label className="setting-row"><span>تضمين الملفات والصوت</span><input type="checkbox" checked={backupIncludeAssets} onChange={(e)=>setBackupIncludeAssets(e.target.checked)}/></label>
+        <div className="backup-actions"><button className="primary-btn" disabled={backupBusy} onClick={exportBackup}>{backupBusy ? 'جارٍ التشفير...' : 'تصدير نسخة مشفرة'}</button><button className="secondary-btn" disabled={backupBusy} onClick={()=>fileRef.current?.click()}>استعادة نسخة</button></div>
+        <input ref={fileRef} type="file" accept="application/json,.json,.mobdea" hidden onChange={(e)=>e.target.files?.[0]&&restore(e.target.files[0])}/>
       </article>
 
-      <article className="panel"><h3>تحديث التطبيق</h3><p className="settings-help">يمكنك إضافة رابط ملف JSON عام يحتوي على version وapkUrl وnotes، وإن تُرك فارغًا ستستخدم المنصة ملفًا داخليًا آمنًا للمعاينة.</p>
+      <article className="panel"><h3>تحديث التطبيق</h3><p className="settings-help">يجب أن يكون ملف التحديث عبر HTTPS ويحتوي على version وapkUrl وsha256 وsizeBytes وpackageName. يتحقق تطبيق Android من البصمة والتوقيع قبل التثبيت.</p>
         <label className="setting-row"><span>رابط Manifest</span><input value={data.settings.update?.manifestUrl || ''} placeholder="https://.../update.json" onChange={(e)=>patchSettings({update:{...(data.settings.update||{}),manifestUrl:e.target.value.trim()}})}/></label>
         <label className="setting-row"><span>الفحص عند فتح التطبيق</span><input type="checkbox" checked={data.settings.update?.autoCheck !== false} onChange={(e)=>patchSettings({update:{...(data.settings.update||{}),autoCheck:e.target.checked}})}/></label>
+        <button className="secondary-btn" onClick={runManualUpdateCheck} disabled={updateChecking}>{updateChecking ? 'جارٍ التحقق...' : 'التحقق من وجود تحديثات الآن'}</button>
+        {updateCheckResult && <p className="settings-help">{updateCheckResult}</p>}
       </article>
 
       <article className="panel"><h3>البيانات التجريبية</h3><button className="danger-btn" onClick={async()=>updateData(await resetAppData())}>إعادة البيانات التجريبية</button></article>

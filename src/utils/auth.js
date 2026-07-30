@@ -19,9 +19,18 @@ export const ROLE_ACCESS = {
   // so permissions can diverge later without another migration.
   teacher: null,
   admin: null,
-  student: new Set(['dashboard', 'portalPreview', 'studentCards', 'grades', 'games', 'mapChallenge', 'contentLibrary', 'messages']),
-  guardian: new Set(['dashboard', 'portalPreview', 'attendance', 'grades', 'payments', 'messages', 'reports', 'contentLibrary']),
-  visitor: new Set(['dashboard', 'portalPreview', 'contentLibrary', 'updates']),
+  // Student: own portal only (read-only grades/attendance/games via PortalPreview,
+  // locked to their own record), plus the games/map challenge and a read-only
+  // content library. No access to the raw admin CRUD screens (Grades, Messages,
+  // Payments, Attendance, StudentCards, Settings, Reports, etc.).
+  student: new Set(['dashboard', 'portalPreview', 'games', 'mapChallenge', 'contentLibrary']),
+  // Guardian: own child's portal only (attendance/grades/dues + messages sent
+  // to them, all read-only, locked to their linked student). Messages.jsx is a
+  // teacher-only broadcast composer that lists every student's name, code, and
+  // guardian phone number, so guardians never get access to it directly.
+  guardian: new Set(['dashboard', 'portalPreview']),
+  // Visitor: whatever the teacher has published in the content library, nothing else.
+  visitor: new Set(['dashboard', 'contentLibrary', 'updates']),
 };
 
 export function normalizeDigits(value) {
@@ -61,6 +70,21 @@ export function roleGreeting(role) {
   return ROLE_LABELS[role] || 'المستخدم';
 }
 
+export function buildWelcomeMessage(auth, identity) {
+  if (!auth) return '';
+  const brand = `منصة ${identity?.schoolName?.replace('لتعليم ممتع', '').trim() || 'المُبدع'} مصطفى بركات`;
+  if (auth.role === 'teacher' || auth.role === 'admin') {
+    return `أهلاً وسهلاً بك أ/ ${(identity?.teacherName || 'مصطفى بركات').replace('المُبدع ', '')} في ${brand}.`;
+  }
+  if (auth.role === 'student') {
+    return auth.displayName ? `أهلاً وسهلاً بك أ/ ${auth.displayName} في ${brand}.` : `أهلاً وسهلاً بك في ${brand}.`;
+  }
+  if (auth.role === 'guardian') {
+    return auth.displayName ? `أهلاً وسهلاً بك ولي الأمر / ${auth.displayName} في ${brand}.` : `أهلاً وسهلاً بك ولي الأمر في ${brand}.`;
+  }
+  return `أهلاً وسهلاً بك في ${brand}.`;
+}
+
 export function defaultAuthState(role = 'admin', student = null) {
   return {
     role,
@@ -74,27 +98,4 @@ export function defaultAuthState(role = 'admin', student = null) {
 
 export function getRoleModules(role) {
   return ROLE_ACCESS[role] || null;
-}
-
-// Real "create account" flow for parents: link a phone number to an
-// existing student record by code, so the guardian can log in with it
-// afterwards. Returns { student, data } on success, or throws.
-export function registerGuardianAccount(data, code, phone) {
-  const student = resolveStudentByCode(data, code);
-  if (!student) throw new Error('لم يتم العثور على طالب بهذا الكود، تأكد منه مع المعلم');
-
-  const normalizedPhone = normalizeDigits(phone);
-  if (normalizedPhone.length < 8) throw new Error('رقم الهاتف غير صحيح');
-
-  const existingPhone = normalizeDigits(student.guardianPhone);
-  if (existingPhone && existingPhone !== normalizedPhone) {
-    throw new Error('هذا الطالب مرتبط برقم آخر بالفعل، تواصل مع المعلم لتحديثه');
-  }
-
-  const nextStudents = (data.students || []).map((item) => (
-    item.id === student.id ? { ...item, guardianPhone: normalizedPhone } : item
-  ));
-  const nextData = { ...data, students: nextStudents };
-  const nextStudent = nextStudents.find((item) => item.id === student.id);
-  return { student: nextStudent, data: nextData };
 }

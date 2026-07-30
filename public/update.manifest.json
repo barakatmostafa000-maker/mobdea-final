@@ -1,5 +1,7 @@
 {
-  "version": "9.0.0",
-  "apkUrl": "https://downloads.example.invalid/mobdea-9.0.0.apk",
-  "notes": "نسخة مرجعية داخلية للمعاينة. استبدل apkUrl برابط الإنتاج قبل النشر."
+  "enabled": false,
+  "version": "9.3.0",
+  "packageName": "com.mobdea.education",
+  "mandatory": false,
+  "notes": "التحديث المباشر غير مفعّل في هذه النسخة. عند النشر أضف رابط APK عبر HTTPS وحجمه وSHA-256 الصحيحين ثم غيّر enabled إلى true."
 }

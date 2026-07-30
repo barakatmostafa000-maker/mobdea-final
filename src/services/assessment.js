@@ -78,7 +78,7 @@ export function resolveExamQuestions(exam, banks = []) {
     .filter(Boolean);
 }
 
-export function buildExamFromPool(pool = [], { title, grade, count = 20, shuffle = true, generated = true } = {}) {
+export function buildExamFromPool(pool = [], { title, grade, count = 20, shuffle = true, generated = true, sourceResourceId = '', sourceAssetId = '', sourceFileName = '' } = {}) {
   const source = [...pool];
   if (!source.length) return null;
   if (shuffle) source.sort(() => Math.random() - 0.5);
@@ -91,6 +91,9 @@ export function buildExamFromPool(pool = [], { title, grade, count = 20, shuffle
     questionIds: chosen.map((item) => item.id),
     active: true,
     generated,
+    sourceResourceId,
+    sourceAssetId,
+    sourceFileName,
     createdAt: new Date().toISOString(),
     totalScore: chosen.reduce((sum, item) => sum + Number(item.maxScore || 1), 0)
   };

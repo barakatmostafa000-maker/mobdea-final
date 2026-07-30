@@ -6,5 +6,18 @@ compatibility_date = "2026-07-01"
 binding = "MOBDEA_DATA"
 id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"
 
-# أضف MOBDEA_TOKEN كـ Secret من لوحة Cloudflare أو باستخدام:
-# npx wrangler secret put MOBDEA_TOKEN
+# Required secrets (do not commit their values):
+# npx wrangler secret put MOBDEA_WORKSPACE_TOKENS
+# Value example: {"mostafa-center-main":"GENERATE_A_UNIQUE_32+_CHAR_TOKEN"}
+#
+# npx wrangler secret put MOBDEA_ENCRYPTION_KEY
+# Use a random value of at least 32 characters. Changing it makes old data unreadable.
+#
+# Allowed web/PWA origins, comma separated. Native Android requests have no Origin header.
+# npx wrangler secret put MOBDEA_ALLOWED_ORIGINS
+# Example: https://app.example.com,https://www.example.com
+
+[[r2_buckets]]
+binding = "MOBDEA_ASSETS"
+bucket_name = "mobdea-assets"
+preview_bucket_name = "mobdea-assets-preview"

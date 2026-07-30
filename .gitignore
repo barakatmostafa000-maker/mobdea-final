@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Web build output
+dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Android local and generated files
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+*.apk
+*.aab
+
+# IDE and operating system files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs and caches
+*.log
+npm-debug.log*
+.cache/
