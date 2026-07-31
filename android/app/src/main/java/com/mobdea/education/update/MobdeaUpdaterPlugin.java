@@ -65,7 +65,7 @@ public class MobdeaUpdaterPlugin extends Plugin {
                 connection.setRequestProperty("Accept", "application/vnd.android.package-archive");
                 int status = connection.getResponseCode();
                 if (status < 200 || status >= 300) throw new IllegalStateException("Download failed with HTTP " + status);
-                long declaredSize = connection.getContentLengthLong();
+                long declaredSize = connection.getContentLength();
                 if (declaredSize > MAX_APK_BYTES) throw new IllegalStateException("APK is too large.");
                 if (expectedSize != null && expectedSize > 0 && declaredSize > 0 && expectedSize.longValue() != declaredSize) throw new IllegalStateException("APK size does not match the signed manifest.");
 
