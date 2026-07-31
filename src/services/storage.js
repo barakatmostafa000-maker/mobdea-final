@@ -69,7 +69,7 @@ const normalizeVoiceClips = (clips = []) => {
       assetId: safeTrim(clip.assetId || '', 100),
       mimeType: safeTrim(clip.mimeType || '', 120),
       fileName: safeTrim(clip.fileName || clip.name || '', 180),
-      fileSize: clampNumber(clip.fileSize ?? 0, 0, 25 * 1024 * 1024, 0),
+      fileSize: clampNumber(clip.fileSize ?? 0, 0, 200 * 1024 * 1024, 0),
       createdAt: clip.createdAt || new Date().toISOString(),
     };
   }).filter((item) => item.assetId || item.url || item.text || item.title).slice(0, 100);
@@ -153,7 +153,7 @@ const normalizeResource = (item = {}) => ({
   fileName: safeTrim(item.fileName || item.name || '', 180),
   examFileName: safeTrim(item.examFileName || '', 180),
   mimeType: safeTrim(item.mimeType || '', 120),
-  fileSize: clampNumber(item.fileSize ?? 0, 0, 25 * 1024 * 1024, 0),
+  fileSize: clampNumber(item.fileSize ?? 0, 0, 200 * 1024 * 1024, 0),
   relatedQuestionIds: normalizeTextList(item.relatedQuestionIds, 100),
   order: clampNumber(item.order ?? 0, 0, 10000, 0),
   permanent: Boolean(item.permanent),
@@ -184,6 +184,23 @@ const normalizeLessonRecording = (recording = {}) => ({
   boardActions: Array.isArray(recording.boardActions) ? recording.boardActions.slice(0, 300) : [],
   boardImage: '',
   boardAssetId: safeTrim(recording.boardAssetId || '', 100),
+  videoUrl: normalizeSecureUrl(recording.videoUrl, { allowRelative: true }),
+  videoAssetId: safeTrim(recording.videoAssetId || '', 100),
+  videoFileName: safeTrim(recording.videoFileName || '', 180),
+  videoMimeType: safeTrim(recording.videoMimeType || '', 120),
+  videoSize: clampNumber(recording.videoSize ?? 0, 0, 200 * 1024 * 1024, 0),
+  durationSeconds: clampNumber(recording.durationSeconds ?? 0, 0, 24 * 60 * 60, 0),
+  timeline: Array.isArray(recording.timeline)
+    ? recording.timeline.slice(0, 1000).map((entry) => ({
+      atSeconds: clampNumber(entry?.atSeconds ?? 0, 0, 24 * 60 * 60, 0),
+      type: safeTrim(entry?.type || 'event', 40),
+      contentMode: safeTrim(entry?.contentMode || '', 30),
+      resourceId: safeTrim(entry?.resourceId || '', 160),
+      resourceTitle: safeTrim(entry?.resourceTitle || '', 140),
+      page: clampNumber(entry?.page ?? 0, 0, 100000, 0),
+      createdAt: safeTrim(entry?.createdAt || '', 40),
+    }))
+    : [],
   selectedStudentId: recording.selectedStudentId ?? null,
   selectedStudentName: safeTrim(recording.selectedStudentName || '', 100),
   attendance: Array.isArray(recording.attendance) ? recording.attendance.slice(0, 500) : [],
@@ -248,6 +265,10 @@ const normalizeSettings = (settings = {}) => {
       revision: safeTrim(settings.cloudSync?.revision, 120),
       lastPushAt: safeTrim(settings.cloudSync?.lastPushAt, 40),
       lastPullAt: safeTrim(settings.cloudSync?.lastPullAt, 40),
+      autoBackup: settings.cloudSync?.autoBackup === true,
+      autoBackupIntervalHours: clampNumber(settings.cloudSync?.autoBackupIntervalHours, 1, 168, 24),
+      lastAutoBackupAt: safeTrim(settings.cloudSync?.lastAutoBackupAt, 40),
+      autoBackupError: safeTrim(settings.cloudSync?.autoBackupError, 240),
     },
     update: {
       ...seedSettings.update,
@@ -292,6 +313,9 @@ export function normalizeAppData(source) {
     detailedResults: limitArray(Array.isArray(data.detailedResults) ? data.detailedResults : [], MAX_HISTORY),
     auditLog: limitArray(Array.isArray(data.auditLog) ? data.auditLog : [], MAX_HISTORY),
     gameResults: limitArray(Array.isArray(data.gameResults) ? data.gameResults : [], MAX_HISTORY),
+    achievements: limitArray(Array.isArray(data.achievements) ? data.achievements : [], MAX_HISTORY),
+    rewardCatalog: limitArray(Array.isArray(data.rewardCatalog) ? data.rewardCatalog : [], 100),
+    rewardRedemptions: limitArray(Array.isArray(data.rewardRedemptions) ? data.rewardRedemptions : [], 500),
     lessonRecordings: limitArray(Array.isArray(data.lessonRecordings) ? data.lessonRecordings : [], MAX_RECORDINGS).map(normalizeLessonRecording),
     gameRooms: limitArray(Array.isArray(data.gameRooms) ? data.gameRooms : [], MAX_ROOMS).map(normalizeGameRoom),
     updateHistory: limitArray(Array.isArray(data.updateHistory) ? data.updateHistory : [], 50),
@@ -390,6 +414,18 @@ async function migrateLegacyAssets(source) {
       const asset = await importLegacyDataUrl(recording.boardImage, { name: `board-${recording.id || Date.now()}.png`, kind: 'board' });
       recording.boardAssetId = asset.id;
       recording.boardImage = '';
+      changed = true;
+    }
+    if (String(recording.videoUrl || '').startsWith('data:')) {
+      const asset = await importLegacyDataUrl(recording.videoUrl, {
+        name: recording.videoFileName || `recording-${recording.id || Date.now()}.webm`,
+        kind: 'lesson-recording',
+      });
+      recording.videoAssetId = asset.id;
+      recording.videoFileName = recording.videoFileName || asset.name;
+      recording.videoMimeType = recording.videoMimeType || asset.type;
+      recording.videoSize = asset.size;
+      recording.videoUrl = '';
       changed = true;
     }
   }

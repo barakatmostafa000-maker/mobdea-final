@@ -3,11 +3,12 @@ import {
   Home, Users, CalendarDays, ClipboardCheck, GraduationCap, WalletCards,
   Gamepad2, MessageCircle, BarChart3, Settings, Menu, X, Presentation,
   IdCard, ScanLine, ListChecks, Eye, Stethoscope, ChevronLeft, Sparkles,
-  ShieldCheck, Bell, BrainCircuit, MapPinned, BookOpen, DownloadCloud, LogOut, PenTool
+  ShieldCheck, Bell, BrainCircuit, MapPinned, BookOpen, DownloadCloud, LogOut, PenTool, Search, Trophy
 } from 'lucide-react';
 import { identity } from '../config/identity';
 import { release } from '../config/release';
 import { ROLE_LABELS, getRoleModules } from '../utils/auth';
+import GlobalSearch from './GlobalSearch';
 
 const baseItems = [
   ['dashboard', 'الرئيسية', Home, 'اليوم والحصة الحالية'],
@@ -22,6 +23,7 @@ const baseItems = [
   ['grades', 'الدرجات والامتحانات', GraduationCap, 'النتائج والترتيب'],
   ['payments', 'الحسابات', WalletCards, 'الدفع بالحصة والمستحقات'],
   ['games', 'الألعاب التعليمية', Gamepad2, 'الجولات والتحديات'],
+  ['achievements', 'الإنجازات والجوائز', Trophy, 'النقاط والمستويات والمتجر'],
   ['mapChallenge', 'تحدي الخرائط', MapPinned, 'الدول والمواقع والظاهرات'],
   ['messages', 'أولياء الأمور', MessageCircle, 'الرسائل والتنبيهات'],
   ['reports', 'التقارير', BarChart3, 'متابعة الأداء'],
@@ -41,6 +43,7 @@ const moduleMap = {
 export default function AppShell({ active, onChange, children, settings, data, auth, onLogout }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const roleModules = useMemo(() => getRoleModules(auth?.role), [auth?.role]);
   const items = useMemo(() => baseItems.filter(([id]) => {
     const key = moduleMap[id];
@@ -50,9 +53,15 @@ export default function AppShell({ active, onChange, children, settings, data, a
   }), [settings, roleModules]);
 
   useEffect(() => {
-    const onEscape = (event) => event.key === 'Escape' && setOpen(false);
-    window.addEventListener('keydown', onEscape);
-    return () => window.removeEventListener('keydown', onEscape);
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const currentSession = data?.sessions?.find((session) => session.current);
@@ -75,7 +84,7 @@ export default function AppShell({ active, onChange, children, settings, data, a
       <header className="mobile-header">
         <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label="فتح القائمة"><Menu size={23} /></button>
         <div className="mobile-brand-copy">
-          <img src={identity.portrait} alt={identity.teacherName} className="mobile-brand-avatar" />
+          <img src={identity.logo || identity.icon} alt={identity.schoolName} className="mobile-brand-avatar mobile-brand-logo" />
           <div>
             <strong>{identity.teacherName}</strong>
             <span>{currentSession ? currentSession.group : identity.teacherTitle}</span>
@@ -83,6 +92,7 @@ export default function AppShell({ active, onChange, children, settings, data, a
         </div>
         <div className="mobile-header-actions">
           <span className="mobile-role-pill" aria-label={`الدور الحالي: ${roleLabel}`}>{roleLabel}</span>
+          <button className="mobile-alert-button" onClick={() => setSearchOpen(true)} aria-label="البحث الشامل"><Search size={20} /></button>
           <button className="mobile-alert-button" onClick={() => select('messages')} aria-label="التنبيهات">
             <Bell size={20} />
             {readyNotifications > 0 && <b>{readyNotifications}</b>}
@@ -122,6 +132,12 @@ export default function AppShell({ active, onChange, children, settings, data, a
             </span>
           </div>
 
+          <button className="sidebar-search-button" type="button" onClick={() => setSearchOpen(true)}>
+            <Search size={17} />
+            <span><strong>بحث شامل</strong><small>طالب، درس، امتحان أو تسجيل</small></span>
+            <kbd>Ctrl K</kbd>
+          </button>
+
           <button className="session-mini-card" onClick={() => select('classMode')}>
             <span className="session-mini-icon"><Presentation size={19} /></span>
             <span>
@@ -150,6 +166,13 @@ export default function AppShell({ active, onChange, children, settings, data, a
       </aside>
 
       <main className="app-content">{children}</main>
+      <GlobalSearch
+        open={searchOpen}
+        data={data}
+        auth={auth}
+        onClose={() => setSearchOpen(false)}
+        onNavigate={select}
+      />
     </div>
   );
 }

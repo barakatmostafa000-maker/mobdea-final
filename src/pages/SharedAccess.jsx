@@ -1,6 +1,8 @@
 import { BookOpen, Gamepad2, Link as LinkIcon, QrCode, Users, CalendarClock, Sparkles, Target, AlertTriangle, LoaderCircle } from 'lucide-react';
 import { identity } from '../config/identity';
 import { normalizeSecureUrl } from '../utils/safety';
+import StudentLiveRoom from '../components/live/StudentLiveRoom';
+import StudentOnlineGameRoom from '../components/live/StudentOnlineGameRoom';
 
 function safeSharedUrl(value, type = '') {
   return normalizeSecureUrl(value, {
@@ -37,6 +39,12 @@ function ResourcePreview({ resource, boardImage }) {
 }
 
 export default function SharedAccess({ shareKind, sharePayload, shareLoading = false, shareError = '', onGoHome }) {
+  if (shareKind === 'live' && sharePayload) {
+    if (sharePayload.experience === 'game') {
+      return <StudentOnlineGameRoom payload={sharePayload} onGoHome={onGoHome} />;
+    }
+    return <StudentLiveRoom payload={sharePayload} onGoHome={onGoHome} />;
+  }
   if (shareLoading) {
     return <section className="page shared-access-page"><div className="shared-shell"><article className="panel shared-hero"><LoaderCircle className="spin" size={28} /><div><h2>جارٍ فتح رابط المشاركة</h2><p>يتم التحقق من الرابط وتحميل المحتوى الآمن.</p></div></article></div></section>;
   }

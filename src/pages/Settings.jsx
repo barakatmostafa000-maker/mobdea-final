@@ -259,8 +259,11 @@ export default function Settings({ data, updateData, resetAppData }) {
         <label><span>رابط الخادم</span><input placeholder="https://mobdea-sync...workers.dev" value={cloud.endpoint || ''} onChange={(e)=>patchCloud({endpoint:e.target.value.trim()})}/></label>
         <label><span>مساحة العمل</span><input placeholder="mostafa-center-main" value={cloud.workspaceId || ''} onChange={(e)=>patchCloud({workspaceId:e.target.value.trim()})}/></label>
         <label><span>الرمز السري</span><input type="password" value={cloud.token || ''} onChange={(e)=>patchCloud({token:e.target.value})}/></label>
+        <label className="setting-row"><span>نسخ سحابي تلقائي</span><input type="checkbox" checked={cloud.autoBackup === true} onChange={(e)=>patchCloud({autoBackup:e.target.checked,autoBackupError:''})}/></label>
+        <label className="setting-row"><span>تكرار النسخ التلقائي</span><select value={cloud.autoBackupIntervalHours || 24} onChange={(e)=>patchCloud({autoBackupIntervalHours:Number(e.target.value)})}><option value="6">كل 6 ساعات</option><option value="12">كل 12 ساعة</option><option value="24">يوميًا</option><option value="72">كل 3 أيام</option><option value="168">أسبوعيًا</option></select></label>
         <div className="backup-actions"><button className="secondary-btn" disabled={syncing} onClick={testCloud}>اختبار الاتصال</button><button className="primary-btn" disabled={syncing} onClick={pushCloud}>رفع الآن</button><button className="secondary-btn" disabled={syncing} onClick={pullCloud}>تنزيل الآن</button></div>
-        {(cloud.lastPushAt || cloud.lastPullAt) && <small className="sync-times">آخر رفع: {cloud.lastPushAt || '—'}<br/>آخر تنزيل: {cloud.lastPullAt || '—'}</small>}
+        {(cloud.lastPushAt || cloud.lastPullAt || cloud.lastAutoBackupAt) && <small className="sync-times">آخر رفع: {cloud.lastPushAt || '—'}<br/>آخر تنزيل: {cloud.lastPullAt || '—'}<br/>آخر نسخة تلقائية: {cloud.lastAutoBackupAt || '—'}</small>}
+        {cloud.autoBackupError && <small className="settings-help danger-text">آخر خطأ في النسخ التلقائي: {cloud.autoBackupError}</small>}
       </article>
 
       <article className="panel"><h3>النسخ الاحتياطي المشفّر</h3><p className="settings-help">تُشفّر النسخة بـ AES-256 ولا يمكن استعادتها دون كلمة المرور. مستوى حماية المفاتيح الحالي: {secureVaultLevel() === 'android-keystore' ? 'Android Keystore' : 'تخزين المتصفح (أضعف من تطبيق Android)'}.</p>

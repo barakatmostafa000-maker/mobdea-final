@@ -39,12 +39,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // JavaScript and CSS must be network-first. Serving an old chunk beside a
+  // new index.html is a common cause of the tablet white screen after updates.
+  if (['script', 'style', 'worker'].includes(request.destination)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || Response.error()))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok && ['script', 'style', 'image', 'font'].includes(request.destination)) {
-        caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
-      }
-      return response;
-    }))
+    caches.match(request).then((cached) => {
+      const network = fetch(request).then((response) => {
+        if (response.ok && ['image', 'font'].includes(request.destination)) {
+          caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
+        }
+        return response;
+      });
+      return cached || network;
+    })
   );
 });

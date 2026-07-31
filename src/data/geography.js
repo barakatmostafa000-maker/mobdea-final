@@ -193,6 +193,18 @@ export const GEOGRAPHY_SYMBOL_GROUPS = Object.freeze([
       { id: 'airport', label: 'مطار', hint: 'مطار أو محور جوي', symbol: '✈', color: '#657ca8' },
       { id: 'archaeology', label: 'أثر تاريخي', hint: 'موقع أثري أو حضاري', symbol: '⌂', color: '#b27a42' },
     ],
+  },  {
+    id: 'reference', label: 'علامات وبيانات', items: [
+      { id: 'pin', label: 'دبوس', hint: 'علامة بدون اسم أو مع ملاحظة', symbol: '📍', color: '#d64545' },
+      { id: 'country', label: 'دولة', hint: 'تحديد دولة أو إقليم', symbol: '▱', color: '#d6ae38' },
+      { id: 'latitude', label: 'دائرة عرض', hint: 'خط عرض مرجعي', symbol: '↔', color: '#5b8fb9' },
+      { id: 'longitude', label: 'خط طول', hint: 'خط طول مرجعي', symbol: '↕', color: '#5b8fb9' },
+      { id: 'grid', label: 'شبكة إحداثيات', hint: 'خطوط الطول ودوائر العرض', symbol: '▦', color: '#628ca4' },
+      { id: 'population-low', label: 'سكان قليل', hint: 'كثافة سكانية منخفضة', symbol: '●', color: '#8cc78b' },
+      { id: 'population-medium', label: 'سكان متوسط', hint: 'كثافة سكانية متوسطة', symbol: '●', color: '#e2b34f' },
+      { id: 'population-high', label: 'سكان كثيف', hint: 'كثافة سكانية مرتفعة', symbol: '●', color: '#d6534d' },
+      { id: 'note', label: 'ملاحظة', hint: 'معلومة أو شرح على الخريطة', symbol: '✎', color: '#8c5a9e' },
+    ],
   },
 ]);
 

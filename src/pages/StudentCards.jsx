@@ -3,6 +3,7 @@ import { CheckSquare, Eye, Printer, Search, ShieldCheck, Square, BadgeCheck, IdC
 import { QRCodeSVG } from 'qrcode.react';
 import { identity } from '../config/identity';
 import { currentAcademicYear, mirrorCardsForDuplex } from '../utils/printLayout';
+import { printCurrentView } from '../services/nativePlatform';
 
 const CARD_PRESETS = {
   4: { cols: 2, rows: 2, label: '2 × 2' },
@@ -60,57 +61,61 @@ function CardField({ label, value, icon, wide = false }) {
 }
 
 function FrontCard({ student }) {
-  const year = student.year || student.schoolYear || currentAcademicYear();
-  const subscription = student.sessionPrice != null ? `${student.sessionPrice} ج للحصة` : '—';
+  const year =
+    student.year || student.schoolYear || currentAcademicYear();
+
+  const code = String(student.code || '');
+
+  const qrValue = JSON.stringify({
+    type: 'mobdea-student',
+    code,
+    name: student.name || '',
+    grade: student.grade || '',
+    group: student.group || '',
+  });
 
   return (
-    <article className="student-card-face front-card">
-      <div className="front-panel-image">
-        <img src={identity.portrait} alt={identity.teacherName} />
-        <div className="front-panel-overlay">
-          <div className="front-panel-badge">{identity.schoolName}</div>
-          <div className="front-panel-brand">
-            <strong>المبدع</strong>
-            <span>لتعليم ممتع</span>
-          </div>
-        </div>
+    <article
+      className="student-card-face front-card student-card-template-card student-card-template-front"
+      dir="rtl"
+    >
+      <img
+        className="student-card-template-image"
+        src={`${import.meta.env.BASE_URL}identity/card-templates/student-card-front.png`}
+        alt={`وجه كارت ${student.name || 'الطالب'}`}
+        draggable="false"
+      />
+
+      <div className="student-card-template-value student-card-template-name">
+        {student.name || '—'}
       </div>
 
-      <div className="front-panel-details">
-        <div className="front-headline">
-          <div>
-            <span className="eyebrow">المبدع</span>
-            <h3>{identity.teacherName}</h3>
-            <p>{identity.teacherTitle}</p>
-          </div>
-          <div className="front-round-mark">
-            <img src={identity.logo || identity.icon} alt={identity.schoolName} />
-          </div>
-        </div>
+      <div
+        className="student-card-template-value student-card-template-code"
+        dir="ltr"
+      >
+        {code || '—'}
+      </div>
 
-        <div className="front-title-block">
-          <h4>{student.name}</h4>
-          <p>{student.grade}</p>
-        </div>
+      <div className="student-card-template-value student-card-template-grade">
+        {student.grade || '—'}
+      </div>
 
-        <div className="front-info-list">
-          <CardField label="اسم الطالب" value={student.name} icon={<UserRound size={16} />} wide />
-          <CardField label="كود الطالب" value={student.code} icon={<IdCard size={16} />} />
-          <CardField label="المرحلة" value={student.grade} icon={<School size={16} />} wide />
-          <CardField label="الفصل" value={student.group || '—'} icon={<UsersRound size={16} />} />
-          <CardField label="الاشتراك" value={subscription} icon={<WalletCards size={16} />} />
-          <CardField label="العام الدراسي" value={year} icon={<CalendarDays size={16} />} />
-        </div>
+      <div className="student-card-template-value student-card-template-group">
+        {student.group || '—'}
+      </div>
 
-        <div className="front-id-area">
-          <div className="front-barcode-card">
-            <MiniBarcode value={student.code} />
-            <div className="barcode-number">{student.code}</div>
-          </div>
-          <div className="front-qr-card">
-            <QRCodeSVG value={JSON.stringify({ type: 'mobdea-student', code: student.code, name: student.name, grade: student.grade, group: student.group })} size={92} level="H" includeMargin />
-          </div>
-        </div>
+      <div
+        className="student-card-template-value student-card-template-year"
+        dir="ltr"
+      >
+        {year || '—'}
+      </div>
+
+      <div className="student-card-template-id">
+        <MiniBarcode value={code} />
+        <strong>{code || '—'}</strong>
+        <QRCodeSVG value={qrValue} size={96} includeMargin />
       </div>
     </article>
   );
@@ -118,51 +123,13 @@ function FrontCard({ student }) {
 
 function BackCard() {
   return (
-    <article className="student-card-face back-card">
-      <div className="back-banner">
-        <div className="back-banner-logo">
-          <img src={identity.logo || identity.icon} alt={identity.schoolName} />
-        </div>
-        <div>
-          <strong>المبدع</strong>
-          <span>لتعليم ممتع</span>
-        </div>
-      </div>
-
-      <div className="back-content-grid">
-        <div className="back-benefits-panel">
-          <h4>هذا الكارت خاص بمنصة المبدع</h4>
-          <div className="back-benefits">
-            <div><BadgeCheck size={18} /><p>يستخدم للحضور والانصراف</p></div>
-            <div><Sparkles size={18} /><p>متابعة الدرجات والتقارير</p></div>
-            <div><ArrowLeftRight size={18} /><p>يعمل مع QR والرقم المخصص</p></div>
-            <div><WalletCards size={18} /><p>متابعة الاشتراك والمستحقات</p></div>
-          </div>
-        </div>
-
-        <div className="back-portrait-panel">
-          <div className="back-portrait-ring">
-            <div className="back-portrait-plate">
-              <img src={identity.portrait} alt={identity.teacherName} />
-            </div>
-          </div>
-          <div className="back-quote">"من جد وجد ومن زرع حصد"</div>
-        </div>
-
-        <div className="back-copy-panel">
-          <div className="back-copy-block">
-            <h3>هذا الكارت خاص بمنصة المبدع</h3>
-            <p>لا يستخدم إلا للحضور والانصراف والمتابعة التعليمية داخل المنصة.</p>
-          </div>
-          <div className="back-landmarks" aria-hidden="true">
-            <span>⟡</span><span>⟡</span><span>⟡</span>
-          </div>
-          <div className="back-signature">
-            <strong>المبدع</strong>
-            <small>لتعليم ممتع</small>
-          </div>
-        </div>
-      </div>
+    <article className="student-card-face back-card student-card-template-card student-card-template-back">
+      <img
+        className="student-card-template-image"
+        src={`${import.meta.env.BASE_URL}identity/card-templates/student-card-back.png`}
+        alt="ظهر كارت منصة المبدع"
+        draggable="false"
+      />
     </article>
   );
 }
@@ -221,6 +188,8 @@ export default function StudentCards({ data, auth }) {
   const [duplexMode, setDuplexMode] = useState('flip-long-edge');
   const [selectedStudentId, setSelectedStudentId] = useState(rosterStudents[0]?.id || null);
   const [selectedIds, setSelectedIds] = useState(isOwnCardOnly && rosterStudents[0] ? [rosterStudents[0].id] : []);
+  const [printNotice, setPrintNotice] = useState('');
+  const [printing, setPrinting] = useState(false);
 
   const groups = [...new Set(rosterStudents.map((student) => student.group).filter(Boolean))];
   const filteredStudents = useMemo(() => {
@@ -260,6 +229,26 @@ export default function StudentCards({ data, auth }) {
   const selectAllVisible = () => setSelectedIds(visibleIds);
   const clearSelection = () => setSelectedIds([]);
 
+  const startPrinting = async () => {
+    if (!selectedVisibleStudents.length) {
+      setPrintNotice('حدد طالبًا واحدًا على الأقل قبل الطباعة.');
+      return;
+    }
+    setPrinting(true);
+    setPrintNotice('جارٍ تجهيز معاينة الطباعة…');
+    document.body.classList.add('mobdea-printing-cards');
+    try {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await printCurrentView('بطاقات طلاب المبدع');
+      setPrintNotice('تم فتح معاينة الطباعة. اختر الطابعة أو الحفظ بصيغة PDF.');
+    } catch (error) {
+      setPrintNotice(error?.message || 'تعذر تشغيل الطباعة على هذا الجهاز.');
+    } finally {
+      document.body.classList.remove('mobdea-printing-cards');
+      setPrinting(false);
+    }
+  };
+
   return (
     <section className="page student-card-lab">
       <div className="page-heading no-print">
@@ -268,8 +257,10 @@ export default function StudentCards({ data, auth }) {
           <h2>كروت الطلاب</h2>
           <p>التصميم ثابت كما هو، مع معاينة الوجه الأمامي والخلفي وطباعة عدد كبير من الطلاب في الصفحة الواحدة.</p>
         </div>
-        <button className="primary-btn icon-button" onClick={() => window.print()} type="button"><Printer size={18} /> طباعة الكروت</button>
+        <button className="primary-btn icon-button" onClick={() => void startPrinting()} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ التجهيز…' : 'طباعة الكروت'}</button>
       </div>
+
+      {printNotice && <div className="settings-notice card-print-notice no-print">{printNotice}</div>}
 
       <div className="student-card-toolbar no-print panel">
         <label>
@@ -388,7 +379,7 @@ export default function StudentCards({ data, auth }) {
           )}
 
           <div className="card-print-actions">
-            <button className="primary-btn icon-button" onClick={() => window.print()} type="button"><Printer size={18} /> طباعة {printMode === 'both' ? 'الوجهين' : (printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي')}</button>
+            <button className="primary-btn icon-button" onClick={() => void startPrinting()} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ تجهيز الطباعة…' : `طباعة ${printMode === 'both' ? 'الوجهين' : (printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي')}`}</button>
           </div>
         </aside>
       </div>

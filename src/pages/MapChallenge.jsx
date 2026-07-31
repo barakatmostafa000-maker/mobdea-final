@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import worldCountries from '../data/world-countries.json';
 import {
   BadgeCheck,
   BrainCircuit,
@@ -33,7 +34,7 @@ import {
 import { identity } from '../config/identity';
 import { encourageStudent } from '../services/voice';
 import { calculateMapReward, shuffleMapItems } from '../utils/mapChallenge';
-import ProfessionalMap from '../components/maps/ProfessionalMap';
+import ProfessionalMap, { GeographyGlyph } from '../components/maps/ProfessionalMap';
 import {
   GEOGRAPHY_REGIONS,
   GEOGRAPHY_LAYERS,
@@ -61,11 +62,11 @@ const modeConfig = {
   contest: { label: 'البطولات', icon: Trophy, seconds: 20, lives: 2, multiplier: 1.5, description: 'أقصى سرعة ومكافآت أعلى' },
 };
 
-const buildPaletteIds = new Set(['mountains', 'plateaus', 'animal', 'fish', 'minerals', 'agriculture', 'river', 'desert']);
+const buildPaletteIds = new Set(['mountains', 'plateaus', 'plains', 'river', 'desert', 'capital', 'city', 'pin', 'latitude', 'longitude', 'population-low', 'population-medium', 'population-high']);
 const buildPalette = GEOGRAPHY_SYMBOLS.filter((item) => buildPaletteIds.has(item.id));
 
 export default function MapChallenge({ data, updateData, navigate }) {
-  const [geo, setGeo] = useState(null);
+  const [geo] = useState(worldCountries);
   const [regionKey, setRegionKey] = useState('africa');
   const [layerKey, setLayerKey] = useState('countries');
   const [mode, setMode] = useState('challenge');
@@ -92,13 +93,6 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const answerLockRef = useRef(false);
   const timerHandledRef = useRef('');
   const settings = data?.settings || {};
-
-  useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/world-countries.geojson`)
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('تعذر تحميل الخريطة')))
-      .then(setGeo)
-      .catch(() => setGeo({ features: [] }));
-  }, []);
 
   const region = regions[regionKey] || regions.world;
   const project = useMemo(() => createMapProjector(regionKey), [regionKey]);
@@ -333,7 +327,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
           <div className="map-game-canvas-shell">
             {!geo && <div className="map-game-loading">جارٍ تحميل حدود الخريطة الاحترافية…</div>}
-            <ProfessionalMap countries={countries} items={items} layerKey={layerKey} labels={labels} highlightedId={hintId} selectedId={selectedId} project={project} zoom={zoom} placements={placements} onCountryClick={answer} onFeatureClick={answer} onDropPlacement={handleDropPlacement} onStageClick={handleMapStageClick} canvasRef={mapCanvasRef} drawTool={mapTool} onPointerDown={onMapPointerDown} onPointerMove={onMapPointerMove} onPointerUp={onMapPointerUp}/>
+            <ProfessionalMap countries={countries} items={items} layerKey={layerKey} labels={labels} highlightedId={hintId} selectedId={selectedId} project={project} zoom={zoom} placements={placements} onCountryClick={answer} onFeatureClick={answer} onDropPlacement={handleDropPlacement} onMovePlacement={(id, x, y) => setPlacements((current) => current.map((item) => item.id === id ? { ...item, x, y } : item))} onRemovePlacement={(id) => setPlacements((current) => current.filter((item) => item.id !== id))} onStageClick={handleMapStageClick} canvasRef={mapCanvasRef} drawTool={mapTool} onPointerDown={onMapPointerDown} onPointerMove={onMapPointerMove} onPointerUp={onMapPointerUp}/>
             <div className="map-drawing-tools">
               <button type="button" className={mapTool === 'select' ? 'active' : ''} onClick={() => setMapTool('select')}><MapPin size={16}/></button>
               <button type="button" className={mapTool === 'pen' ? 'active' : ''} onClick={() => setMapTool('pen')}><PenLine size={16}/></button>
@@ -355,7 +349,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
           </div>
           <div className="map-question-stats"><div><span>الوقت</span><strong>{activeConfig.seconds ? `00:${String(seconds).padStart(2, '0')}` : '∞'}</strong></div><div><span>النقاط</span><strong>{score.toLocaleString('ar-EG')}</strong></div><div><span>المضاعف</span><strong>×{activeConfig.multiplier}</strong></div><div><span>الدقة</span><strong>{index ? Math.round((streak / Math.max(index, 1)) * 100) : 100}%</strong></div></div>
           <div className="map-lives">{Array.from({ length: Math.min(5, activeConfig.lives) }, (_, lifeIndex) => <span key={lifeIndex} className={lifeIndex < lives ? 'alive' : ''}>♥</span>)}</div>
-          {mode === 'build' && <div className="map-build-palette">{buildPalette.map((item) => <button key={item.id} draggable className={selectedBuildItem?.id === item.id ? 'active' : ''} onClick={() => { setSelectedBuildItem(item); setMessage(`تم اختيار ${item.label} — اضغط على مكانه في الخريطة.`); }} onDragStart={(event) => handlePaletteDrag(event, item)} type="button" style={{ '--palette-color': item.color }}><strong>{item.label}</strong><small>{item.hint}</small></button>)}</div>}
+          {mode === 'build' && <div className="map-build-palette">{buildPalette.map((item) => <button key={item.id} draggable className={selectedBuildItem?.id === item.id ? 'active' : ''} onClick={() => { setSelectedBuildItem(item); setMessage(`تم اختيار ${item.label} — اضغط على مكانه في الخريطة.`); }} onDragStart={(event) => handlePaletteDrag(event, item)} type="button" style={{ '--palette-color': item.color }}><b className="map-palette-glyph"><GeographyGlyph type={item.id} symbol={item.symbol} /></b><strong>{item.label}</strong><small>{item.hint}</small></button>)}</div>}
           {message && <div className={`map-game-message ${message.includes('صحيحة') || message.includes('تم وضع') || message.includes('📍') ? 'good' : ''}`}>{message}</div>}
           <div className="map-question-actions">
             {!started ? <button type="button" className="map-start-button" onClick={startGame}><Gamepad2 size={18}/>ابدأ الجولة</button> : <>

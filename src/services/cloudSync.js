@@ -5,7 +5,7 @@ import { getAssetBlob, getAssetMetadata, importAssetBlob } from './assetStore';
 import { collectLibraryAssetIds } from './libraryModel';
 
 const MAX_SYNC_BYTES = 8_000_000;
-const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+const MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const MAX_SYNC_ASSETS = 500;
 
 export const timeoutFetch = async (url, options = {}, timeoutMs = 15000) => {
@@ -46,7 +46,10 @@ export const buildCloudUrl = (endpoint, path) => `${endpoint.replace(/\/$/, '')}
 function collectReferencedAssetIds(data = {}) {
   const ids = new Set(collectLibraryAssetIds(data));
   for (const clip of data.settings?.voiceClips || []) if (clip.assetId) ids.add(String(clip.assetId));
-  for (const recording of data.lessonRecordings || []) if (recording.boardAssetId) ids.add(String(recording.boardAssetId));
+  for (const recording of data.lessonRecordings || []) {
+    if (recording.boardAssetId) ids.add(String(recording.boardAssetId));
+    if (recording.videoAssetId) ids.add(String(recording.videoAssetId));
+  }
   return [...ids].slice(0, MAX_SYNC_ASSETS);
 }
 
@@ -89,7 +92,7 @@ async function pushCloudAssets(data, config) {
           'X-Mobdea-Asset-Size': String(metadata.size),
         }),
         body: blob,
-      }, 90000);
+      }, 300000);
       if (!response.ok) throw new Error(await readError(response, `فشل رفع الملف ${metadata.name} (${response.status})`));
     }
     manifest.push(metadata);
@@ -105,7 +108,7 @@ async function pullCloudAssets(manifest, config) {
     if (!id || !/^[a-f0-9]{64}$/.test(sha256) || size <= 0 || size > MAX_ASSET_BYTES) throw new Error('قائمة الملفات السحابية غير صالحة.');
     const local = await getAssetMetadata(id);
     if (local?.sha256 === sha256 && local.size === size) continue;
-    const response = await timeoutFetch(assetUrl(config, id), { method: 'GET', headers: cloudHeaders(config, { Accept: '*/*' }) }, 90000);
+    const response = await timeoutFetch(assetUrl(config, id), { method: 'GET', headers: cloudHeaders(config, { Accept: '*/*' }) }, 300000);
     if (!response.ok) throw new Error(await readError(response, `تعذر تنزيل الملف ${item.name || id} (${response.status})`));
     const blob = await response.blob();
     if (blob.size !== size) throw new Error(`حجم الملف ${item.name || id} لا يطابق القائمة السحابية.`);

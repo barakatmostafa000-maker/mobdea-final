@@ -1,11 +1,22 @@
 const MAX_SYNC_BYTES = 8_000_000;
 const MAX_SHARE_BYTES = 6_000_000;
-const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+const MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const MAX_ASSET_COUNT = 500;
 const MAX_READS_PER_MINUTE = 90;
 const MAX_WRITES_PER_MINUTE = 25;
 const MAX_ASSET_READS_PER_MINUTE = 600;
 const MAX_ASSET_WRITES_PER_MINUTE = 550;
+const MAX_LIVE_EVENT_BYTES = 180_000;
+const LIVE_ROOM_TTL_MIN = 60 * 60;
+const LIVE_ROOM_TTL_MAX = 12 * 60 * 60;
+const LIVE_EVENT_TYPES = new Set([
+  'student-ready', 'participant-joined', 'participant-left', 'participant-removed',
+  'class-state', 'screen-started', 'screen-stopped', 'room-closed',
+  'mic-request', 'mic-approved', 'mic-revoked', 'mic-started', 'mic-stopped', 'hand-raised',
+  'reaction', 'chat', 'teacher-message', 'heartbeat', 'game-state',
+  'game-ready', 'game-start', 'game-question', 'game-answer', 'game-score', 'game-finished',
+  'webrtc-offer', 'webrtc-answer', 'webrtc-ice',
+]);
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -18,9 +29,9 @@ function corsHeaders(request, env) {
   const allowed = allowedOrigins(env);
   const headers = {
     'Vary': 'Origin',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Mobdea-Workspace,X-Mobdea-Client,If-Match,X-Mobdea-Asset-Name,X-Mobdea-Asset-Kind,X-Mobdea-Asset-Sha256,X-Mobdea-Asset-Size',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Mobdea-Workspace,X-Mobdea-Client,X-Mobdea-Live-Token,If-Match,X-Mobdea-Asset-Name,X-Mobdea-Asset-Kind,X-Mobdea-Asset-Sha256,X-Mobdea-Asset-Size',
     'Access-Control-Expose-Headers': 'ETag,X-Mobdea-Asset-Sha256,X-Mobdea-Asset-Size,X-Mobdea-Asset-Name,X-Mobdea-Asset-Kind',
-    'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,DELETE,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
     'Access-Control-Max-Age': '86400',
   };
   if (origin && allowed.includes(origin)) headers['Access-Control-Allow-Origin'] = origin;
@@ -326,6 +337,378 @@ async function handleSync(request, env, auth) {
   return json(request, env, { error: 'method_not_allowed' }, 405);
 }
 
+
+function liveRoomKey(workspace, roomId) {
+  return `live-room:${workspace}:${roomId}`;
+}
+
+function liveParticipantPrefix(workspace, roomId) {
+  return `live-participant:${workspace}:${roomId}:`;
+}
+
+function liveParticipantKey(workspace, roomId, participantId) {
+  return `${liveParticipantPrefix(workspace, roomId)}${participantId}`;
+}
+
+function liveEventPrefix(workspace, roomId) {
+  return `live-event:${workspace}:${roomId}:`;
+}
+
+function liveTokenIndexKey(workspace, roomId, tokenHash) {
+  return `live-token:${workspace}:${roomId}:${tokenHash}`;
+}
+
+function safeLiveText(value, maxLength = 160) {
+  return String(value || '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function validLiveRoomId(value) {
+  const roomId = String(value || '');
+  return /^[a-zA-Z0-9_-]{8,80}$/.test(roomId) ? roomId : '';
+}
+
+function liveExpirationTtl(room) {
+  return Math.max(60, Math.floor((Date.parse(room.expiresAt) - Date.now()) / 1000));
+}
+
+async function readLiveRoom(env, workspace, roomId) {
+  const key = liveRoomKey(workspace, roomId);
+  const encrypted = await env.MOBDEA_DATA.get(key);
+  if (!encrypted) return null;
+  const room = await decryptJson(encrypted, env, key);
+  if (!room || Date.parse(room.expiresAt) <= Date.now()) return null;
+  return room;
+}
+
+async function writeLiveRoom(env, room) {
+  const key = liveRoomKey(room.workspace, room.id);
+  await env.MOBDEA_DATA.put(
+    key,
+    await encryptJson(room, env, key),
+    { expirationTtl: liveExpirationTtl(room) },
+  );
+}
+
+async function readLiveParticipant(env, workspace, roomId, participantId) {
+  const key = liveParticipantKey(workspace, roomId, participantId);
+  const encrypted = await env.MOBDEA_DATA.get(key);
+  if (!encrypted) return null;
+  return decryptJson(encrypted, env, key);
+}
+
+async function writeLiveParticipant(env, room, participant) {
+  const key = liveParticipantKey(room.workspace, room.id, participant.id);
+  await env.MOBDEA_DATA.put(
+    key,
+    await encryptJson(participant, env, key),
+    { expirationTtl: liveExpirationTtl(room) },
+  );
+}
+
+async function tokenHash(value) {
+  return sha256Hex(encoder.encode(String(value || '')));
+}
+
+async function authenticateLive(request, env, workspace, roomId) {
+  const room = await readLiveRoom(env, workspace, roomId);
+  if (!room) return null;
+  const token = String(request.headers.get('X-Mobdea-Live-Token') || '').trim();
+  if (!token) return null;
+  if (await tokenEquals(token, room.teacherToken)) {
+    return { room, role: 'teacher', participantId: 'teacher' };
+  }
+  const participantId = await env.MOBDEA_DATA.get(
+    liveTokenIndexKey(workspace, roomId, await tokenHash(token)),
+  );
+  if (!participantId) return null;
+  const participant = await readLiveParticipant(env, workspace, roomId, participantId);
+  if (!participant || participant.status === 'removed') return null;
+  return { room, role: 'participant', participantId, participant };
+}
+
+async function writeLiveEvent(env, room, event) {
+  const createdAtMs = Number(event.createdAtMs || Date.now());
+  const suffix = randomToken().slice(0, 8);
+  const key = `${liveEventPrefix(room.workspace, room.id)}${String(createdAtMs).padStart(13, '0')}:${suffix}`;
+  const record = {
+    id: key.slice(liveEventPrefix(room.workspace, room.id).length),
+    createdAtMs,
+    createdAt: new Date(createdAtMs).toISOString(),
+    ...event,
+  };
+  await env.MOBDEA_DATA.put(
+    key,
+    await encryptJson(record, env, key),
+    { expirationTtl: liveExpirationTtl(room) },
+  );
+  return record;
+}
+
+async function handleCreateLiveRoom(request, env, auth) {
+  if (!(await rateLimit(request, env, auth.workspace, true, 20, 'live-create'))) {
+    return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
+  }
+  const body = await parseJsonBody(request, 80_000);
+  const ttl = Math.max(
+    LIVE_ROOM_TTL_MIN,
+    Math.min(LIVE_ROOM_TTL_MAX, Number(body.ttlSeconds || 6 * 60 * 60)),
+  );
+  const roomId = randomToken().slice(0, 18);
+  const teacherToken = randomToken();
+  const joinCodeBytes = crypto.getRandomValues(new Uint32Array(1));
+  const joinCode = String(100000 + (joinCodeBytes[0] % 900000));
+  const now = Date.now();
+  const room = {
+    id: roomId,
+    workspace: auth.workspace,
+    title: safeLiveText(body.title || 'حصة مباشرة', 140),
+    grade: safeLiveText(body.grade || '', 80),
+    lesson: safeLiveText(body.lesson || '', 140),
+    sessionId: body.sessionId ?? null,
+    lessonId: body.lessonId ?? null,
+    teacherToken,
+    joinCode,
+    status: 'open',
+    createdAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + ttl * 1000).toISOString(),
+  };
+  await writeLiveRoom(env, room);
+  return json(request, env, {
+    ok: true,
+    roomId,
+    teacherToken,
+    joinCode,
+    title: room.title,
+    grade: room.grade,
+    lesson: room.lesson,
+    expiresAt: room.expiresAt,
+  }, 201);
+}
+
+async function handleJoinLiveRoom(request, env, workspace, roomId) {
+  if (!(await rateLimit(request, env, workspace || 'public', true, 40, 'live-join'))) {
+    return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
+  }
+  const room = await readLiveRoom(env, workspace, roomId);
+  if (!room || room.status !== 'open') {
+    return json(request, env, { error: 'room_not_found', message: 'الحصة غير متاحة أو انتهت.' }, 404);
+  }
+  const body = await parseJsonBody(request, 40_000);
+  if (!(await tokenEquals(String(body.joinCode || '').trim(), room.joinCode))) {
+    return json(request, env, { error: 'invalid_join_code', message: 'كود دخول الحصة غير صحيح.' }, 403);
+  }
+  const name = safeLiveText(body.name, 100);
+  if (name.length < 2) {
+    return json(request, env, { error: 'invalid_name', message: 'اكتب اسم الطالب قبل الدخول.' }, 400);
+  }
+  const participantId = randomToken().slice(0, 18);
+  const participantToken = randomToken();
+  const now = Date.now();
+  const participant = {
+    id: participantId,
+    name,
+    studentCode: safeLiveText(body.studentCode, 40),
+    status: 'online',
+    micState: 'muted',
+    muted: true,
+    joinedAt: new Date(now).toISOString(),
+    lastSeenAt: new Date(now).toISOString(),
+  };
+  await writeLiveParticipant(env, room, participant);
+  await env.MOBDEA_DATA.put(
+    liveTokenIndexKey(workspace, roomId, await tokenHash(participantToken)),
+    participantId,
+    { expirationTtl: liveExpirationTtl(room) },
+  );
+  await writeLiveEvent(env, room, {
+    type: 'participant-joined',
+    sourceRole: 'system',
+    sourceId: participantId,
+    targetId: 'teacher',
+    data: {
+      participantId,
+      name: participant.name,
+      studentCode: participant.studentCode,
+    },
+  });
+  return json(request, env, {
+    ok: true,
+    room: {
+      id: room.id,
+      title: room.title,
+      grade: room.grade,
+      lesson: room.lesson,
+      status: room.status,
+      expiresAt: room.expiresAt,
+    },
+    participantId,
+    participantToken,
+  }, 201);
+}
+
+function liveEventAllowedForParticipant(event, participantId) {
+  if (!event) return false;
+  if (event.targetId && !['all', participantId].includes(event.targetId)) return false;
+  if (event.sourceRole === 'participant' && event.sourceId !== participantId) {
+    return ['reaction', 'chat', 'game-state'].includes(event.type) && !event.targetId;
+  }
+  return true;
+}
+
+async function handleLiveEvents(request, env, workspace, roomId) {
+  const auth = await authenticateLive(request, env, workspace, roomId);
+  if (!auth) return json(request, env, { error: 'unauthorized' }, 401);
+  if (!(await rateLimit(request, env, workspace, request.method === 'POST', request.method === 'POST' ? 180 : 600, `live-event-${request.method}`))) {
+    return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '10' });
+  }
+
+  if (request.method === 'GET') {
+    const after = Math.max(0, Number(new URL(request.url).searchParams.get('after') || 0));
+    const page = await env.MOBDEA_DATA.list({ prefix: liveEventPrefix(workspace, roomId), limit: 250 });
+    const events = [];
+    for (const key of page.keys || []) {
+      const encrypted = await env.MOBDEA_DATA.get(key.name);
+      if (!encrypted) continue;
+      const event = await decryptJson(encrypted, env, key.name);
+      if (Number(event.createdAtMs || 0) <= after) continue;
+      if (auth.role === 'participant' && !liveEventAllowedForParticipant(event, auth.participantId)) continue;
+      events.push(event);
+    }
+    events.sort((left, right) => Number(left.createdAtMs || 0) - Number(right.createdAtMs || 0));
+    return json(request, env, {
+      roomStatus: auth.room.status,
+      events: events.slice(-120),
+      cursor: events.length ? Number(events[events.length - 1].createdAtMs || after) : after,
+    });
+  }
+
+  if (request.method === 'POST') {
+    const body = await parseJsonBody(request, MAX_LIVE_EVENT_BYTES);
+    const type = safeLiveText(body.type, 40);
+    if (!LIVE_EVENT_TYPES.has(type)) {
+      return json(request, env, { error: 'invalid_event_type' }, 400);
+    }
+    const participantTypes = new Set([
+      'student-ready', 'mic-request', 'mic-started', 'mic-stopped', 'hand-raised', 'reaction', 'chat',
+      'heartbeat', 'game-state', 'game-ready', 'game-answer',
+      'webrtc-offer', 'webrtc-answer', 'webrtc-ice',
+    ]);
+    if (auth.role === 'participant' && !participantTypes.has(type)) {
+      return json(request, env, { error: 'forbidden_event' }, 403);
+    }
+    let targetId = safeLiveText(body.targetId, 100);
+    if (auth.role === 'participant' && targetId && targetId !== 'teacher') targetId = 'teacher';
+    const dataText = JSON.stringify(body.data && typeof body.data === 'object' ? body.data : {});
+    if (encoder.encode(dataText).byteLength > MAX_LIVE_EVENT_BYTES - 2000) {
+      return json(request, env, { error: 'payload_too_large' }, 413);
+    }
+    const event = await writeLiveEvent(env, auth.room, {
+      type,
+      sourceRole: auth.role,
+      sourceId: auth.participantId,
+      targetId,
+      clientEventId: safeLiveText(body.clientEventId, 120),
+      data: JSON.parse(dataText),
+    });
+    if (auth.role === 'participant') {
+      const participant = {
+        ...auth.participant,
+        lastSeenAt: new Date().toISOString(),
+        status: 'online',
+        micState: type === 'mic-request'
+          ? 'requested'
+          : type === 'mic-started'
+            ? 'speaking'
+            : type === 'mic-stopped'
+              ? 'muted'
+              : auth.participant.micState,
+        muted: type === 'mic-started'
+          ? false
+          : type === 'mic-stopped'
+            ? true
+            : auth.participant.muted,
+      };
+      await writeLiveParticipant(env, auth.room, participant);
+    }
+    return json(request, env, { ok: true, event }, 201);
+  }
+
+  return json(request, env, { error: 'method_not_allowed' }, 405);
+}
+
+async function handleLiveParticipants(request, env, workspace, roomId, participantId = '') {
+  const auth = await authenticateLive(request, env, workspace, roomId);
+  if (!auth || auth.role !== 'teacher') return json(request, env, { error: 'unauthorized' }, 401);
+  if (!(await rateLimit(request, env, workspace, request.method === 'PATCH', 180, 'live-participants'))) {
+    return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '10' });
+  }
+  if (request.method === 'GET' && !participantId) {
+    const page = await env.MOBDEA_DATA.list({ prefix: liveParticipantPrefix(workspace, roomId), limit: 250 });
+    const participants = [];
+    for (const key of page.keys || []) {
+      const encrypted = await env.MOBDEA_DATA.get(key.name);
+      if (!encrypted) continue;
+      const participant = await decryptJson(encrypted, env, key.name);
+      if (participant.status === 'removed') continue;
+      const lastSeen = Date.parse(participant.lastSeenAt || participant.joinedAt || 0);
+      participants.push({
+        ...participant,
+        online: Number.isFinite(lastSeen) && Date.now() - lastSeen < 45_000,
+      });
+    }
+    participants.sort((left, right) => String(left.joinedAt || '').localeCompare(String(right.joinedAt || '')));
+    return json(request, env, { participants });
+  }
+  if (request.method === 'PATCH' && participantId) {
+    const participant = await readLiveParticipant(env, workspace, roomId, participantId);
+    if (!participant) return json(request, env, { error: 'not_found' }, 404);
+    const body = await parseJsonBody(request, 20_000);
+    const micState = safeLiveText(body.micState, 30);
+    const allowedMicStates = new Set(['muted', 'requested', 'approved', 'speaking']);
+    const next = {
+      ...participant,
+      micState: allowedMicStates.has(micState) ? micState : participant.micState,
+      muted: body.muted === true,
+      status: body.removed === true ? 'removed' : participant.status,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeLiveParticipant(env, auth.room, next);
+    const eventType = body.removed === true
+      ? 'participant-removed'
+      : next.micState === 'approved'
+        ? 'mic-approved'
+        : 'mic-revoked';
+    await writeLiveEvent(env, auth.room, {
+      type: eventType,
+      sourceRole: 'teacher',
+      sourceId: 'teacher',
+      targetId: participantId,
+      data: { participantId, micState: next.micState, muted: next.muted },
+    });
+    return json(request, env, { ok: true, participant: next });
+  }
+  return json(request, env, { error: 'method_not_allowed' }, 405);
+}
+
+async function handleCloseLiveRoom(request, env, workspace, roomId) {
+  const auth = await authenticateLive(request, env, workspace, roomId);
+  if (!auth || auth.role !== 'teacher') return json(request, env, { error: 'unauthorized' }, 401);
+  const room = { ...auth.room, status: 'closed', closedAt: new Date().toISOString() };
+  await writeLiveEvent(env, room, {
+    type: 'room-closed',
+    sourceRole: 'teacher',
+    sourceId: 'teacher',
+    targetId: 'all',
+    data: {},
+  });
+  await writeLiveRoom(env, room);
+  return json(request, env, { ok: true });
+}
+
 async function handleCreateShare(request, env, auth) {
   if (!(await rateLimit(request, env, auth.workspace, true))) return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
   const body = await parseJsonBody(request, MAX_SHARE_BYTES);
@@ -362,6 +745,30 @@ export default {
       const shareMatch = /^\/share\/([a-zA-Z0-9_-]+)$/.exec(url.pathname);
       if (request.method === 'GET' && shareMatch) return handleReadShare(request, env, shareMatch[1], validWorkspace(url.searchParams.get('workspace')));
 
+      const liveWorkspace = validWorkspace(request.headers.get('X-Mobdea-Workspace'));
+      const liveJoinMatch = /^\/live\/rooms\/([a-zA-Z0-9_-]+)\/join$/.exec(url.pathname);
+      if (request.method === 'POST' && liveJoinMatch) {
+        return handleJoinLiveRoom(request, env, liveWorkspace, validLiveRoomId(liveJoinMatch[1]));
+      }
+      const liveEventsMatch = /^\/live\/rooms\/([a-zA-Z0-9_-]+)\/events$/.exec(url.pathname);
+      if (liveEventsMatch && ['GET', 'POST'].includes(request.method)) {
+        return handleLiveEvents(request, env, liveWorkspace, validLiveRoomId(liveEventsMatch[1]));
+      }
+      const liveParticipantMatch = /^\/live\/rooms\/([a-zA-Z0-9_-]+)\/participants(?:\/([a-zA-Z0-9_-]+))?$/.exec(url.pathname);
+      if (liveParticipantMatch && ['GET', 'PATCH'].includes(request.method)) {
+        return handleLiveParticipants(
+          request,
+          env,
+          liveWorkspace,
+          validLiveRoomId(liveParticipantMatch[1]),
+          safeLiveText(liveParticipantMatch[2] || '', 100),
+        );
+      }
+      const liveRoomMatch = /^\/live\/rooms\/([a-zA-Z0-9_-]+)$/.exec(url.pathname);
+      if (liveRoomMatch && request.method === 'DELETE') {
+        return handleCloseLiveRoom(request, env, liveWorkspace, validLiveRoomId(liveRoomMatch[1]));
+      }
+
       const auth = await authenticate(request, env);
       if (!auth) {
         const allowed = await rateLimit(request, env, 'auth', true);
@@ -369,6 +776,7 @@ export default {
           ? json(request, env, { error: 'unauthorized' }, 401)
           : json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
       }
+      if (url.pathname === '/live/rooms' && request.method === 'POST') return handleCreateLiveRoom(request, env, auth);
       if (url.pathname === '/assets/status' && request.method === 'POST') return handleAssetStatus(request, env, auth);
       const assetMatch = /^\/assets\/([a-zA-Z0-9._-]+)$/.exec(url.pathname);
       if (assetMatch && ['GET', 'HEAD', 'PUT', 'DELETE'].includes(request.method)) return handleAsset(request, env, auth, assetMatch[1]);

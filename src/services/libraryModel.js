@@ -66,6 +66,8 @@ export function inferMediaType(file = {}) {
   if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/.test(name)) return 'video';
   if (mime.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|aac)$/.test(name)) return 'audio';
   if (mime === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (/(powerpoint|presentationml|ms-powerpoint)/.test(mime) || /\.(ppt|pptx|pps|ppsx|odp)$/.test(name)) return 'slides';
+  if (/(wordprocessingml|msword|spreadsheetml|ms-excel)/.test(mime) || /\.(doc|docx|xls|xlsx|csv)$/.test(name)) return 'document';
   return 'file';
 }
 
@@ -203,7 +205,7 @@ export function getAllLibraryGrades(data = {}) {
   const dynamic = [
     ...(data.students || []).map((item) => item.grade),
     ...(data.contentLibrary || []).map((item) => item.grade),
-    ...(data.sessions || []).map((item) => item.title),
+    ...(data.sessions || []).map((item) => item.grade),
   ].map(normalizeText).filter(Boolean);
   return [...new Set([...LIBRARY_GRADES, ...dynamic])];
 }
@@ -320,8 +322,12 @@ export function getLessonModeResources(data = {}, grade, lessonId = '') {
 }
 
 export function clampLessonPage(page, resource = {}, pdfPageCount = Infinity) {
-  const minimum = Math.max(1, Number(resource.pageStart || 1));
-  const requestedMaximum = Number(resource.pageEnd || pdfPageCount || minimum);
+  const safeResource =
+    resource && typeof resource === 'object' ? resource : {};
+  const minimum = Math.max(1, Number(safeResource.pageStart || 1));
+  const requestedMaximum = Number(
+    safeResource.pageEnd || pdfPageCount || minimum,
+  );
   const maximum = Number.isFinite(requestedMaximum) ? Math.max(minimum, requestedMaximum) : Math.max(minimum, Number(pdfPageCount || minimum));
   const finitePage = Number.isFinite(Number(page)) ? Number(page) : minimum;
   return Math.min(maximum, Math.max(minimum, finitePage));

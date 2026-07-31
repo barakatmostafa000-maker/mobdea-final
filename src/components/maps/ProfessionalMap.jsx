@@ -1,7 +1,71 @@
+import { useRef } from 'react';
 import { geometryPath, featureCenter, getCountryName } from '../../data/geography';
 
 function mapItemColor(layerKey) {
   return { terrain: '#d8b18d', water: '#68b8f5', minerals: '#eaa0d2', capitals: '#ff846f' }[layerKey] || '#f0d478';
+}
+
+
+export function GeographyGlyph({ type = '', symbol = '●' }) {
+  if (type === 'mountains') {
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M2 29 15 7l8 13L31 3l15 26Z" fill="currentColor"/><path d="m11 14 4-7 4 7-4-2Zm16-4 4-7 5 9-5-3Z" fill="#fff" opacity=".8"/></svg>;
+  }
+  if (type === 'plateaus') {
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M4 28 11 8h27l6 20Z" fill="currentColor"/><path d="M11 8h27" stroke="#fff" strokeWidth="3" opacity=".75"/></svg>;
+  }
+  if (type === 'plains') {
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M3 11h42M3 17h42M3 23h42" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/><path d="M8 7v19M22 7v19M36 7v19" stroke="#fff" strokeWidth="1" opacity=".55"/></svg>;
+  }
+  if (type === 'depression' || type === 'basin') {
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M4 7c6 20 34 20 40 0" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round"/><path d="M12 11c5 11 19 11 24 0" fill="none" stroke="#fff" strokeWidth="2" opacity=".7"/></svg>;
+  }
+  if (type === 'desert') {
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M1 25c8-15 15-15 23 0 8-13 15-13 23 0Z" fill="currentColor"/><circle cx="36" cy="7" r="5" fill="#fff" opacity=".85"/></svg>;
+  }
+  if (type === 'valley') {
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M2 4 19 29h10L46 4 33 18 24 27 15 18Z" fill="currentColor"/><path d="M24 27v-12" stroke="#fff" strokeWidth="2" opacity=".7"/></svg>;
+  }
+  if (type === 'delta') {
+    return <svg viewBox="0 0 48 36" aria-hidden="true"><path d="M24 2 4 34h40Z" fill="currentColor"/><path d="M24 5v28m0-17L13 31m11-15 11 15" stroke="#fff" strokeWidth="2" opacity=".8"/></svg>;
+  }
+  if (type === 'volcano') {
+    return <svg viewBox="0 0 48 36" aria-hidden="true"><path d="m5 34 14-25h10l14 25Z" fill="currentColor"/><path d="M19 9h10l-2 5h-6Z" fill="#111"/><path d="M22 7c-5-5 3-7-1-11m6 11c6-5-2-7 2-11" stroke="#fff" strokeWidth="3" fill="none" opacity=".8"/></svg>;
+  }
+  if (type === 'oasis') {
+    return <svg viewBox="0 0 48 36" aria-hidden="true"><ellipse cx="25" cy="29" rx="18" ry="5" fill="currentColor"/><path d="M24 27V10m0 4C14 12 10 5 10 5c9-2 13 3 14 9Zm0 0c9-5 14-9 14-9 1 8-6 12-14 9Z" stroke="#fff" strokeWidth="3" fill="none"/></svg>;
+  }
+  if (['river', 'canal', 'road', 'railway'].includes(type)) {
+    const dashed = type === 'railway' ? '3 3' : undefined;
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M3 5c12 0 8 10 20 10s9 12 22 12" fill="none" stroke="currentColor" strokeWidth={type === 'canal' ? 8 : 6} strokeLinecap="round" strokeDasharray={dashed}/>{type === 'railway' && <path d="M4 9c12 0 8 10 20 10s9 12 21 12" fill="none" stroke="#fff" strokeWidth="1.5"/>}</svg>;
+  }
+  if (['lake', 'sea', 'ocean', 'gulf', 'bay', 'strait', 'spring', 'groundwater'].includes(type)) {
+    return <svg viewBox="0 0 48 32" aria-hidden="true"><path d="M2 9c7-5 11 5 18 0s11 5 18 0 8 0 8 0M2 17c7-5 11 5 18 0s11 5 18 0 8 0 8 0M2 25c7-5 11 5 18 0s11 5 18 0 8 0 8 0" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>;
+  }
+  if (type === 'waterfall' || type === 'dam') {
+    return <svg viewBox="0 0 48 36" aria-hidden="true"><path d="M5 7h38" stroke="currentColor" strokeWidth="6"/><path d="M13 9v18m11-18v23m11-23v18" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/><path d="m9 29 4 5 4-5m13 0 4 5 4-5" stroke="#fff" strokeWidth="2" fill="none"/></svg>;
+  }
+  if (['island', 'peninsula', 'coast'].includes(type)) {
+    return <svg viewBox="0 0 48 36" aria-hidden="true"><path d="M4 28c8-15 12 0 20-13s13 4 20-7v22H4Z" fill="currentColor"/><path d="M2 31c8-4 14 4 22 0s14 4 22 0" stroke="#fff" strokeWidth="2.5" fill="none"/></svg>;
+  }
+  if (type === 'border' || type === 'grid') {
+    return <svg viewBox="0 0 48 36" aria-hidden="true"><path d="M5 4v28m13-28v28m13-28v28m12-28v28M4 8h40M4 20h40M4 32h40" stroke="currentColor" strokeWidth="2" strokeDasharray={type === 'border' ? '5 3' : undefined}/></svg>;
+  }
+  if (['pin', 'capital', 'city', 'country', 'port', 'airport', 'tourism', 'archaeology'].includes(type)) {
+    return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3C14 3 8 10 8 19c0 12 16 26 16 26s16-14 16-26C40 10 34 3 24 3Z" fill="currentColor"/><circle cx="24" cy="19" r="6" fill="#fff"/></svg>;
+  }
+  if (['minerals', 'iron', 'gold', 'phosphate', 'salt', 'coal'].includes(type)) {
+    return <svg viewBox="0 0 48 38" aria-hidden="true"><path d="m4 20 9-13 13 4 8-7 10 14-8 16H13Z" fill="currentColor"/><path d="m13 7 8 14 5-10 10 23" stroke="#fff" strokeWidth="2" opacity=".65"/></svg>;
+  }
+  if (['petroleum', 'gas'].includes(type)) {
+    return <svg viewBox="0 0 48 42" aria-hidden="true"><path d="M24 3C17 13 11 20 11 28a13 13 0 0 0 26 0C37 20 31 13 24 3Z" fill="currentColor"/><path d="M20 34c-4-5-1-10 2-14" stroke="#fff" strokeWidth="3" fill="none" opacity=".8"/></svg>;
+  }
+  if (type.startsWith('population') || type === 'population') {
+    const count = type.endsWith('high') ? 5 : type.endsWith('medium') ? 3 : type.endsWith('low') ? 1 : 3;
+    return <span className="geography-population-glyph">{'●'.repeat(count)}</span>;
+  }
+  if (type === 'latitude') return <span className="geography-line-glyph latitude">↔</span>;
+  if (type === 'longitude') return <span className="geography-line-glyph longitude">↕</span>;
+  return <span>{symbol || '●'}</span>;
 }
 
 function MapDefs() {
@@ -36,6 +100,8 @@ export default function ProfessionalMap({
   onCountryClick,
   onFeatureClick,
   onDropPlacement,
+  onMovePlacement,
+  onRemovePlacement,
   onStageClick,
   canvasRef,
   drawTool = 'select',
@@ -44,9 +110,39 @@ export default function ProfessionalMap({
   onPointerUp,
   ariaLabel = 'خريطة تفاعلية احترافية',
 }) {
+  const transformRef = useRef(null);
+  const draggingPlacementRef = useRef('');
+
+  const movePlacementFromPointer = (placementId, event) => {
+    if (!placementId || !onMovePlacement || !transformRef.current) return;
+    const rect = transformRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    onMovePlacement(
+      placementId,
+      Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+      Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
+    );
+  };
+
+  const handleDrop = (event) => {
+    const placementId = event.dataTransfer.getData('application/x-mobdea-placement');
+    if (placementId && onMovePlacement) {
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = event.currentTarget.getBoundingClientRect();
+      onMovePlacement(
+        placementId,
+        Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+        Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
+      );
+      return;
+    }
+    onDropPlacement?.(event);
+  };
+
   return (
-    <div className="map-pro-stage" onClick={onStageClick} onDragOver={(event) => event.preventDefault()} onDrop={onDropPlacement}>
-      <div className="map-pro-transform" style={{ transform: `scale(${zoom})` }}>
+    <div className="map-pro-stage" onClick={onStageClick} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+      <div ref={transformRef} className="map-pro-transform" style={{ transform: `scale(${zoom})` }}>
         <svg viewBox="0 0 1000 620" className="map-pro-svg" role="img" aria-label={ariaLabel}>
           <MapDefs />
           <rect width="1000" height="620" fill="url(#mapOcean)" />
@@ -89,8 +185,46 @@ export default function ProfessionalMap({
         </svg>
         <div className="map-pro-placement-layer">
           {placements.map((placement) => (
-            <div key={placement.id} className="map-pro-placement geography-placement" style={{ left: `${placement.x}%`, top: `${placement.y}%`, '--placement-color': placement.color }}>
-              <b>{placement.symbol || '●'}</b>
+            <div
+              key={placement.id}
+              className="map-pro-placement geography-placement"
+              style={{ left: `${placement.x}%`, top: `${placement.y}%`, '--placement-color': placement.color }}
+              draggable={Boolean(onMovePlacement)}
+              onDragStart={(event) => {
+                event.stopPropagation();
+                event.dataTransfer.setData('application/x-mobdea-placement', String(placement.id));
+              }}
+              onPointerDown={(event) => {
+                if (!onMovePlacement) return;
+                event.preventDefault();
+                event.stopPropagation();
+                draggingPlacementRef.current = String(placement.id);
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+              }}
+              onPointerMove={(event) => {
+                if (draggingPlacementRef.current !== String(placement.id)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                movePlacementFromPointer(placement.id, event);
+              }}
+              onPointerUp={(event) => {
+                if (draggingPlacementRef.current !== String(placement.id)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                movePlacementFromPointer(placement.id, event);
+                draggingPlacementRef.current = '';
+                event.currentTarget.releasePointerCapture?.(event.pointerId);
+              }}
+              onPointerCancel={() => {
+                draggingPlacementRef.current = '';
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                onRemovePlacement?.(placement.id);
+              }}
+              title={onMovePlacement ? 'اسحب لتغيير المكان — اضغط مرتين للحذف' : ''}
+            >
+              <b className="geography-placement-glyph"><GeographyGlyph type={placement.type} symbol={placement.symbol} /></b>
               <strong>{placement.label}</strong>
               {placement.hint && <small>{placement.hint}</small>}
             </div>

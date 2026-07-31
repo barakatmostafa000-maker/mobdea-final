@@ -9,7 +9,7 @@ const versionCode = Number(pkg.mobdea?.versionCode || 0);
 if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error('package.json contains an invalid semantic version.');
 if (!Number.isInteger(versionCode) || versionCode <= 0) throw new Error('package.json mobdea.versionCode must be a positive integer.');
 
-const versionFile = `export const APP_VERSION = '${version}';\nexport const APP_VERSION_CODE = ${versionCode};\nexport const DATA_SCHEMA_VERSION = 10;\nexport const RELEASE_CHANNEL = 'stable';\nexport const RELEASE_TAG = 'R2';\n`;
+const versionFile = `export const APP_VERSION = '${version}';\nexport const APP_VERSION_CODE = ${versionCode};\nexport const DATA_SCHEMA_VERSION = 12;\nexport const RELEASE_CHANNEL = 'stable';\nexport const RELEASE_TAG = 'R4';\n`;
 fs.writeFileSync(path.join(root, 'src/config/version.js'), versionFile);
 
 const gradlePath = path.join(root, 'android/app/build.gradle');

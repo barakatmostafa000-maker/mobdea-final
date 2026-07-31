@@ -43,8 +43,9 @@ export default function Students({ data, updateData }) {
       if (!result.supported) { setContactMessage('اختيار جهات الاتصال غير مدعوم على هذا الجهاز؛ اكتب الرقم يدويًا.'); return; }
       const phone = normalizeEgyptPhone(result.phone);
       if (!phone) return;
-      const duplicate = data.students.find((student) => student.id !== form?.id && (student.guardianPhone === phone || student.studentPhone === phone));
-      setContactMessage(duplicate ? `تنبيه: الرقم مستخدم لدى ${duplicate.name}` : '');
+      const duplicate = data.students.find((student) => student.id !== form?.id && normalizeEgyptPhone(student.studentPhone || '') === phone);
+      const sibling = field === 'guardianPhone' ? data.students.find((student) => student.id !== form?.id && normalizeEgyptPhone(student.guardianPhone || '') === phone) : null;
+      setContactMessage(duplicate ? `تنبيه: الرقم مستخدم كهاتف طالب لدى ${duplicate.name}` : sibling ? `سيتم ربط حساب ولي الأمر أيضًا بالطالب ${sibling.name}.` : '');
       setForm((previous) => ({ ...previous, [field]: phone }));
     } catch {
       setContactMessage('تعذر فتح جهات الاتصال. تحقق من الإذن.');
@@ -61,8 +62,10 @@ export default function Students({ data, updateData }) {
       const code = exists ? form.code : Math.max(0, ...data.students.map((student) => Number(student.code) || 0)) + 1;
       const guardianPhone = normalizeEgyptPhone(form.guardianPhone || '');
       const studentPhone = normalizeEgyptPhone(form.studentPhone || '');
-      const duplicatePhone = data.students.find((student) => student.id !== studentId && [guardianPhone, studentPhone].filter(Boolean).some((phone) => phone === normalizeEgyptPhone(student.guardianPhone || '') || phone === normalizeEgyptPhone(student.studentPhone || '')));
-      if (duplicatePhone) throw new Error(`رقم الهاتف مستخدم بالفعل لدى الطالب ${duplicatePhone.name}.`);
+      const duplicateStudentPhone = data.students.find((student) => student.id !== studentId && studentPhone && (studentPhone === normalizeEgyptPhone(student.studentPhone || '') || studentPhone === normalizeEgyptPhone(student.guardianPhone || '')));
+      if (duplicateStudentPhone) throw new Error(`هاتف الطالب مستخدم بالفعل لدى ${duplicateStudentPhone.name}.`);
+      const guardianUsedAsStudentPhone = data.students.find((student) => student.id !== studentId && guardianPhone && guardianPhone === normalizeEgyptPhone(student.studentPhone || ''));
+      if (guardianUsedAsStudentPhone) throw new Error(`رقم ولي الأمر مستخدم كهاتف طالب لدى ${guardianUsedAsStudentPhone.name}.`);
       const nextStudent = { ...form, id: studentId, code, name: form.name.trim(), guardianPhone, studentPhone };
       const studentPin = normalizePin(form.studentPin);
       const guardianPin = normalizePin(form.guardianPin);

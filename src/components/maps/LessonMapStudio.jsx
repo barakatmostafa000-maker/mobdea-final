@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import worldCountries from '../../data/world-countries.json';
 import {
   CheckCircle2,
   Eraser,
@@ -17,7 +18,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import ProfessionalMap from './ProfessionalMap';
+import ProfessionalMap, { GeographyGlyph } from './ProfessionalMap';
 import { normalizeLessonMapState, normalizeMapRegionSnapshot } from '../../services/lessonMapState';
 import {
   GEOGRAPHY_FEATURES,
@@ -52,7 +53,7 @@ function drawStrokes(canvas, strokes = []) {
 export default function LessonMapStudio({ grade = '', lesson = null, onSaveState }) {
   const recommendation = useMemo(() => getGradeMapRecommendation(grade), [grade]);
   const initial = useMemo(() => normalizeLessonMapState(lesson?.mapState, grade), [lesson?.id, grade]);
-  const [geo, setGeo] = useState(null);
+  const [geo] = useState(worldCountries);
   const [regionKey, setRegionKey] = useState(initial.regionKey);
   const [regionStates, setRegionStates] = useState(initial.regions);
   const [layerKey, setLayerKey] = useState('countries');
@@ -74,15 +75,6 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
   const currentStrokeRef = useRef(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${import.meta.env.BASE_URL}data/world-countries.geojson`)
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('تعذر تحميل الخريطة')))
-      .then((payload) => { if (!cancelled) setGeo(payload); })
-      .catch(() => { if (!cancelled) setGeo({ features: [] }); });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     const next = normalizeLessonMapState(lesson?.mapState, grade);
@@ -285,7 +277,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
               onClick={() => { setDrawTool('select'); setSelectedSymbol(item); setNotice(`اختر موضع ${item.label} على الخريطة.`); }}
               onDragStart={(event) => event.dataTransfer.setData('application/json', JSON.stringify(item))}
             >
-              <b>{item.symbol}</b><span><strong>{item.label}</strong><small>{item.hint}</small></span>
+              <b><GeographyGlyph type={item.id} symbol={item.symbol} /></b><span><strong>{item.label}</strong><small>{item.hint}</small></span>
             </button>
           ))}
         </div>
@@ -352,6 +344,14 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
             onCountryClick={selectLocation}
             onFeatureClick={selectLocation}
             onDropPlacement={handleDrop}
+            onMovePlacement={(id, x, y) => {
+              setPlacements((current) => current.map((item) => item.id === id ? { ...item, x, y } : item));
+              markDirty();
+            }}
+            onRemovePlacement={(id) => {
+              setPlacements((current) => current.filter((item) => item.id !== id));
+              markDirty();
+            }}
             onStageClick={handleStageClick}
             canvasRef={canvasRef}
             drawTool={drawTool}

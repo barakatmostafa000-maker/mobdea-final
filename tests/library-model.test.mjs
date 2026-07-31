@@ -54,6 +54,13 @@ test('lesson PDF navigation never leaves the selected page range', () => {
   assert.equal(clampLessonPage(40, resource, 100), 11);
 });
 
+
+test('lesson PDF navigation safely handles a missing resource', () => {
+  assert.equal(clampLessonPage(4, null, 20), 4);
+  assert.equal(clampLessonPage(0, null, 20), 1);
+  assert.equal(clampLessonPage(50, null, 20), 20);
+});
+
 test('grade map recommendations match the requested curriculum', () => {
   assert.equal(getGradeMapRecommendation('الصف الرابع الابتدائي').defaultRegion, 'egypt');
   assert.equal(getGradeMapRecommendation('الصف السادس الابتدائي').defaultRegion, 'arab');

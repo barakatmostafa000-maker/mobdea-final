@@ -2,7 +2,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
-const ignored = new Set(['node_modules', 'dist', '.git', 'android/app/src/main/assets/public', 'android/build']);
+const ignored = new Set([
+  'node_modules',
+  'dist',
+  '.git',
+
+  // Android and Gradle generated files
+  'android/.gradle',
+  'android/build',
+  'android/app/build',
+  'android/local.properties',
+  'android/gradle/wrapper/gradle-wrapper.properties',
+
+  // Capacitor generated files
+  'android/app/src/main/assets',
+  'android/app/src/main/res/xml/config.xml',
+  'android/app/capacitor.build.gradle',
+  'android/capacitor.settings.gradle',
+  'android/capacitor-cordova-android-plugins',
+]);
 const extensions = new Set(['.js', '.jsx', '.mjs', '.json', '.css', '.html', '.md', '.xml', '.gradle', '.properties', '.toml', '.yml', '.yaml', '.java']);
 const files = [];
 walk(root, '');

@@ -6,6 +6,17 @@ class MemoryKV {
   constructor() { this.values = new Map(); }
   async get(key) { return this.values.get(key) ?? null; }
   async put(key, value) { this.values.set(key, String(value)); }
+  async delete(key) { this.values.delete(key); }
+  async list({ prefix = '', limit = 1000 } = {}) {
+    return {
+      keys: [...this.values.keys()]
+        .filter((key) => key.startsWith(prefix))
+        .sort()
+        .slice(0, limit)
+        .map((name) => ({ name })),
+      list_complete: true,
+    };
+  }
 }
 
 class MemoryR2Object {
@@ -55,6 +66,12 @@ test('worker rejects unauthenticated access and disallowed preflight origins', a
   assert.equal(unauthorized.status, 401);
   const preflight = await worker.fetch(new Request('https://sync.example.com/sync', { method: 'OPTIONS', headers: { Origin: 'https://evil.example' } }), env);
   assert.equal(preflight.status, 403);
+  const allowedPreflight = await worker.fetch(new Request('https://sync.example.com/live/rooms/example01/participants/student01', {
+    method: 'OPTIONS',
+    headers: { Origin: 'https://app.example.com' },
+  }), env);
+  assert.equal(allowedPreflight.status, 204);
+  assert.match(allowedPreflight.headers.get('Access-Control-Allow-Methods') || '', /PATCH/);
 });
 
 test('worker encrypts workspace data and prevents stale revision overwrite', async () => {
@@ -183,4 +200,115 @@ test('asset status is batched and successful sync removes orphaned remote assets
   assert.equal(synced.status, 200);
   assert.equal(env.MOBDEA_ASSETS.values.has('workspace/school_one/asset-keep'), true);
   assert.equal(env.MOBDEA_ASSETS.values.has('workspace/school_one/asset-orphan'), false);
+});
+
+test('live classroom supports student join, microphone approval and encrypted signaling', async () => {
+  const env = makeEnv();
+  const created = await worker.fetch(new Request('https://sync.example.com/live/rooms', {
+    method: 'POST',
+    headers: authHeaders({
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '10.0.2.1',
+    }),
+    body: JSON.stringify({ title: 'حصة التاريخ', grade: 'الصف السادس', lesson: 'مصر القديمة' }),
+  }), env);
+  assert.equal(created.status, 201);
+  const room = await created.json();
+  assert.match(room.roomId, /^[a-zA-Z0-9_-]{8,80}$/);
+  assert.match(room.joinCode, /^\d{6}$/);
+
+  const storedRoom = await env.MOBDEA_DATA.get(`live-room:school_one:${room.roomId}`);
+  assert.equal(storedRoom.includes('حصة التاريخ'), false);
+  assert.equal(storedRoom.includes(room.teacherToken), false);
+
+  const joined = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/join`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Mobdea-Workspace': 'school_one',
+      Origin: 'https://app.example.com',
+      'CF-Connecting-IP': '10.0.2.2',
+    },
+    body: JSON.stringify({ joinCode: room.joinCode, name: 'أحمد محمد', studentCode: '25' }),
+  }), env);
+  assert.equal(joined.status, 201);
+  const student = await joined.json();
+
+  const liveHeaders = (token, ip) => ({
+    'Content-Type': 'application/json',
+    'X-Mobdea-Workspace': 'school_one',
+    'X-Mobdea-Live-Token': token,
+    Origin: 'https://app.example.com',
+    'CF-Connecting-IP': ip,
+  });
+
+  const micRequest = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events`, {
+    method: 'POST',
+    headers: liveHeaders(student.participantToken, '10.0.2.3'),
+    body: JSON.stringify({ type: 'mic-request', targetId: 'teacher', data: { name: 'أحمد محمد' } }),
+  }), env);
+  assert.equal(micRequest.status, 201);
+
+  const participantsResponse = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/participants`, {
+    headers: liveHeaders(room.teacherToken, '10.0.2.4'),
+  }), env);
+  assert.equal(participantsResponse.status, 200);
+  const participants = await participantsResponse.json();
+  assert.equal(participants.participants[0].micState, 'requested');
+
+  const approved = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/participants/${student.participantId}`, {
+    method: 'PATCH',
+    headers: liveHeaders(room.teacherToken, '10.0.2.5'),
+    body: JSON.stringify({ micState: 'approved', muted: false }),
+  }), env);
+  assert.equal(approved.status, 200);
+
+  const studentEvents = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events?after=0`, {
+    headers: liveHeaders(student.participantToken, '10.0.2.6'),
+  }), env);
+  assert.equal(studentEvents.status, 200);
+  const eventBody = await studentEvents.json();
+  assert.equal(eventBody.events.some((event) => event.type === 'mic-approved'), true);
+
+  const micStarted = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events`, {
+    method: 'POST',
+    headers: liveHeaders(student.participantToken, '10.0.2.7'),
+    body: JSON.stringify({ type: 'mic-started', targetId: 'teacher', data: {} }),
+  }), env);
+  assert.equal(micStarted.status, 201);
+
+  const speakingResponse = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/participants`, {
+    headers: liveHeaders(room.teacherToken, '10.0.2.8'),
+  }), env);
+  const speaking = await speakingResponse.json();
+  assert.equal(speaking.participants[0].micState, 'speaking');
+  assert.equal(speaking.participants[0].muted, false);
+
+
+  const gameReady = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events`, {
+    method: 'POST',
+    headers: liveHeaders(student.participantToken, '10.0.2.9'),
+    body: JSON.stringify({ type: 'game-ready', targetId: 'teacher', data: { name: 'أحمد محمد' } }),
+  }), env);
+  assert.equal(gameReady.status, 201);
+
+  const gameAnswer = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events`, {
+    method: 'POST',
+    headers: liveHeaders(student.participantToken, '10.0.2.10'),
+    body: JSON.stringify({ type: 'game-answer', targetId: 'teacher', data: { questionId: 'q-1', choiceIndex: 1 } }),
+  }), env);
+  assert.equal(gameAnswer.status, 201);
+
+  const forbiddenQuestion = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events`, {
+    method: 'POST',
+    headers: liveHeaders(student.participantToken, '10.0.2.11'),
+    body: JSON.stringify({ type: 'game-question', targetId: 'all', data: { question: {} } }),
+  }), env);
+  assert.equal(forbiddenQuestion.status, 403);
+
+  const teacherEvents = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events?after=0`, {
+    headers: liveHeaders(room.teacherToken, '10.0.2.12'),
+  }), env);
+  const teacherEventBody = await teacherEvents.json();
+  assert.equal(teacherEventBody.events.some((event) => event.type === 'game-answer'), true);
 });

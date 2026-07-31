@@ -1,6 +1,6 @@
 {
   "enabled": false,
-  "version": "9.3.0",
+  "version": "10.1.0",
   "packageName": "com.mobdea.education",
   "mandatory": false,
   "notes": "التحديث المباشر غير مفعّل في هذه النسخة. عند النشر أضف رابط APK عبر HTTPS وحجمه وSHA-256 الصحيحين ثم غيّر enabled إلى true."

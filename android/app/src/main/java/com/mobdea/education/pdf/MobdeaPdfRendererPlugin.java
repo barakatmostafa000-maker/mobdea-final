@@ -20,7 +20,7 @@ import java.util.Locale;
 
 @CapacitorPlugin(name = "MobdeaPdfRenderer")
 public class MobdeaPdfRendererPlugin extends Plugin {
-    private static final long MAX_PDF_BYTES = 80L * 1024L * 1024L;
+    private static final long MAX_PDF_BYTES = 160L * 1024L * 1024L;
     private static final int MAX_RENDER_WIDTH = 2200;
 
     @PluginMethod

@@ -50,7 +50,8 @@ const mediaLabels = {
   audio: 'ملف صوتي',
   pdf: 'مستند PDF',
   file: 'ملف',
-  slides: 'عرض تقديمي',
+  document: 'مستند',
+  slides: 'عرض PowerPoint',
   link: 'رابط',
   map: 'خريطة',
 };
@@ -93,7 +94,7 @@ function MediaIcon({ type, size = 20 }) {
   const Icon = type === 'image' ? FileImage
     : type === 'video' ? Film
       : type === 'audio' ? FileAudio
-        : type === 'pdf' || type === 'textbook' || type === 'exams' ? FileText
+        : type === 'pdf' || type === 'textbook' || type === 'exams' || type === 'document' ? FileText
           : File;
   return <Icon size={size} />;
 }
@@ -393,11 +394,40 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
     });
     const customQuestionBank = upsertGeneratedQuestions(data.customQuestionBank || [], lesson, generated);
     try {
+      const textbook = getGradeTextbook(data, lesson.grade);
+      const classResources = [
+        ...(textbook && hasResourceSource(textbook)
+          ? [{
+              id: `lesson-textbook:${lesson.id}`,
+              title: `${lesson.title} — كتاب المنهج`,
+              type: 'textbook',
+              lessonId: lesson.id,
+            }]
+          : []),
+        ...mediaRecords.map((item) => ({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          lessonId: lesson.id,
+        })),
+        ...editingMedia.map((item) => ({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          lessonId: lesson.id,
+        })),
+      ];
       await updateData({
         ...data,
         contentLibrary: [...withLesson, ...mediaRecords],
         customQuestionBank,
-        settings: { ...data.settings, libraryGrade: lesson.grade },
+        settings: {
+          ...data.settings,
+          libraryGrade: lesson.grade,
+          classLessonId: lesson.id,
+          classResourceId: classResources[0]?.id || '',
+          classResourceQueue: classResources,
+        },
       });
       const removedAssets = (data.contentLibrary || [])
         .filter((item) => removedSet.has(String(item.id)))
@@ -408,8 +438,11 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
       setPendingMedia([]);
       setRemovedMediaIds([]);
       setReplacedAssetIds([]);
-      setForm({ ...lesson, tags: lesson.tags.join(', ') });
-      setNotice('تم حفظ الدرس وكل وسائطه وربطه تلقائيًا بوضع الحصة وبنك الأسئلة.');
+      setForm(createLessonForm(lesson.grade));
+      setSelectedGrade(lesson.grade);
+      setExpandedGrades((current) => new Set([...current, lesson.grade]));
+      setEditorOpen(false);
+      setNotice('تم حفظ الدرس وكل وسائطه وربطه تلقائيًا بوضع الحصة. يمكنك فتحه الآن مباشرة.');
     } catch (error) {
       setNotice(error?.message || 'تعذر حفظ الدرس.');
     } finally {
@@ -462,7 +495,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
     <section className="page content-page library-system-page">
       <input ref={textbookInputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => void uploadPermanent(LIBRARY_KINDS.GRADE_TEXTBOOK, event.target.files?.[0])}/>
       <input ref={examsInputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => void uploadPermanent(LIBRARY_KINDS.GRADE_EXAMS, event.target.files?.[0])}/>
-      <input ref={mediaInputRef} type="file" multiple hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" onChange={(event) => void stageLessonMedia(event.target.files)}/>
+      <input ref={mediaInputRef} type="file" multiple hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.pps,.ppsx,.odp,.xls,.xlsx,.txt" onChange={(event) => void stageLessonMedia(event.target.files)}/>
       <input ref={thumbnailInputRef} type="file" accept="image/*" hidden onChange={(event) => void replaceFormAsset(event.target.files?.[0], 'thumbnail')}/>
       <input ref={recordingInputRef} type="file" accept="audio/*,video/*" hidden onChange={(event) => void replaceFormAsset(event.target.files?.[0], 'recording')}/>
 
@@ -554,7 +587,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
           <section className="library-editor-section"><div className="library-editor-section-head"><div><strong>خط سير الحصة</strong><small>يظهر بنفس الترتيب داخل وضع الحصة.</small></div></div><div className="library-sequence-row">{Object.entries(flowLabels).map(([key, label]) => <button key={key} type="button" className={form.sequence.includes(key) ? 'active' : ''} onClick={() => toggleSequence(key)}>{label}</button>)}</div></section>
 
           <section className="library-editor-section">
-            <div className="library-editor-section-head"><div><strong>وسائط الدرس الدائمة</strong><small>صور، فيديو، صوت، PDF ومستندات؛ تُفتح تلقائيًا مع الدرس.</small></div><button className="secondary-btn" type="button" disabled={busy} onClick={() => mediaInputRef.current?.click()}><Plus size={15}/> إضافة ملفات</button></div>
+            <div className="library-editor-section-head"><div><strong>وسائط الدرس الدائمة</strong><small>صور، فيديو، صوت، PDF، PowerPoint ومستندات؛ تُربط تلقائيًا بالدرس وتظهر في وضع الحصة.</small></div><button className="secondary-btn" type="button" disabled={busy} onClick={() => mediaInputRef.current?.click()}><Plus size={15}/> إضافة ملفات</button></div>
             <div className="library-editor-media-grid">
               {[...editingMedia, ...pendingMedia].map((item) => {
                 const pending = pendingMedia.some((entry) => String(entry.id) === String(item.id));

@@ -1,3 +1,5 @@
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './components/AppShell';
 import LockScreen from './components/LockScreen';
@@ -6,6 +8,8 @@ import SharedAccess from './pages/SharedAccess';
 import { loadAppData, saveAppData, resetAppData } from './services/storage';
 import { checkForUpdate, openApkDownload } from './services/updater';
 import { registerServiceWorker, applyServiceWorkerUpdate } from './services/pwaUpdate';
+import { pushCloudData } from './services/cloudSync';
+import { shouldRunAutoBackup } from './services/autoBackup';
 import UpdatePrompt from './components/UpdatePrompt';
 import { speakWelcome } from './services/voice';
 import { readShareFromLocation, resolveShareFromLocation } from './services/share';
@@ -24,6 +28,7 @@ const Payments = lazy(() => import('./pages/Payments'));
 const Messages = lazy(() => import('./pages/Messages'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Games = lazy(() => import('./pages/Games'));
+const Achievements = lazy(() => import('./pages/Achievements'));
 const QuestionBankManager = lazy(() => import('./pages/QuestionBankManager'));
 const MapChallenge = lazy(() => import('./pages/MapChallenge'));
 const ClassMode = lazy(() => import('./pages/ClassMode'));
@@ -37,6 +42,17 @@ const ContentLibrary = lazy(() => import('./pages/ContentLibrary'));
 const Updates = lazy(() => import('./pages/Updates'));
 
 const LoadingScreen = () => <div className="loading-screen"><div className="loading-mark">م</div><h1>منصة المُبدع</h1><p>جارٍ تحميل الصفحة...</p></div>;
+
+const DATA_LOAD_TIMEOUT_MS = 15000;
+
+function loadAppDataWithTimeout() {
+  return Promise.race([
+    loadAppData(),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('استغرق فتح البيانات وقتًا أطول من المتوقع. أعد المحاولة دون إغلاق التطبيق.')), DATA_LOAD_TIMEOUT_MS);
+    }),
+  ]);
+}
 
 const AUTH_STORAGE_KEY = 'mobdea_mobile_auth_v2';
 const AUTH_TTL_REMEMBERED = 7 * 24 * 60 * 60 * 1000;
@@ -73,6 +89,104 @@ function readAuthFromStorage() {
 
 export default function App() {
   const [active, setActive] = useState('dashboard');
+  // === MOBDEA ANDROID BACK START ===
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+
+    let listenerHandle;
+    let disposed = false;
+
+    const isVisible = (element) => {
+      if (!element) return false;
+
+      const style = window.getComputedStyle(element);
+
+      return (
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        element.getClientRects().length > 0
+      );
+    };
+
+    const closeVisibleOverlay = () => {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen();
+        return true;
+      }
+
+      const overlaySelectors = [
+        '[role="dialog"]',
+        '.modal-backdrop',
+        '.modal-card',
+        '.drawer.open',
+        '.drawer.is-open',
+        '.mobile-menu.open',
+        '.mobile-menu.is-open',
+      ].join(',');
+
+      const overlay = Array.from(
+        document.querySelectorAll(overlaySelectors),
+      ).find(isVisible);
+
+      if (!overlay) return false;
+
+      const closeButton =
+        overlay.querySelector(
+          '[data-close], .modal-close, .drawer-close, ' +
+            '.close-button, button[aria-label="إغلاق"], ' +
+            'button[aria-label="Close"]',
+        ) ||
+        Array.from(
+          document.querySelectorAll(
+            '[data-close], .modal-close, .drawer-close, ' +
+              '.close-button, button[aria-label="إغلاق"], ' +
+              'button[aria-label="Close"]',
+          ),
+        ).find(isVisible);
+
+      if (closeButton) {
+        closeButton.click();
+      } else {
+        document.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Escape',
+            code: 'Escape',
+            bubbles: true,
+          }),
+        );
+      }
+
+      return true;
+    };
+
+    void CapacitorApp.addListener('backButton', () => {
+      if (closeVisibleOverlay()) return;
+
+      if (String(active) !== 'dashboard') {
+        setActive('dashboard');
+        return;
+      }
+
+      void CapacitorApp.exitApp();
+    }).then((handle) => {
+      if (disposed) {
+        void handle.remove();
+        return;
+      }
+
+      listenerHandle = handle;
+    });
+
+    return () => {
+      disposed = true;
+
+      if (listenerHandle) {
+        void listenerHandle.remove();
+      }
+    };
+  }, [active, setActive]);
+  // === MOBDEA ANDROID BACK END ===
+
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [auth, setAuth] = useState(() => readAuthFromStorage());
@@ -85,6 +199,7 @@ export default function App() {
   const dataRef = useRef(null);
   const persistedDataRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
+  const autoBackupRunningRef = useRef(false);
 
   useEffect(() => registerServiceWorker(() => { swReadyRef.current = true; }), []);
 
@@ -100,13 +215,37 @@ export default function App() {
   const [shareState, setShareState] = useState(() => readShareFromLocation(globalThis.location));
   const autoCheckedRef = useRef(false);
 
+  const reloadData = useCallback(async () => {
+    setLoadError('');
+    try {
+      let loaded;
+      try {
+        loaded = await loadAppDataWithTimeout();
+      } catch (firstError) {
+        // A transient IndexedDB/Preferences lock is common after Android WebView
+        // restoration. One delayed retry fixes it without deleting user data.
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        loaded = await loadAppDataWithTimeout().catch(() => {
+          throw firstError;
+        });
+      }
+      dataRef.current = loaded;
+      persistedDataRef.current = loaded;
+      setData(loaded);
+    } catch (error) {
+      setLoadError(error?.message || 'تعذر فتح بيانات التطبيق المشفرة.');
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    loadAppData()
-      .then((loaded) => { if (!cancelled) { dataRef.current = loaded; persistedDataRef.current = loaded; setData(loaded); } })
-      .catch((error) => { if (!cancelled) setLoadError(error?.message || 'تعذر فتح بيانات التطبيق المشفرة.'); });
+    const run = async () => {
+      if (cancelled) return;
+      await reloadData();
+    };
+    void run();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadData]);
 
   useEffect(() => {
     try {
@@ -258,6 +397,78 @@ export default function App() {
     };
   }, [data?.settings?.update?.autoCheck, data?.settings?.update?.manifestUrl, updateData]);
 
+
+  useEffect(() => {
+    if (!['admin', 'teacher'].includes(auth?.role)) return undefined;
+
+    let cancelled = false;
+
+    const runAutoBackup = async () => {
+      const current = dataRef.current;
+      if (!current || autoBackupRunningRef.current) return;
+      if (globalThis.navigator && globalThis.navigator.onLine === false) return;
+      if (!shouldRunAutoBackup(current.settings, Date.now())) return;
+
+      autoBackupRunningRef.current = true;
+      try {
+        const result = await pushCloudData(current);
+        if (cancelled) return;
+
+        const completedAt = result.updatedAt || new Date().toISOString();
+        await updateData((latest) => ({
+          ...latest,
+          settings: {
+            ...latest.settings,
+            cloudSync: {
+              ...latest.settings.cloudSync,
+              revision: result.revision,
+              lastPushAt: completedAt,
+              lastAutoBackupAt: completedAt,
+              autoBackupError: '',
+            },
+          },
+        }));
+      } catch (error) {
+        if (cancelled) return;
+
+        await updateData((latest) => ({
+          ...latest,
+          settings: {
+            ...latest.settings,
+            cloudSync: {
+              ...latest.settings.cloudSync,
+              autoBackupError: String(
+                error?.message || 'تعذر إنشاء النسخة السحابية التلقائية.',
+              ).slice(0, 240),
+            },
+          },
+        })).catch(() => null);
+      } finally {
+        autoBackupRunningRef.current = false;
+      }
+    };
+
+    void runAutoBackup();
+    const interval = setInterval(runAutoBackup, 15 * 60 * 1000);
+    globalThis.addEventListener?.('online', runAutoBackup);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      globalThis.removeEventListener?.('online', runAutoBackup);
+    };
+  }, [
+    auth?.role,
+    data?.settings?.cloudSync?.autoBackup,
+    data?.settings?.cloudSync?.autoBackupIntervalHours,
+    data?.settings?.cloudSync?.endpoint,
+    data?.settings?.cloudSync?.lastAutoBackupAt,
+    data?.settings?.cloudSync?.lastPushAt,
+    data?.settings?.cloudSync?.token,
+    data?.settings?.cloudSync?.workspaceId,
+    updateData,
+  ]);
+
   const handleUnlock = (session, options = {}) => {
     const remember = Boolean(options.remember);
     const next = { ...(session || { role: 'admin' }), expiresAt: Date.now() + (remember ? AUTH_TTL_REMEMBERED : AUTH_TTL_SESSION) };
@@ -313,9 +524,9 @@ export default function App() {
     if (auth) setActive('dashboard');
   };
 
-  if (loadError) return <div className="loading-screen"><div className="loading-mark">!</div><h1>تعذر فتح المنصة</h1><p>{loadError}</p><button className="primary-btn" type="button" onClick={() => globalThis.location?.reload?.()}>إعادة المحاولة</button></div>;
+  if (loadError) return <div className="loading-screen loading-recovery" role="alert"><img className="loading-logo" src={identity.logo} alt={identity.schoolName} /><h1>تعذر فتح المنصة</h1><p>{loadError}</p><div className="loading-recovery-actions"><button className="primary-btn" type="button" onClick={() => void reloadData()}>إعادة المحاولة بأمان</button><button className="secondary-btn" type="button" onClick={() => globalThis.location?.reload?.()}>إعادة تشغيل الواجهة</button></div><small>لن يتم حذف أي بيانات عند إعادة المحاولة.</small></div>;
   if (!data) return <LoadingScreen />;
-  if (shareState.kind && !auth) {
+  if (shareState.kind && (!auth || shareState.kind === 'live')) {
     return (
       <>
         {updateInfo && <UpdatePrompt currentVersion={release.displayVersion} newVersion={updateInfo.version} notes={updateInfo.notes} mandatory={updateInfo.mandatory} busy={updateBusy} onUpdateNow={handleUpdateNow} onLater={handleUpdateLater} />}
@@ -352,6 +563,7 @@ export default function App() {
     payments: common,
     questionBank: common,
     games: { ...common, shareState },
+    achievements: common,
     mapChallenge: { ...common, navigate: setActive },
     messages: common,
     reports: { data, auth },
@@ -377,6 +589,7 @@ export default function App() {
     payments: Payments,
     questionBank: QuestionBankManager,
     games: Games,
+    achievements: Achievements,
     mapChallenge: MapChallenge,
     messages: Messages,
     reports: Reports,

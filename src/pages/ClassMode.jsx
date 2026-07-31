@@ -46,16 +46,28 @@ import {
   Move,
 } from 'lucide-react';
 import { identity } from '../config/identity';
-import { encourageStudent, speakArabic } from '../services/voice';
+import { buildEncouragementPhrase, speakArabic } from '../services/voice';
+import { openResourceDocument } from '../services/nativePlatform';
+import {
+  nativeScreenRecordingAvailable,
+  pauseNativeScreenRecording,
+  resumeNativeScreenRecording,
+  startNativeScreenRecording,
+  stopNativeScreenRecording,
+} from '../services/screenRecording';
 import { buildShareLink, copyToClipboard } from '../services/share';
 import { questionBank } from '../data/questionBank';
 import { queueAbsenceNotification } from '../services/notifications';
-import { deleteAsset, importLegacyDataUrl } from '../services/assetStore';
+import { deleteAsset, importAssetBlob, importLegacyDataUrl } from '../services/assetStore';
 import { useAssetUrl } from '../hooks/useAssetUrl';
 import { usePdfPage } from '../hooks/usePdfPage';
 import { todayISO, formatDateAr } from '../utils/time';
 import LessonMapStudio from '../components/maps/LessonMapStudio';
-import { getLessonsForGrade, getLessonModeResources, resolveDefaultLesson, clampLessonPage } from '../services/libraryModel';
+import MediaNavigator from '../components/classmode/MediaNavigator';
+import LessonRecordingItem from '../components/classmode/LessonRecordingItem';
+import TeacherLivePanel from '../components/live/TeacherLivePanel';
+import { getAllLibraryGrades,
+  getLessonsForGrade, getLessonModeResources, resolveDefaultLesson, clampLessonPage } from '../services/libraryModel';
 
 const statusLabels = { present: 'حاضر', late: 'متأخر', absent: 'غائب', excused: 'غياب بعذر' };
 const toolOptions = [
@@ -75,6 +87,9 @@ const shapeOptions = [
   { key: 'line', label: 'خط' },
 ];
 const boardTemplates = [
+  { key: 'history', label: 'تاريخي', icon: BookOpen },
+  { key: 'geography', label: 'جغرافي', icon: Map },
+  { key: 'manuscript', label: 'مخطوطات', icon: StickyNote },
   { key: 'blank', label: 'فارغ', icon: X },
   { key: 'grid', label: 'شبكة', icon: LayoutGrid },
   { key: 'lines', label: 'سطور', icon: Waves },
@@ -86,7 +101,7 @@ const modeResourceTypes = {
   images: ['image'],
   videos: ['video'],
   audio: ['audio'],
-  files: ['file', 'slides', 'link'],
+  files: ['file', 'document', 'slides', 'link'],
 };
 
 const normalizeSequence = (sequence) => {
@@ -114,6 +129,19 @@ function boardBackground(template) {
         backgroundImage: 'repeating-linear-gradient(to bottom, rgba(17,24,39,.06) 0, rgba(17,24,39,.06) 1px, transparent 1px, transparent 29px)',
         backgroundSize: '100% 30px',
       };
+    case 'history':
+      return {
+        backgroundImage: 'radial-gradient(circle at 50% 45%, rgba(139,92,35,.10), transparent 32%), repeating-linear-gradient(0deg, rgba(111,78,45,.025) 0 1px, transparent 1px 7px), linear-gradient(145deg, #f6edda, #fffaf0)',
+      };
+    case 'geography':
+      return {
+        backgroundImage: 'radial-gradient(circle at 50% 45%, rgba(38,113,92,.09), transparent 32%), linear-gradient(rgba(46,95,78,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(46,95,78,.045) 1px, transparent 1px), linear-gradient(145deg, #f2f7ef, #fbfff9)',
+        backgroundSize: 'auto, 42px 42px, 42px 42px, auto',
+      };
+    case 'manuscript':
+      return {
+        backgroundImage: 'radial-gradient(ellipse at center, rgba(168,116,52,.06), transparent 62%), repeating-linear-gradient(0deg, rgba(103,68,32,.025) 0 1px, transparent 1px 5px), linear-gradient(145deg, #f1dfbc, #fff7e6)',
+      };
     case 'focus':
       return {
         backgroundImage: 'radial-gradient(circle at 50% 5%, rgba(215,173,53,.12), transparent 35%), linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)',
@@ -133,6 +161,71 @@ function dataUrlToImage(url) {
   });
 }
 
+async function drawBoardIdentity(ctx, template, width, height) {
+  if (!['history', 'geography', 'manuscript'].includes(template)) return;
+  const backgrounds = {
+    history: ['#f6edda', '#fffaf0'],
+    geography: ['#eef6ec', '#fbfff9'],
+    manuscript: ['#f1dfbc', '#fff7e6'],
+  };
+  const [start, end] = backgrounds[template];
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, start);
+  gradient.addColorStop(1, end);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.055;
+  ctx.strokeStyle = template === 'geography' ? '#1f6b55' : '#6d421d';
+  ctx.lineWidth = 2;
+  for (let x = 40; x < width; x += 90) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+  for (let y = 35; y < height; y += 75) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  try {
+    const logo = await dataUrlToImage(identity.logo);
+    const target = Math.min(width, height) * 0.42;
+    ctx.save();
+    ctx.globalAlpha = 0.085;
+    ctx.drawImage(logo, (width - target) / 2, (height - target) / 2, target, target);
+    ctx.restore();
+  } catch {
+    // The board remains usable if the optional brand image cannot be decoded.
+  }
+
+  try {
+    const portrait = await dataUrlToImage(identity.portrait);
+    ctx.save();
+    ctx.globalAlpha = 0.78;
+    ctx.beginPath();
+    ctx.arc(width - 68, height - 72, 43, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(portrait, width - 111, height - 115, 86, 86);
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,14,8,.72)';
+    ctx.fillRect(width - 310, height - 56, 224, 38);
+    ctx.fillStyle = '#f1c869';
+    ctx.font = '700 16px Tahoma, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(identity.teacherName, width - 198, height - 34);
+    ctx.restore();
+  } catch {
+    // Portrait is decorative and must never block saving the board.
+  }
+}
+
 function drawStamp(ctx, stamp) {
   const x = stamp.x;
   const y = stamp.y;
@@ -141,11 +234,25 @@ function drawStamp(ctx, stamp) {
   ctx.fillStyle = stamp.color || '#d7ad35';
   ctx.strokeStyle = stamp.color || '#d7ad35';
   ctx.lineWidth = 4;
-  ctx.font = '700 18px system-ui, sans-serif';
+  ctx.font = `${stamp.fontWeight || 700} ${stamp.fontSize || 22}px ${stamp.fontFamily || 'Tahoma, Arial, sans-serif'}`;
 
   if (stamp.kind === 'text') {
     const lines = String(stamp.text || '').split('\n').slice(0, 5);
-    lines.forEach((line, index) => ctx.fillText(line, 0, 22 + index * 24));
+    const style = stamp.textStyle || 'plain';
+    if (style !== 'plain') {
+      const palette = style === 'geography'
+        ? { fill: 'rgba(19,88,68,.90)', stroke: '#d8c36a' }
+        : style === 'event'
+          ? { fill: 'rgba(108,47,32,.92)', stroke: '#e4b25c' }
+          : { fill: 'rgba(57,36,18,.92)', stroke: '#d7ad35' };
+      ctx.fillStyle = palette.fill;
+      ctx.strokeStyle = palette.stroke;
+      ctx.lineWidth = 3;
+      ctx.fillRect(-18, -12, Math.max(230, String(stamp.text || '').length * 15), Math.max(62, lines.length * 31 + 20));
+      ctx.strokeRect(-18, -12, Math.max(230, String(stamp.text || '').length * 15), Math.max(62, lines.length * 31 + 20));
+      ctx.fillStyle = '#fff7df';
+    }
+    lines.forEach((line, index) => ctx.fillText(line, 0, 25 + index * 31));
   } else if (stamp.kind === 'shape') {
     const kind = stamp.shape || 'rect';
     ctx.globalAlpha = 0.9;
@@ -230,7 +337,7 @@ function drawBoardAction(ctx, action, selected = false) {
   }
 }
 
-function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, selectedActionId, template, zoom, boardRef, tool, selectedColor, strokeWidth, shapeKind, arrowMode, textValue, boardReady, setBoardReady, hasResourceHeader = false }) {
+function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, selectedActionId, template, zoom, boardRef, tool, selectedColor, strokeWidth, shapeKind, arrowMode, textValue, textStyle, fontFamily, fontSize, boardReady, setBoardReady, hasResourceHeader = false }) {
   const canvasRef = useRef(null);
   const currentStroke = useRef(null);
   const drawing = useRef(false);
@@ -292,6 +399,9 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
         shape: shapeKind,
         arrowMode,
         color: selectedColor,
+        textStyle,
+        fontFamily,
+        fontSize,
       });
       return;
     }
@@ -330,13 +440,24 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
   };
 
   return (
-    <div ref={boardRef} className={`class-board-canvas-shell tool-${tool} ${hasResourceHeader ? 'has-resource-head' : ''}`} style={{ '--board-zoom': zoom }}>
+    <div ref={boardRef} className={`class-board-canvas-shell tool-${tool} board-theme-${template} ${hasResourceHeader ? 'has-resource-head' : ''}`} style={{ '--board-zoom': zoom }}>
+      {!hasResourceHeader && ['history', 'geography', 'manuscript'].includes(template) && (
+        <div className="classmode-board-identity" aria-hidden="true">
+          <div className="classmode-history-ornament ornament-top" />
+          <img className="classmode-board-watermark" src={identity.logo} alt="" />
+          <div className="classmode-board-teacher-mark">
+            <img src={identity.portrait} alt="" />
+            <span><strong>{identity.teacherName}</strong><small>{identity.teacherTitle}</small></span>
+          </div>
+          <div className="classmode-history-ornament ornament-bottom" />
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         width={1200}
         height={720}
         className="class-board-canvas"
-        style={{ ...boardBackground(template) }}
+        style={hasResourceHeader || ['history', 'geography', 'manuscript'].includes(template) ? undefined : { ...boardBackground(template) }}
         onMouseDown={onPointerDown}
         onMouseMove={onPointerMove}
         onMouseUp={onPointerUp}
@@ -354,7 +475,60 @@ export default function ClassMode({ data, updateData, navigate }) {
   const current = data.sessions.find((session) => session.current) || data.sessions[0] || null;
   const students = current ? data.students.filter((student) => student.group === current.group) : [];
   const today = todayISO();
-  const currentGrade = students[0]?.grade || current?.title || '';
+  const availableGrades = useMemo(
+    () => getAllLibraryGrades(data),
+    [data],
+  );
+
+  const preferredLesson = useMemo(
+    () =>
+      (data.contentLibrary || []).find(
+        (item) =>
+          item.type === 'lesson' &&
+          String(item.id) === String(data.settings?.classLessonId || ''),
+      ) || null,
+    [data.contentLibrary, data.settings?.classLessonId],
+  );
+
+  const currentGrade = useMemo(() => {
+    const normalize = (value) =>
+      String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+    const candidates = [
+      preferredLesson?.grade,
+      data.settings?.libraryGrade,
+      current?.grade,
+      students[0]?.grade,
+      current?.group,
+    ].filter(Boolean);
+
+    const exactGrade = availableGrades.find((grade) =>
+      candidates.some(
+        (candidate) => normalize(candidate) === normalize(grade),
+      ),
+    );
+    if (exactGrade) return exactGrade;
+
+    const embeddedGrade = availableGrades.find((grade) =>
+      candidates.some((candidate) => {
+        const normalizedCandidate = normalize(candidate);
+        const normalizedGrade = normalize(grade);
+        return (
+          normalizedCandidate.includes(normalizedGrade) ||
+          normalizedGrade.includes(normalizedCandidate)
+        );
+      }),
+    );
+
+    return embeddedGrade || preferredLesson?.grade || students[0]?.grade || '';
+  }, [
+    availableGrades,
+    current?.grade,
+    current?.group,
+    data.settings?.libraryGrade,
+    preferredLesson?.grade,
+    students,
+  ]);
   const lessons = useMemo(() => getLessonsForGrade(data, currentGrade), [data, currentGrade]);
   const [activeLessonId, setActiveLessonId] = useState(data.settings?.classLessonId || '');
   const activeLesson = useMemo(
@@ -381,7 +555,7 @@ export default function ClassMode({ data, updateData, navigate }) {
     const timer = setInterval(() => setClockTime(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })), 30000);
     return () => clearInterval(timer);
   }, []);
-  const [boardTemplate, setBoardTemplate] = useState('blank');
+  const [boardTemplate, setBoardTemplate] = useState('history');
   const [selectedResourceId, setSelectedResourceId] = useState(data.settings?.classResourceId || resources[0]?.id || '');
   const [flowIndex, setFlowIndex] = useState(0);
   const [annotationText, setAnnotationText] = useState('');
@@ -392,11 +566,31 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [redoStack, setRedoStack] = useState([]);
   const [selectedBoardActionId, setSelectedBoardActionId] = useState(null);
   const [recordingActive, setRecordingActive] = useState(false);
+  const [recordingPaused, setRecordingPaused] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordingBackend, setRecordingBackend] = useState('');
   const mediaRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
+  const recordingStartedAtRef = useRef(0);
+  const recordingCleanupRef = useRef(() => {});
+  const recordingStopResolverRef = useRef(null);
+  const recordingTimelineRef = useRef([]);
+  const recordingBackendRef = useRef('');
+  const stopRecordingOnUnmountRef = useRef(() => Promise.resolve());
+  useEffect(() => {
+    recordingBackendRef.current = recordingBackend;
+  }, [recordingBackend]);
+  useEffect(() => {
+    if (!recordingActive || recordingPaused) return undefined;
+    const timer = setInterval(() => setRecordingSeconds((value) => value + 1), 1000);
+    return () => clearInterval(timer);
+  }, [recordingActive, recordingPaused]);
   const [shapeKind, setShapeKind] = useState('rect');
   const [arrowMode, setArrowMode] = useState('right');
   const [boardText, setBoardText] = useState('');
+  const [textStyle, setTextStyle] = useState('plain');
+  const [fontFamily, setFontFamily] = useState('Tahoma, Arial, sans-serif');
+  const [fontSize, setFontSize] = useState(24);
   const [zoom, setZoom] = useState(1);
   const [boardReady, setBoardReady] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
@@ -434,11 +628,49 @@ export default function ClassMode({ data, updateData, navigate }) {
   );
   const selectedStorageResource = selectedResource?.virtualLessonTextbook || selectedResource?.virtualLessonRecording ? activeLesson : selectedResource;
   const selectedResourceUrl = useAssetUrl(selectedResource?.assetId, selectedResource?.url);
+
+  useEffect(() => {
+    if (!selectedResource) return;
+    const mode = selectedResource.type === 'image'
+      ? 'images'
+      : selectedResource.type === 'video'
+        ? 'videos'
+        : selectedResource.type === 'audio'
+          ? 'audio'
+          : ['slides', 'document', 'file', 'link'].includes(selectedResource.type)
+            ? 'files'
+            : ['pdf', 'textbook'].includes(selectedResource.type)
+              ? 'pdf'
+              : null;
+    if (mode && !modeResourceTypes[contentMode]?.includes(selectedResource.type)) {
+      setContentMode(mode);
+    }
+  }, [selectedResource?.id]);
+
   const selectedExamUrl = useAssetUrl(selectedResource?.examAssetId, selectedResource?.examUrl);
   const [classPage, setClassPage] = useState(null);
   useEffect(() => {
     setClassPage(clampLessonPage(selectedResource?.pageStart || 1, selectedResource, 1));
   }, [selectedResource?.id, selectedResource?.pageStart, selectedResource?.pageEnd]);
+  useEffect(() => {
+    if (!recordingActive) return;
+    const entry = {
+      atSeconds: recordingSeconds,
+      type: 'content-change',
+      contentMode,
+      resourceId: selectedResource?.id || '',
+      resourceTitle: selectedResource?.title || '',
+      page: classPage || 1,
+      createdAt: new Date().toISOString(),
+    };
+    const previous = recordingTimelineRef.current.at(-1);
+    if (
+      previous?.contentMode === entry.contentMode
+      && String(previous?.resourceId || '') === String(entry.resourceId)
+      && Number(previous?.page || 0) === Number(entry.page || 0)
+    ) return;
+    recordingTimelineRef.current.push(entry);
+  }, [recordingActive, contentMode, selectedResource?.id, selectedResource?.title, classPage]);
   const renderedPdf = usePdfPage(contentMode === 'pdf' && ['pdf', 'textbook'].includes(selectedResource?.type) ? selectedResourceUrl : '', classPage || 1);
   const boardLayerKey = contentMode === 'board'
     ? `board:${current?.id || 'session'}`
@@ -495,7 +727,10 @@ export default function ClassMode({ data, updateData, navigate }) {
       .slice(0, 8);
   }, [data.customQuestionBank, selectedResource]);
 
-  const recentRecordings = useMemo(() => (data.lessonRecordings || []).slice(0, 3), [data.lessonRecordings]);
+  const recentRecordings = useMemo(() => (data.lessonRecordings || [])
+    .slice()
+    .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')))
+    .slice(0, 8), [data.lessonRecordings]);
 
   const saveSelectedResource = async (patch = {}) => {
     if (!selectedStorageResource) return;
@@ -543,6 +778,9 @@ export default function ClassMode({ data, updateData, navigate }) {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#f6f0e1';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (contentMode === 'board') {
+      await drawBoardIdentity(ctx, boardTemplate, canvas.width, canvas.height);
+    }
 
     const backgroundSource = contentMode === 'images' && selectedResource?.type === 'image'
       ? selectedResourceUrl
@@ -641,7 +879,7 @@ export default function ClassMode({ data, updateData, navigate }) {
     setShareNotice('تم حفظ طبقة الكتابة وربطها بالحصة.');
   };
 
-  const recordLesson = async ({ copyLink = false } = {}) => {
+  const recordLesson = async ({ copyLink = false, screenRecording = null } = {}) => {
     const boardImage = await composeBoardImage();
     const payload = buildLessonPayload({ boardImage });
     let share = { url: '', token: null };
@@ -657,6 +895,14 @@ export default function ClassMode({ data, updateData, navigate }) {
       ...payload,
       boardImage: '',
       boardAssetId: boardAsset?.id || '',
+      videoAssetId: screenRecording?.id || '',
+      videoFileName: screenRecording?.name || '',
+      videoMimeType: screenRecording?.type || '',
+      videoSize: Number(screenRecording?.size || 0),
+      durationSeconds: Number(screenRecording?.durationSeconds || 0),
+      timeline: Array.isArray(screenRecording?.timeline)
+        ? screenRecording.timeline.slice(0, 1000)
+        : [],
       shareToken: share.token || '',
       shareUrl: share.url || '',
     };
@@ -694,7 +940,9 @@ export default function ClassMode({ data, updateData, navigate }) {
       setShareNotice(error?.message || 'تعذر حفظ تسجيل الحصة.');
       return null;
     }
-    await Promise.all(droppedRecordings.filter((item) => item.boardAssetId).map((item) => deleteAsset(item.boardAssetId).catch(() => {})));
+    await Promise.all(droppedRecordings.flatMap((item) => [item.boardAssetId, item.videoAssetId]
+      .filter(Boolean)
+      .map((assetId) => deleteAsset(assetId).catch(() => {}))));
     if (copyLink) {
       if (!share.url) setShareNotice(`تم حفظ تسجيل الحصة، لكن ${shareError}`);
       else setShareNotice(await copyToClipboard(share.url) ? 'تم نسخ رابط الطالب بنجاح.' : 'تم تجهيز الرابط لكن تعذر نسخه.');
@@ -821,18 +1069,34 @@ export default function ClassMode({ data, updateData, navigate }) {
     updateData(next);
   };
 
-  const praise = (student, type) => {
+  const praise = async (student, type) => {
     setSelectedStudent(student);
-    setLastPraise(encourageStudent(type, student.name, data.settings));
+    const phrase = buildEncouragementPhrase(type, student.name);
+    setLastPraise(phrase);
+    const spoken = await speakArabic(
+      phrase,
+      data.settings,
+      ['excellent', 'correct', 'success'].includes(type)
+        ? 'excited'
+        : 'normal',
+    );
+    if (!spoken) {
+      setShareNotice('تعذر تشغيل الصوت العربي. فعّل محرك تحويل النص إلى كلام باللغة العربية من إعدادات الجهاز.');
+    }
   };
 
   const phrases = data.settings?.encouragementPhrases || [];
   const [newPhraseText, setNewPhraseText] = useState('');
 
-  const sayPhrase = (phrase) => {
-    const text = selectedStudent ? `${phrase} يا ${selectedStudent.name}` : phrase;
+  const sayPhrase = async (phrase) => {
+    const text = selectedStudent
+      ? `${String(phrase).replace(/[.!،,]+$/u, '')} يا ${selectedStudent.name}.`
+      : phrase;
     setLastPraise(text);
-    speakArabic(text, data.settings);
+    const spoken = await speakArabic(text, data.settings, 'excited');
+    if (!spoken) {
+      setShareNotice('الصوت العربي غير جاهز على الجهاز. افتح إعدادات تحويل النص إلى كلام وثبّت صوتًا عربيًا.');
+    }
   };
 
   const addEncouragementPhrase = async () => {
@@ -850,12 +1114,25 @@ export default function ClassMode({ data, updateData, navigate }) {
     setPoints((previous) => ({ ...previous, [student.id]: (previous[student.id] || 0) + delta }));
   };
 
-  const randomStudent = () => {
+  const randomStudent = async () => {
     if (!students.length) return;
     const student = students[Math.floor(Math.random() * students.length)];
     setSelectedStudent(student);
-    setLastPraise(`تم اختيار ${student.name}`);
-    encourageStudent('calm', student.name, data.settings);
+    const phrase = `تم اختيار الطالب ${student.name}.`;
+    setLastPraise(phrase);
+    const spoken = await speakArabic(phrase, data.settings, 'calm');
+    if (!spoken) setShareNotice('تعذر تشغيل الصوت العربي على هذا الجهاز.');
+  };
+
+  const openSelectedDocument = async () => {
+    if (!selectedResource) return;
+    try {
+      setShareNotice('جارٍ تجهيز الملف للفتح…');
+      await openResourceDocument(selectedResource, selectedResourceUrl);
+      setShareNotice('تم إرسال الملف إلى عارض المستندات على الجهاز.');
+    } catch (error) {
+      setShareNotice(error?.message || 'تعذر فتح الملف على هذا الجهاز.');
+    }
   };
 
   const saveBoard = async () => {
@@ -873,52 +1150,280 @@ export default function ClassMode({ data, updateData, navigate }) {
     await recordLesson({ copyLink: false });
   };
 
+  const cleanupRecordingResources = () => {
+    try {
+      recordingCleanupRef.current?.();
+    } catch {
+      // Recording resources are best-effort cleanup only.
+    }
+    recordingCleanupRef.current = () => {};
+  };
+
+  const saveCapturedRecording = async ({
+    blob = null,
+    name = '',
+    type = '',
+    durationSeconds = 0,
+  } = {}) => {
+    let asset = null;
+    if (blob?.size) {
+      asset = await importAssetBlob(blob, {
+        name: name || `تسجيل-${current?.title || 'الحصة'}-${today}-${Date.now()}`,
+        type: type || blob.type || 'video/webm',
+        kind: 'lesson-recording',
+      });
+    }
+    await recordLesson({
+      copyLink: false,
+      screenRecording: {
+        ...(asset || {}),
+        name: asset?.name || name,
+        type: asset?.type || type,
+        size: asset?.size || blob?.size || 0,
+        durationSeconds: Math.max(1, Number(durationSeconds || recordingSeconds || 1)),
+        timeline: recordingTimelineRef.current,
+      },
+    });
+    return asset;
+  };
+
+  const resetRecordingState = () => {
+    setRecordingActive(false);
+    setRecordingPaused(false);
+    setRecordingBackend('');
+    recordingBackendRef.current = '';
+    mediaRecorderRef.current = null;
+  };
+
+  const stopActiveRecording = async () => {
+    const backend = recordingBackendRef.current;
+    if (backend === 'native') {
+      setShareNotice('جارٍ إنهاء تسجيل Android وحفظ الفيديو داخل قائمة التسجيلات…');
+      try {
+        const captured = await stopNativeScreenRecording();
+        await saveCapturedRecording(captured);
+        setShareNotice('تم حفظ فيديو الحصة داخل قائمة التسجيلات بالترتيب الزمني.');
+      } catch (error) {
+        await saveCapturedRecording({ durationSeconds: recordingSeconds }).catch(() => null);
+        setShareNotice(error?.message || 'تعذر حفظ فيديو Android؛ تم حفظ سجل الحصة الزمني.');
+      } finally {
+        resetRecordingState();
+        cleanupRecordingResources();
+      }
+      return;
+    }
+
+    const recorder = mediaRecorderRef.current;
+    if (backend === 'web' && recorder && recorder.state !== 'inactive') {
+      await new Promise((resolve) => {
+        recordingStopResolverRef.current = resolve;
+        recorder.stop();
+      });
+      return;
+    }
+
+    if (recordingActive || backend === 'timeline') {
+      try {
+        await saveCapturedRecording({ durationSeconds: recordingSeconds });
+        setShareNotice('تم حفظ سجل الحصة والسبورة بالترتيب الزمني.');
+      } finally {
+        resetRecordingState();
+        cleanupRecordingResources();
+      }
+    }
+  };
+
   const endClass = async () => {
-    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
-    await recordLesson({ copyLink: false });
+    if (recordingActive || recordingBackendRef.current) {
+      await stopActiveRecording();
+    } else {
+      await recordLesson({ copyLink: false });
+    }
     navigate('dashboard');
   };
 
+  const toggleRecordingPause = async () => {
+    const backend = recordingBackendRef.current;
+    try {
+      if (backend === 'native') {
+        if (recordingPaused) await resumeNativeScreenRecording();
+        else await pauseNativeScreenRecording();
+        setRecordingPaused((value) => !value);
+        setShareNotice(recordingPaused ? 'تم استكمال تسجيل الحصة.' : 'تم إيقاف تسجيل الحصة مؤقتًا.');
+        return;
+      }
+      const recorder = mediaRecorderRef.current;
+      if (backend === 'web' && recorder) {
+        if (recorder.state === 'recording') recorder.pause();
+        else if (recorder.state === 'paused') recorder.resume();
+        return;
+      }
+      if (backend === 'timeline') {
+        setRecordingPaused((value) => !value);
+        setShareNotice(recordingPaused ? 'تم استكمال تسجيل سير الحصة.' : 'تم إيقاف تسجيل سير الحصة مؤقتًا.');
+      }
+    } catch (error) {
+      setShareNotice(error?.message || 'تعذر تغيير حالة التسجيل.');
+    }
+  };
+
   const toggleClassRecording = async () => {
-    if (recordingActive) {
-      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
-      setRecordingActive(false);
-      await recordLesson({ copyLink: false });
-      setShareNotice('تم إيقاف التسجيل وحفظ سجل الحصة.');
+    if (recordingActive || recordingBackendRef.current) {
+      await stopActiveRecording();
       return;
+    }
+
+    setRecordingSeconds(0);
+    recordingStartedAtRef.current = Date.now();
+    recordingTimelineRef.current = [{
+      atSeconds: 0,
+      type: 'recording-started',
+      contentMode,
+      resourceId: selectedResource?.id || '',
+      resourceTitle: selectedResource?.title || '',
+      page: classPage || 1,
+      createdAt: new Date().toISOString(),
+    }];
+
+    if (nativeScreenRecordingAvailable()) {
+      try {
+        await startNativeScreenRecording({
+          title: activeLesson?.title || current?.title || 'الحصة',
+          withAudio: true,
+        });
+        recordingBackendRef.current = 'native';
+        setRecordingBackend('native');
+        setRecordingActive(true);
+        setRecordingPaused(false);
+        setShareNotice('بدأ تسجيل شاشة تطبيق Android وصوت المعلم. اضغط مرة أخرى للإيقاف والحفظ.');
+        return;
+      } catch (error) {
+        setShareNotice(error?.message || 'تعذر بدء تسجيل Android؛ سيتم استخدام التسجيل البديل.');
+      }
     }
 
     if (navigator.mediaDevices?.getDisplayMedia && globalThis.MediaRecorder) {
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : 'video/webm' });
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: { ideal: 15, max: 24 } },
+          audio: true,
+        });
+        let microphoneStream = null;
+        try {
+          microphoneStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+            video: false,
+          });
+        } catch {
+          setShareNotice('بدأ تسجيل الشاشة بدون ميكروفون المعلم؛ اسمح بالميكروفون لتسجيل الصوت.');
+        }
+
+        const combinedStream = new MediaStream();
+        displayStream.getVideoTracks().forEach((track) => combinedStream.addTrack(track));
+        const AudioEngine = globalThis.AudioContext || globalThis.webkitAudioContext;
+        const audioContext = AudioEngine ? new AudioEngine() : null;
+        if (audioContext) {
+          const mixedDestination = audioContext.createMediaStreamDestination();
+          for (const stream of [displayStream, microphoneStream].filter(Boolean)) {
+            if (!stream.getAudioTracks().length) continue;
+            audioContext.createMediaStreamSource(stream).connect(mixedDestination);
+          }
+          mixedDestination.stream.getAudioTracks().forEach((track) => combinedStream.addTrack(track));
+        } else {
+          const preferredAudio = microphoneStream?.getAudioTracks()?.[0]
+            || displayStream.getAudioTracks()?.[0];
+          if (preferredAudio) combinedStream.addTrack(preferredAudio);
+        }
+
+        const mimeCandidates = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm',
+        ];
+        const mimeType = mimeCandidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) || '';
+        const recorder = new MediaRecorder(combinedStream, mimeType ? { mimeType } : undefined);
         recordingChunksRef.current = [];
-        recorder.ondataavailable = (event) => { if (event.data?.size) recordingChunksRef.current.push(event.data); };
-        recorder.onstop = () => {
-          stream.getTracks().forEach((track) => track.stop());
-          if (!recordingChunksRef.current.length) return;
-          const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'video/webm' });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `تسجيل-${current?.title || 'الحصة'}-${today}.webm`;
-          link.click();
-          setTimeout(() => URL.revokeObjectURL(url), 3000);
-          recordingChunksRef.current = [];
+        recorder.ondataavailable = (event) => {
+          if (event.data?.size) recordingChunksRef.current.push(event.data);
+        };
+        recorder.onpause = () => setRecordingPaused(true);
+        recorder.onresume = () => setRecordingPaused(false);
+        recorder.onerror = () => setShareNotice('حدث خطأ أثناء تسجيل الشاشة؛ سيتم حفظ سجل الحصة المتاح.');
+        recorder.onstop = async () => {
+          const durationSeconds = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
+          try {
+            const blob = recordingChunksRef.current.length
+              ? new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'video/webm' })
+              : null;
+            await saveCapturedRecording({
+              blob,
+              name: `تسجيل-${current?.title || 'الحصة'}-${today}-${Date.now()}.webm`,
+              type: blob?.type || 'video/webm',
+              durationSeconds,
+            });
+            setShareNotice(blob?.size
+              ? 'تم حفظ فيديو الحصة داخل قائمة التسجيلات بالترتيب الزمني.'
+              : 'تم حفظ سجل الحصة، لكن لم ينتج ملف فيديو من الجهاز.');
+          } catch (error) {
+            setShareNotice(error?.message || 'تعذر حفظ فيديو الحصة.');
+          } finally {
+            recordingChunksRef.current = [];
+            cleanupRecordingResources();
+            resetRecordingState();
+            recordingStopResolverRef.current?.();
+            recordingStopResolverRef.current = null;
+          }
+        };
+        const stopFromSystem = () => {
+          if (recorder.state !== 'inactive') recorder.stop();
+        };
+        displayStream.getVideoTracks()[0]?.addEventListener('ended', stopFromSystem, { once: true });
+        recordingCleanupRef.current = () => {
+          displayStream.getTracks().forEach((track) => track.stop());
+          microphoneStream?.getTracks().forEach((track) => track.stop());
+          combinedStream.getTracks().forEach((track) => track.stop());
+          audioContext?.close?.().catch(() => null);
         };
         recorder.start(1000);
         mediaRecorderRef.current = recorder;
+        recordingBackendRef.current = 'web';
+        setRecordingBackend('web');
         setRecordingActive(true);
-        setShareNotice('بدأ تسجيل شاشة الحصة وصوتها.');
+        setRecordingPaused(false);
+        setShareNotice('بدأ تسجيل شاشة الحصة وصوت المعلم.');
         return;
       } catch (error) {
-        if (error?.name !== 'NotAllowedError') setShareNotice('تعذر تسجيل الشاشة؛ سيُحفظ سجل الحصة النصي والسبورة بدلًا منه.');
+        cleanupRecordingResources();
+        setShareNotice(error?.name === 'NotAllowedError'
+          ? 'لم يتم منح إذن تسجيل الشاشة؛ بدأ حفظ سير الحصة النصي والسبورة.'
+          : 'تعذر تسجيل الشاشة؛ بدأ حفظ سير الحصة النصي والسبورة.');
       }
     }
 
+    recordingBackendRef.current = 'timeline';
+    setRecordingBackend('timeline');
     setRecordingActive(true);
+    setRecordingPaused(false);
     setShareNotice('بدأ تسجيل سير الحصة داخل المنصة. اضغط مرة أخرى للإيقاف والحفظ.');
   };
+
+  stopRecordingOnUnmountRef.current = stopActiveRecording;
+
+  useEffect(() => () => {
+    if (recordingBackendRef.current) {
+      void stopRecordingOnUnmountRef.current?.();
+      return;
+    }
+    try {
+      recordingCleanupRef.current?.();
+    } catch {
+      // Ignore cleanup failures while unmounting the class screen.
+    }
+  }, []);
 
   const undoBoard = () => {
     setBoardActions((currentActions) => {
@@ -1011,8 +1516,6 @@ export default function ClassMode({ data, updateData, navigate }) {
           <button type="button" className={contentMode === 'board' ? 'active' : ''} onClick={() => switchContentMode('board')} title="السبورة"><PenTool size={24} /><span>السبورة</span></button>
           <button type="button" className={contentMode === 'images' ? 'active' : ''} onClick={() => switchContentMode('images')} title="الصور"><FileImage size={24} /><span>الصور</span></button>
           <button type="button" className={contentMode === 'videos' ? 'active' : ''} onClick={() => switchContentMode('videos')} title="الفيديوهات"><Video size={24} /><span>الفيديوهات</span></button>
-          <button type="button" className={contentMode === 'audio' ? 'active' : ''} onClick={() => switchContentMode('audio')} title="الصوت"><Volume2 size={24} /><span>الصوت</span></button>
-          <button type="button" className={contentMode === 'files' ? 'active' : ''} onClick={() => switchContentMode('files')} title="الملفات"><File size={24} /><span>الملفات</span></button>
           <button type="button" className={contentMode === 'maps' ? 'active' : ''} onClick={() => switchContentMode('maps')} title="الخرائط"><Map size={24} /><span>الخرائط</span></button>
         </div>
         <div className="classmode-header-meta">
@@ -1085,6 +1588,16 @@ export default function ClassMode({ data, updateData, navigate }) {
             </div>
           )}
 
+          <MediaNavigator
+            resources={resources}
+            selectedId={selectedResourceId}
+            contentMode={contentMode}
+            onSelect={(resourceId) => {
+              setSelectedResourceId(resourceId);
+              setFlowIndex(0);
+            }}
+          />
+
           <div className="classmode-board-frame">
             <div className="classmode-board-surface">
               {boardToolsVisible && <div className="classmode-board-sidebar-left">
@@ -1133,7 +1646,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                       {(displayResource.type === 'pdf' || displayResource.type === 'textbook') && selectedResourceUrl && (renderedPdf.dataUrl ? <img src={renderedPdf.dataUrl} alt={`${displayResource.title} — صفحة ${classPage || 1}`} /> : <iframe title={displayResource.title} src={`${selectedResourceUrl}#page=${classPage || 1}&toolbar=0&navpanes=0`} />)}
                       {renderedPdf.loading && <div className="classmode-pdf-status">جارٍ تجهيز صفحة PDF للكتابة عليها…</div>}
                       {renderedPdf.error && <div className="classmode-pdf-status error">{renderedPdf.error}</div>}
-                      {!['image', 'video', 'audio', 'pdf', 'textbook'].includes(displayResource.type) && <div className="resource-placeholder"><File size={34} /><strong>{displayResource.fileName || displayResource.title}</strong>{selectedResourceUrl && <a className="primary-btn" href={selectedResourceUrl} target="_blank" rel="noopener noreferrer">فتح الملف</a>}</div>}
+                      {!['image', 'video', 'audio', 'pdf', 'textbook'].includes(displayResource.type) && <div className="resource-placeholder classmode-document-placeholder"><Presentation size={42} /><strong>{displayResource.fileName || displayResource.title}</strong><small>{displayResource.type === 'slides' ? 'عرض PowerPoint مرتبط بالدرس' : 'مستند مرتبط بالدرس'}</small><button className="primary-btn" type="button" onClick={openSelectedDocument}>فتح الملف على الجهاز</button></div>}
                       {resourceAnnotations.length > 0 && <div className="resource-annotation-overlay">{resourceAnnotations.map((note) => <span key={note.id} style={{ background: note.color }}>{note.text}</span>)}</div>}
                     </div>
                   </div>
@@ -1164,6 +1677,9 @@ export default function ClassMode({ data, updateData, navigate }) {
                   shapeKind={shapeKind}
                   arrowMode={arrowMode}
                   textValue={boardText}
+                  textStyle={textStyle}
+                  fontFamily={fontFamily}
+                  fontSize={fontSize}
                   boardReady={boardReady}
                   setBoardReady={setBoardReady}
                   hasResourceHeader={Boolean(displayResource)}
@@ -1186,6 +1702,25 @@ export default function ClassMode({ data, updateData, navigate }) {
                 <option value={6}>6px</option>
                 <option value={10}>10px</option>
               </select>
+              <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="نوع الخط">
+                <option value="Tahoma, Arial, sans-serif">عربي واضح</option>
+                <option value="Georgia, serif">تاريخي</option>
+                <option value="Arial, sans-serif">بسيط</option>
+                <option value="serif">مخطوط</option>
+              </select>
+              <select value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} title="حجم النص">
+                <option value={20}>20</option>
+                <option value={24}>24</option>
+                <option value={30}>30</option>
+                <option value={38}>38</option>
+                <option value={48}>48</option>
+              </select>
+            </div>
+            <div className="classmode-tool-group compact classmode-text-style-row">
+              <button className={textStyle === 'plain' ? 'active' : ''} onClick={() => setTextStyle('plain')} type="button">نص عادي</button>
+              <button className={textStyle === 'historical' ? 'active' : ''} onClick={() => { setTextStyle('historical'); setTool('text'); }} type="button">مصطلح تاريخي</button>
+              <button className={textStyle === 'geography' ? 'active' : ''} onClick={() => { setTextStyle('geography'); setTool('text'); }} type="button">مصطلح جغرافي</button>
+              <button className={textStyle === 'event' ? 'active' : ''} onClick={() => { setTextStyle('event'); setTool('text'); }} type="button">حدث مهم</button>
             </div>
             <div className="classmode-tool-group compact">
               {boardTemplates.map(({ key, label, icon: Icon }) => (
@@ -1206,6 +1741,38 @@ export default function ClassMode({ data, updateData, navigate }) {
         </section>
 
         <aside className="classmode-side-column">
+          <TeacherLivePanel
+            cloudSync={data.settings?.cloudSync}
+            roomMeta={{
+              title: activeLesson?.title || current.title,
+              grade: currentGrade,
+              lesson: activeLesson?.title || selectedResource?.lesson || '',
+              sessionId: current.id,
+              lessonId: activeLesson?.id || null,
+            }}
+            liveState={{
+              contentMode,
+              contentModeLabel: contentMode === 'board'
+                ? 'السبورة'
+                : contentMode === 'pdf'
+                  ? 'ملف PDF'
+                  : contentMode === 'images'
+                    ? 'الصور'
+                    : contentMode === 'videos'
+                      ? 'الفيديو'
+                      : contentMode === 'maps'
+                        ? 'الخرائط'
+                        : 'ملف الدرس',
+              resourceId: selectedResource?.id || '',
+              resourceTitle: selectedResource?.title || activeLesson?.title || current.title,
+              page: classPage || 1,
+              boardRevision: boardActions.length,
+              pointsRevision: Object.values(points).reduce((sum, value) => sum + Number(value || 0), 0),
+              elapsedSeconds: seconds,
+            }}
+            buildSnapshot={composeBoardImage}
+            onNotice={setShareNotice}
+          />
           <article className="panel classmode-side-panel classmode-students-panel">
             <div className="panel-heading compact">
               <div><span className="eyebrow">الطلاب والنقاط</span><h3>الترتيب الحالي</h3></div>
@@ -1230,7 +1797,8 @@ export default function ClassMode({ data, updateData, navigate }) {
                       <button type="button" className={`student-attendance-mini present ${status === 'present' ? 'selected' : ''}`} title="حاضر" onClick={(event) => { event.stopPropagation(); mark(student, 'present'); }}>ح</button>
                       <button type="button" className={`student-attendance-mini late ${status === 'late' ? 'selected' : ''}`} title="متأخر" onClick={(event) => { event.stopPropagation(); mark(student, 'late'); }}>ت</button>
                       <button type="button" className={`student-attendance-mini absent ${status === 'absent' ? 'selected' : ''}`} title="غائب" onClick={(event) => { event.stopPropagation(); mark(student, 'absent'); }}>غ</button>
-                      <button type="button" className="student-point-btn" title="إضافة نقطة" onClick={(event) => { event.stopPropagation(); adjustPoints(student, 1); }}><Plus size={14} /></button>
+                      <button type="button" className="student-point-btn student-point-minus" title="خصم نقطة" onClick={(event) => { event.stopPropagation(); adjustPoints(student, -1); }}><Minus size={14} /></button>
+                      <button type="button" className="student-point-btn" title="إضافة نقطة واحدة" onClick={(event) => { event.stopPropagation(); adjustPoints(student, 1); }}><Plus size={14} /></button>
                       <button type="button" className="student-praise-btn" title="جملة تشجيعية" onClick={(event) => { event.stopPropagation(); praise(student, 'excellent'); }}><Sparkles size={14} /></button>
                     </div>
                   </div>
@@ -1321,14 +1889,11 @@ export default function ClassMode({ data, updateData, navigate }) {
             <div className="panel-heading compact"><div><span className="eyebrow">التسجيلات</span><h3>آخر الحصص</h3></div><Presentation size={18} /></div>
             <div className="classmode-recordings-list">
               {recentRecordings.length ? recentRecordings.map((recording) => (
-                <div className="classmode-recording-item" key={recording.id}>
-                  <strong>{recording.sessionTitle || recording.title || 'حصة محفوظة'}</strong>
-                  <small>{formatDateAr(recording.createdAt)} • {recording.grade || 'الصف'}</small>
-                  <div className="classmode-recording-actions">
-                    <button className="secondary-btn" type="button" onClick={() => copyToClipboard(recording.shareUrl || '')}>نسخ الرابط</button>
-                    <button className="secondary-btn" type="button" onClick={() => window.open(recording.shareUrl || '#', '_blank', 'noopener,noreferrer')}>فتح</button>
-                  </div>
-                </div>
+                <LessonRecordingItem
+                  key={recording.id}
+                  recording={recording}
+                  onNotice={setShareNotice}
+                />
               )) : <small className="settings-help">لا توجد تسجيلات محفوظة بعد.</small>}
             </div>
           </article>
@@ -1383,7 +1948,10 @@ export default function ClassMode({ data, updateData, navigate }) {
       <div className="classmode-bottom-actions">
         <button type="button" className="secondary-btn" onClick={() => navigate('dashboard')}><X size={16} /> خروج من وضع الحصة</button>
         <div className="classmode-bottom-actions-mid">
-          <button type="button" className={`secondary-btn ${recordingActive ? 'recording-active' : ''}`} onClick={toggleClassRecording}><CircleDot size={16} /> {recordingActive ? 'إيقاف التسجيل' : 'تسجيل الحصة'}</button>
+          <button type="button" className={`secondary-btn ${recordingActive ? 'recording-active' : ''}`} onClick={toggleClassRecording}><CircleDot size={16} /> {recordingActive ? `إيقاف التسجيل ${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}` : 'تسجيل الحصة'}</button>
+          {recordingActive && recordingBackend && (
+            <button type="button" className="secondary-btn" onClick={toggleRecordingPause}>{recordingPaused ? <CirclePlay size={16} /> : <CirclePause size={16} />} {recordingPaused ? 'استكمال' : 'إيقاف مؤقت'}</button>
+          )}
           <button type="button" className="secondary-btn" onClick={saveBoard}><Camera size={16} /> لقطة شاشة</button>
           <button type="button" className="secondary-btn" onClick={() => setView('students')}><Users size={16} /> عرض الطلاب</button>
           <button type="button" className="secondary-btn" onClick={() => navigate('contentLibrary')}><BookOpen size={16} /> المكتبة</button>

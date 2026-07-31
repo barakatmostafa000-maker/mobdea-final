@@ -23,12 +23,12 @@ export const ROLE_ACCESS = {
   // locked to their own record), plus the games/map challenge and a read-only
   // content library. No access to the raw admin CRUD screens (Grades, Messages,
   // Payments, Attendance, StudentCards, Settings, Reports, etc.).
-  student: new Set(['dashboard', 'portalPreview', 'games', 'mapChallenge', 'contentLibrary']),
+  student: new Set(['dashboard', 'portalPreview', 'games', 'achievements', 'mapChallenge', 'contentLibrary']),
   // Guardian: own child's portal only (attendance/grades/dues + messages sent
   // to them, all read-only, locked to their linked student). Messages.jsx is a
   // teacher-only broadcast composer that lists every student's name, code, and
   // guardian phone number, so guardians never get access to it directly.
-  guardian: new Set(['dashboard', 'portalPreview']),
+  guardian: new Set(['dashboard', 'portalPreview', 'achievements']),
   // Visitor: whatever the teacher has published in the content library, nothing else.
   visitor: new Set(['dashboard', 'contentLibrary', 'updates']),
 };
@@ -46,7 +46,8 @@ export function resolveStudentByCode(data, input) {
 export function resolveGuardianByPhone(data, input) {
   const value = normalizeDigits(input);
   if (!value) return null;
-  return (data?.students || []).find((student) => normalizeDigits(student.guardianPhone) === value) || null;
+  const matches = (data?.students || []).filter((student) => normalizeDigits(student.guardianPhone) === value);
+  return matches.find((student) => student.guardianPinHash || student.guardianPin) || matches[0] || null;
 }
 
 export function resolveStudentFromQrPayload(data, payload) {
@@ -93,6 +94,7 @@ export function defaultAuthState(role = 'admin', student = null) {
     displayName: student?.name || '',
     permissions: student?.permissions || null,
     parentPermissions: student?.parentPermissions || null,
+    guardianPhone: student?.guardianPhone || '',
   };
 }
 

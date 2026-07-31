@@ -4,7 +4,7 @@ const DB_NAME = 'mobdea_assets_v2';
 const STORE_NAME = 'assets';
 const DB_VERSION = 1;
 const LEGACY_DB_NAME = 'mobdea_assets_v1';
-const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+const MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const objectUrlCache = new Map();
 
 function openDb(name = DB_NAME) {
@@ -67,7 +67,7 @@ async function sha256Hex(bytes) {
 async function writeEncryptedAsset(blob, metadata = {}) {
   if (!(blob instanceof Blob)) throw new Error('الملف غير صالح.');
   if (blob.size <= 0) throw new Error('الملف فارغ.');
-  if (blob.size > MAX_ASSET_BYTES) throw new Error('الحد الأقصى للملف الواحد 25 ميجابايت.');
+  if (blob.size > MAX_ASSET_BYTES) throw new Error('الحد الأقصى للملف الواحد 200 ميجابايت.');
   const plainBytes = new Uint8Array(await blob.arrayBuffer());
   const encrypted = await encryptBytes(plainBytes);
   const id = String(metadata.id || createId());

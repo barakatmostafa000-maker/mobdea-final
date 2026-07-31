@@ -3,6 +3,7 @@ import { buildShareLink, copyToClipboard } from '../services/share';
 import { questionBank, gradeOptions } from '../data/questionBank';
 import { mergeQuestionBanks } from '../services/assessment';
 import { encourageStudent, playVoiceClip } from '../services/voice';
+import OnlineGameHostPanel from '../components/live/OnlineGameHostPanel';
 
 const modes = [
   ['speed', '⚡', 'تحدي السرعة', 'أسئلة متتالية مع مؤقت وCombo.'],
@@ -303,6 +304,24 @@ export default function Games({ data, updateData, shareState }) {
     createdAt: new Date().toISOString(),
   });
 
+  const saveOnlineGameResult = (result) => {
+    if (!result) return;
+    const gameResults = [result, ...(data.gameResults || [])].slice(0, 300);
+    const achievements = [...(data.achievements || [])];
+    const winnerId = Number(data.students.find((student) => String(student.code || '') === String(result.winner?.studentCode || ''))?.id || 0);
+    if (winnerId && !achievements.some((item) => item.studentId === winnerId && item.key === 'online-champion')) {
+      achievements.push({
+        id: Date.now() + 7,
+        studentId: winnerId,
+        key: 'online-champion',
+        title: 'بطل التحدي الأونلاين',
+        date: result.date,
+      });
+    }
+    updateData({ ...data, gameResults, achievements });
+    setShareNotice('تم حفظ نتيجة التحدي الأونلاين في سجل الألعاب.');
+  };
+
   const copyGameLink = async (selectedMode = 'battle') => {
     const payload = buildGamePayload(selectedMode);
     let share;
@@ -387,6 +406,16 @@ export default function Games({ data, updateData, shareState }) {
         <button className="primary-btn" onClick={() => startMode('speed')}><Gamepad2Icon /> بدء التحدي</button>
       </div>
     </div>
+
+    <OnlineGameHostPanel
+      cloudSync={data.settings?.cloudSync}
+      title={`${gradeLabel || 'الصف الحالي'} — ${focusResource?.lesson || focusResource?.title || (unit === 'all' ? 'تحدي المراجعة' : unit)}`}
+      grade={gradeLabel}
+      unit={focusResource?.unit || (unit === 'all' ? '' : unit)}
+      questions={filtered}
+      onNotice={setShareNotice}
+      onFinish={saveOnlineGameResult}
+    />
 
     {shareNotice && <div className="game-feedback good">{shareNotice}</div>}
     {feedback && <div className="game-feedback bad">{feedback}</div>}
