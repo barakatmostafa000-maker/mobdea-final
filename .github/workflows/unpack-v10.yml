@@ -46,9 +46,9 @@ jobs:
             SRC="/tmp/mobdea-new/"
           fi
 
-          rsync -a --delete \
+                              rsync -a --delete \
             --exclude='.git/' \
-            --exclude='.github/workflows/unpack-v10.yml' \
+            --exclude='.github/workflows/' \
             "$SRC" ./
 
           rm -f \
