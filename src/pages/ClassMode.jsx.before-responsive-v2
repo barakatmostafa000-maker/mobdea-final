@@ -71,26 +71,6 @@ import { getAllLibraryGrades,
   getLessonsForGrade, getLessonModeResources, resolveDefaultLesson, clampLessonPage } from '../services/libraryModel';
 
 const statusLabels = { present: 'حاضر', late: 'متأخر', absent: 'غائب', excused: 'غياب بعذر' };
-const defaultEncouragementPhrases = [
-  'أحسنت يا بطل',
-  'إجابة ممتازة',
-  'تفكيرك رائع',
-  'أبدعت وواصل التقدم',
-  'مشاركة مميزة',
-  'تفوق رائع',
-  'فخور بك',
-  'استمر يا مبدع',
-];
-const defaultCorrectivePhrases = [
-  'ركز وحاول مرة أخرى',
-  'انتبه إلى السؤال جيدًا',
-  'اهدأ وفكر قبل الإجابة',
-  'راجع إجابتك مرة أخرى',
-  'أحتاج منك تركيزًا أكبر',
-  'لا تتعجل في الإجابة',
-  'حاول أن تشارك معنا',
-  'انتبه للشرح من فضلك',
-];
 const toolOptions = [
   { key: 'pen', label: 'قلم', icon: PenTool },
   { key: 'select', label: 'تحديد', icon: MousePointer2 },
@@ -577,7 +557,6 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [phraseMenu, setPhraseMenu] = useState('');
   const [points, setPoints] = useState({});
   const [view, setView] = useState('board');
   const [tool, setTool] = useState('pen');
@@ -588,19 +567,6 @@ export default function ClassMode({ data, updateData, navigate }) {
   useEffect(() => {
     const timer = setInterval(() => setClockTime(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })), 30000);
     return () => clearInterval(timer);
-  }, []);
-  useEffect(() => {
-    document.documentElement.classList.add('mobdea-classmode-active');
-    document.body.classList.add('mobdea-classmode-active');
-    const orientation = globalThis.screen?.orientation;
-    if (orientation?.lock) {
-      Promise.resolve(orientation.lock('landscape')).catch(() => null);
-    }
-    return () => {
-      document.documentElement.classList.remove('mobdea-classmode-active');
-      document.body.classList.remove('mobdea-classmode-active');
-      try { orientation?.unlock?.(); } catch { /* Browser may not expose orientation unlock. */ }
-    };
   }, []);
   const [boardTemplate, setBoardTemplate] = useState('history');
   const [selectedResourceId, setSelectedResourceId] = useState(data.settings?.classResourceId || resources[0]?.id || '');
@@ -623,10 +589,8 @@ export default function ClassMode({ data, updateData, navigate }) {
   const recordingStartedAtRef = useRef(0);
   const recordingCleanupRef = useRef(() => {});
   const recordingStopResolverRef = useRef(null);
-  const recordingStopTimerRef = useRef(null);
   const recordingTimelineRef = useRef([]);
   const recordingBackendRef = useRef('');
-  const recordingFinalizedRef = useRef(false);
   const stopRecordingOnUnmountRef = useRef(() => Promise.resolve());
   useEffect(() => {
     recordingBackendRef.current = recordingBackend;
@@ -645,12 +609,6 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [zoom, setZoom] = useState(1);
   const [boardReady, setBoardReady] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
-
-  useEffect(() => {
-    if (!shareNotice) return undefined;
-    const timer = window.setTimeout(() => setShareNotice(''), 4500);
-    return () => window.clearTimeout(timer);
-  }, [shareNotice]);
   const [challengeMode, setChallengeMode] = useState('battle');
   const [challengePickIds, setChallengePickIds] = useState([]);
   const [challengeNotice, setChallengeNotice] = useState('');
@@ -683,7 +641,7 @@ export default function ClassMode({ data, updateData, navigate }) {
     () => resources.find((item) => String(item.id) === String(selectedResourceId)) || resources[0] || null,
     [resources, selectedResourceId]
   );
-  const selectedStorageResource = selectedResource?.virtualLessonTextbook || selectedResource?.virtualLessonExams || selectedResource?.virtualLessonRecording ? activeLesson : selectedResource;
+  const selectedStorageResource = selectedResource?.virtualLessonTextbook || selectedResource?.virtualLessonRecording ? activeLesson : selectedResource;
   const selectedResourceUrl = useAssetUrl(selectedResource?.assetId, selectedResource?.url);
 
   useEffect(() => {
@@ -781,26 +739,13 @@ export default function ClassMode({ data, updateData, navigate }) {
   const relatedQuestions = useMemo(() => {
     const baseBank = [...questionBank, ...(data.customQuestionBank || [])];
     const ids = normalizeTags(selectedResource?.relatedQuestionIds || selectedResource?.questionIds || []);
-    const byIds = ids.length
-      ? ids.map((id) => baseBank.find((question) => String(question.id) === String(id))).filter(Boolean)
-      : [];
+    const byIds = ids.length ? ids.map((id) => baseBank.find((question) => String(question.id) === String(id))).filter(Boolean) : [];
     if (byIds.length) return byIds;
-    const lessonId = String(activeLesson?.id || selectedResource?.lessonId || '');
-    const sourceId = String(selectedResource?.sourceResourceId || selectedResource?.id || '');
-    const lessonTitle = String(activeLesson?.title || selectedResource?.lesson || '').trim();
+    if (!selectedResource) return [];
     return baseBank
-      .filter((question) => {
-        if (lessonId && String(question.lessonId || '') === lessonId) return true;
-        if (sourceId && [question.resourceId, question.sourceResourceId, question.sourceExamResourceId].some((value) => String(value || '') === sourceId)) return true;
-        return Boolean(
-          selectedResource
-          && question.grade === selectedResource.grade
-          && question.unit === selectedResource.unit
-          && (!lessonTitle || String(question.lesson || '').trim() === lessonTitle)
-        );
-      })
-      .slice(0, 24);
-  }, [activeLesson?.id, activeLesson?.title, data.customQuestionBank, selectedResource]);
+      .filter((question) => question.grade === selectedResource.grade && question.unit === selectedResource.unit && question.lesson === selectedResource.lesson)
+      .slice(0, 8);
+  }, [data.customQuestionBank, selectedResource]);
 
   const recentRecordings = useMemo(() => (data.lessonRecordings || [])
     .slice()
@@ -809,12 +754,9 @@ export default function ClassMode({ data, updateData, navigate }) {
 
   const saveSelectedResource = async (patch = {}) => {
     if (!selectedStorageResource) return;
-    const normalizedPatch = selectedResource?.virtualLessonExams && Object.prototype.hasOwnProperty.call(patch, 'annotations')
-      ? { ...patch, examAnnotations: patch.annotations, annotations: selectedStorageResource.annotations || [] }
-      : patch;
     const nextResources = (data.contentLibrary || []).map((resource) =>
       String(resource.id) === String(selectedStorageResource.id)
-        ? { ...resource, ...normalizedPatch, updatedAt: new Date().toISOString() }
+        ? { ...resource, ...patch, updatedAt: new Date().toISOString() }
         : resource
     );
     await updateData({ ...data, contentLibrary: nextResources });
@@ -1051,11 +993,6 @@ export default function ClassMode({ data, updateData, navigate }) {
       teamBlack: teamBlack.map((student) => ({ id: student.id, name: student.name, code: student.code })),
       sessionId: current.id,
       sessionTitle: current.title,
-      lessonId: activeLesson?.id || null,
-      questionIds: relatedQuestions.map((question) => question.id),
-      questionCount: relatedQuestions.length,
-      sourceKind: selectedResource?.sourceKind || (selectedResource?.virtualLessonTextbook ? 'textbook' : selectedResource?.virtualLessonExams ? 'exams' : selectedResource?.type || ''),
-      sourceFileName: selectedResource?.fileName || selectedResource?.sourceExamFileName || '',
     };
   };
 
@@ -1106,23 +1043,12 @@ export default function ClassMode({ data, updateData, navigate }) {
   };
 
   useEffect(() => {
-    const preferredId = String(data.settings?.classLessonId || '');
-    if (preferredId && lessons.some((lesson) => String(lesson.id) === preferredId)) {
-      if (String(activeLessonId) !== preferredId) setActiveLessonId(preferredId);
-      return;
-    }
     if (!activeLesson && lessons.length) {
       setActiveLessonId(lessons[0].id);
       return;
     }
     if (activeLesson && String(activeLessonId) !== String(activeLesson.id)) setActiveLessonId(activeLesson.id);
-  }, [activeLesson, activeLessonId, data.settings?.classLessonId, lessons]);
-
-  useEffect(() => {
-    const preferredResourceId = String(data.settings?.classResourceId || '');
-    if (!preferredResourceId || !resources.some((item) => String(item.id) === preferredResourceId)) return;
-    if (String(selectedResourceId) !== preferredResourceId) setSelectedResourceId(preferredResourceId);
-  }, [data.settings?.classResourceId, resources, selectedResourceId]);
+  }, [activeLesson, activeLessonId, lessons]);
 
   useEffect(() => {
     if (!resources.length) return;
@@ -1179,18 +1105,15 @@ export default function ClassMode({ data, updateData, navigate }) {
     }
   };
 
-  const savedPhrases = data.settings?.encouragementPhrases || [];
-  const phrases = savedPhrases.length ? savedPhrases : defaultEncouragementPhrases;
-  const correctivePhrases = data.settings?.correctivePhrases?.length ? data.settings.correctivePhrases : defaultCorrectivePhrases;
+  const phrases = data.settings?.encouragementPhrases || [];
   const [newPhraseText, setNewPhraseText] = useState('');
 
-  const sayPhrase = async (phrase, tone = 'excited') => {
+  const sayPhrase = async (phrase) => {
     const text = selectedStudent
       ? `${String(phrase).replace(/[.!،,]+$/u, '')} يا ${selectedStudent.name}.`
       : phrase;
     setLastPraise(text);
-    setPhraseMenu('');
-    const spoken = await speakArabic(text, data.settings, tone);
+    const spoken = await speakArabic(text, data.settings, 'excited');
     if (!spoken) {
       setShareNotice('الصوت العربي غير جاهز على الجهاز. افتح إعدادات تحويل النص إلى كلام وثبّت صوتًا عربيًا.');
     }
@@ -1199,7 +1122,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const addEncouragementPhrase = async () => {
     const text = newPhraseText.trim();
     if (!text) return;
-    await updateData({ ...data, settings: { ...data.settings, encouragementPhrases: [...savedPhrases, text] } });
+    await updateData({ ...data, settings: { ...data.settings, encouragementPhrases: [...phrases, text] } });
     setNewPhraseText('');
   };
 
@@ -1262,35 +1185,26 @@ export default function ClassMode({ data, updateData, navigate }) {
     type = '',
     durationSeconds = 0,
   } = {}) => {
-    if (recordingFinalizedRef.current) return null;
-    recordingFinalizedRef.current = true;
     let asset = null;
-    try {
-      if (blob?.size) {
-        asset = await importAssetBlob(blob, {
-          name: name || `تسجيل-${current?.title || 'الحصة'}-${today}-${Date.now()}`,
-          type: type || blob.type || 'video/webm',
-          kind: 'lesson-recording',
-        });
-      }
-      const saved = await recordLesson({
-        copyLink: false,
-        screenRecording: {
-          ...(asset || {}),
-          name: asset?.name || name,
-          type: asset?.type || type,
-          size: asset?.size || blob?.size || 0,
-          durationSeconds: Math.max(1, Number(durationSeconds || recordingSeconds || 1)),
-          timeline: recordingTimelineRef.current,
-        },
+    if (blob?.size) {
+      asset = await importAssetBlob(blob, {
+        name: name || `تسجيل-${current?.title || 'الحصة'}-${today}-${Date.now()}`,
+        type: type || blob.type || 'video/webm',
+        kind: 'lesson-recording',
       });
-      if (!saved) throw new Error('تعذر إضافة التسجيل إلى قائمة التسجيلات.');
-      return asset;
-    } catch (error) {
-      recordingFinalizedRef.current = false;
-      if (asset?.id) await deleteAsset(asset.id).catch(() => null);
-      throw error;
     }
+    await recordLesson({
+      copyLink: false,
+      screenRecording: {
+        ...(asset || {}),
+        name: asset?.name || name,
+        type: asset?.type || type,
+        size: asset?.size || blob?.size || 0,
+        durationSeconds: Math.max(1, Number(durationSeconds || recordingSeconds || 1)),
+        timeline: recordingTimelineRef.current,
+      },
+    });
+    return asset;
   };
 
   const resetRecordingState = () => {
@@ -1299,10 +1213,6 @@ export default function ClassMode({ data, updateData, navigate }) {
     setRecordingBackend('');
     recordingBackendRef.current = '';
     mediaRecorderRef.current = null;
-    if (recordingStopTimerRef.current) {
-      clearTimeout(recordingStopTimerRef.current);
-      recordingStopTimerRef.current = null;
-    }
   };
 
   const stopActiveRecording = async () => {
@@ -1325,31 +1235,10 @@ export default function ClassMode({ data, updateData, navigate }) {
 
     const recorder = mediaRecorderRef.current;
     if (backend === 'web' && recorder && recorder.state !== 'inactive') {
-      setShareNotice('جارٍ إنهاء تسجيل الشاشة وإضافته إلى قائمة التسجيلات…');
       await new Promise((resolve) => {
-        recordingStopResolverRef.current = () => {
-          if (recordingStopTimerRef.current) clearTimeout(recordingStopTimerRef.current);
-          recordingStopTimerRef.current = null;
-          resolve();
-        };
-        recordingStopTimerRef.current = setTimeout(resolve, 12000);
-        try {
-          if (recorder.state === 'paused') recorder.resume();
-          recorder.requestData?.();
-          recorder.stop();
-        } catch {
-          resolve();
-        }
+        recordingStopResolverRef.current = resolve;
+        recorder.stop();
       });
-      if (!recordingFinalizedRef.current) {
-        try {
-          await saveCapturedRecording({ durationSeconds: recordingSeconds });
-          setShareNotice('تم حفظ سجل الحصة في قائمة التسجيلات؛ لم يكتمل ملف الفيديو من المتصفح.');
-        } finally {
-          resetRecordingState();
-          cleanupRecordingResources();
-        }
-      }
       return;
     }
 
@@ -1408,7 +1297,6 @@ export default function ClassMode({ data, updateData, navigate }) {
       }
 
       setRecordingSeconds(0);
-      recordingFinalizedRef.current = false;
       recordingStartedAtRef.current = Date.now();
       recordingTimelineRef.current = [{
         atSeconds: 0,
@@ -1490,14 +1378,6 @@ export default function ClassMode({ data, updateData, navigate }) {
           recorder.onerror = () => setShareNotice('حدث خطأ أثناء تسجيل الشاشة؛ سيتم حفظ سجل الحصة المتاح.');
           recorder.onstop = async () => {
             const durationSeconds = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
-            if (recordingFinalizedRef.current) {
-              recordingChunksRef.current = [];
-              cleanupRecordingResources();
-              resetRecordingState();
-              recordingStopResolverRef.current?.();
-              recordingStopResolverRef.current = null;
-              return;
-            }
             try {
               const blob = recordingChunksRef.current.length
                 ? new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'video/webm' })
@@ -1648,7 +1528,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const currentCount = students.length;
 
   return (
-    <section className={`page classmode-scene classmode-v103 classmode-final-layout ${fullscreen ? 'fullscreen' : ''}`} ref={sceneRef}>
+    <section className={`page classmode-scene classmode-v103 ${fullscreen ? 'fullscreen' : ''}`} ref={sceneRef}>
       <div className="classmode-top-header">
         <div className="classmode-header-brand">
           <img src={identity.logo || identity.icon} alt={identity.schoolName} />
@@ -1935,7 +1815,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                 const score = points[student.id] || 0;
                 return (
                   <div key={student.id} className={`classmode-student-row ${selectedStudent?.id === student.id ? 'active' : ''}`}>
-                    <button className="classmode-student-row-main" onClick={() => { setSelectedStudent(student); setPhraseMenu(''); }} type="button">
+                    <button className="classmode-student-row-main" onClick={() => setSelectedStudent(student)} type="button">
                       <span className="student-code">{student.code}</span>
                       <div>
                         <strong>{student.name}</strong>
@@ -1950,55 +1830,17 @@ export default function ClassMode({ data, updateData, navigate }) {
                       <button type="button" className={`student-attendance-mini absent ${status === 'absent' ? 'selected' : ''}`} title="غائب" onClick={(event) => { event.stopPropagation(); mark(student, 'absent'); }}>غ</button>
                       <button type="button" className="student-point-btn student-point-minus" title="خصم نقطة" onClick={(event) => { event.stopPropagation(); adjustPoints(student, -1); }}><Minus size={14} /></button>
                       <button type="button" className="student-point-btn" title="إضافة نقطة واحدة" onClick={(event) => { event.stopPropagation(); adjustPoints(student, 1); }}><Plus size={14} /></button>
+                      <button type="button" className="student-praise-btn" title="جملة تشجيعية" onClick={(event) => { event.stopPropagation(); praise(student, 'excellent'); }}><Sparkles size={14} /></button>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="classmode-student-commandbar">
-              <div className={`classmode-command-selected ${selectedStudent ? 'has-student' : ''}`}>
-                <span>الطالب المحدد</span>
-                <strong>{selectedStudent?.name || 'اضغط على اسم طالب أولًا'}</strong>
-              </div>
-              <div className="classmode-command-buttons">
-                <button
-                  type="button"
-                  className={phraseMenu === 'positive' ? 'active positive' : 'positive'}
-                  disabled={!selectedStudent}
-                  onClick={() => setPhraseMenu((current) => current === 'positive' ? '' : 'positive')}
-                  title="فتح مكتبة الجمل التشجيعية"
-                >
-                  <Sparkles size={18} /><span>تشجيع</span>
-                </button>
-                <button
-                  type="button"
-                  className={phraseMenu === 'corrective' ? 'active corrective' : 'corrective'}
-                  disabled={!selectedStudent}
-                  onClick={() => setPhraseMenu((current) => current === 'corrective' ? '' : 'corrective')}
-                  title="فتح مكتبة الجمل التنبيهية"
-                >
-                  <MailCheck size={18} /><span>تنبيه</span>
-                </button>
-              </div>
-              {phraseMenu && selectedStudent && (
-                <div className={`classmode-command-popover ${phraseMenu}`}>
-                  <header>
-                    <div><small>{phraseMenu === 'positive' ? 'مكتبة التحفيز' : 'مكتبة التوجيه'}</small><strong>{phraseMenu === 'positive' ? 'اختر جملة تشجيعية' : 'اختر جملة تنبيهية'}</strong></div>
-                    <button type="button" onClick={() => setPhraseMenu('')} title="إغلاق"><X size={15} /></button>
-                  </header>
-                  <div className="classmode-command-phrases">
-                    {(phraseMenu === 'positive' ? phrases : correctivePhrases).map((phrase, index) => (
-                      <button
-                        type="button"
-                        key={`${phraseMenu}-${phrase}-${index}`}
-                        onClick={() => sayPhrase(phrase, phraseMenu === 'positive' ? 'excited' : 'calm')}
-                      >
-                        <Volume2 size={14} /><span>{phrase}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="classmode-student-actions">
+              <button className="secondary-btn" onClick={randomStudent} type="button"><Shuffle size={16} /> اختيار عشوائي</button>
+              <button className="secondary-btn" onClick={() => navigate('attendance')} type="button"><Camera size={16} /> مسح QR</button>
+              <button className="secondary-btn" onClick={() => navigate('games')} type="button"><Gamepad2 size={16} /> جولة سريعة</button>
+              <button className="secondary-btn" onClick={() => selectedStudent && praise(selectedStudent, 'comic')} disabled={!selectedStudent} type="button"><Sparkles size={16} /> تشجيع</button>
             </div>
             {selectedStudent && (
               <div className="classmode-selected-student">
@@ -2134,21 +1976,20 @@ export default function ClassMode({ data, updateData, navigate }) {
       {lastPraise && <div className="spoken-banner">🔊 {lastPraise}</div>}
       {shareNotice && <div className="spoken-banner">{shareNotice}</div>}
 
-      <div className="classmode-bottom-actions" role="toolbar" aria-label="أوامر وضع الحصة">
-        <button type="button" className="secondary-btn classmode-exit-btn" onClick={() => navigate('dashboard')} title="الخروج من وضع الحصة" aria-label="الخروج من وضع الحصة"><X size={17} /><span className="action-label">خروج</span></button>
+      <div className="classmode-bottom-actions">
+        <button type="button" className="secondary-btn" onClick={() => navigate('dashboard')}><X size={16} /> خروج من وضع الحصة</button>
         <div className="classmode-bottom-actions-mid">
-          <button type="button" className={`secondary-btn classmode-record-btn ${recordingActive ? 'recording-active' : ''}`} disabled={recordingBusy} onClick={toggleClassRecording} title={recordingActive ? 'إيقاف التسجيل وحفظه' : 'بدء تسجيل الحصة'} aria-label={recordingActive ? 'إيقاف التسجيل وحفظه' : 'بدء تسجيل الحصة'}><CircleDot size={17} /><span className="action-label">{recordingBusy ? 'جارٍ التشغيل…' : recordingActive ? `إيقاف ${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}` : 'تسجيل الحصة'}</span></button>
+          <button type="button" className={`secondary-btn ${recordingActive ? 'recording-active' : ''}`} disabled={recordingBusy} onClick={toggleClassRecording}><CircleDot size={16} /> {recordingBusy ? 'جارٍ طلب إذن التسجيل…' : recordingActive ? `إيقاف التسجيل ${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}` : 'تسجيل الحصة'}</button>
           {recordingActive && recordingBackend && (
-            <button type="button" className="secondary-btn classmode-pause-record-btn" onClick={toggleRecordingPause} title={recordingPaused ? 'استكمال التسجيل' : 'إيقاف التسجيل مؤقتًا'} aria-label={recordingPaused ? 'استكمال التسجيل' : 'إيقاف التسجيل مؤقتًا'}>{recordingPaused ? <CirclePlay size={17} /> : <CirclePause size={17} />}<span className="action-label">{recordingPaused ? 'استكمال' : 'إيقاف مؤقت'}</span></button>
+            <button type="button" className="secondary-btn" onClick={toggleRecordingPause}>{recordingPaused ? <CirclePlay size={16} /> : <CirclePause size={16} />} {recordingPaused ? 'استكمال' : 'إيقاف مؤقت'}</button>
           )}
-          <button type="button" className="secondary-btn" onClick={saveBoard} title="حفظ لقطة من السبورة" aria-label="حفظ لقطة من السبورة"><Camera size={17} /><span className="action-label">لقطة شاشة</span></button>
-          <button type="button" className="secondary-btn" onClick={() => setView('students')} title="عرض الطلاب" aria-label="عرض الطلاب"><Users size={17} /><span className="action-label">الطلاب</span></button>
-          <button type="button" className="secondary-btn classmode-live-shortcut" onClick={() => setLiveStartRequest(Date.now())} title="إنشاء أو نسخ رابط الحصة الأونلاين" aria-label="رابط الحصة الأونلاين"><Radio size={17} /><span className="action-label">الحصة أونلاين</span></button>
-          <button type="button" className="secondary-btn" onClick={() => navigate('sessions')} title="قائمة تسجيلات الحصص" aria-label="قائمة تسجيلات الحصص"><Presentation size={17} /><span className="action-label">التسجيلات</span></button>
-          <button type="button" className="secondary-btn" onClick={() => navigate('contentLibrary')} title="مكتبة المحتوى" aria-label="مكتبة المحتوى"><BookOpen size={17} /><span className="action-label">المكتبة</span></button>
-          <button type="button" className="secondary-btn" onClick={() => navigate('settings')} title="إعدادات المنصة" aria-label="إعدادات المنصة"><LayoutGrid size={17} /><span className="action-label">الإعدادات</span></button>
+          <button type="button" className="secondary-btn" onClick={saveBoard}><Camera size={16} /> لقطة شاشة</button>
+          <button type="button" className="secondary-btn" onClick={() => setView('students')}><Users size={16} /> عرض الطلاب</button>
+          <button type="button" className="secondary-btn classmode-live-shortcut" onClick={() => setLiveStartRequest(Date.now())}><Radio size={16} /> رابط الحصة</button>
+          <button type="button" className="secondary-btn" onClick={() => navigate('contentLibrary')}><BookOpen size={16} /> المكتبة</button>
+          <button type="button" className="secondary-btn" onClick={() => navigate('settings')}><LayoutGrid size={16} /> الإعدادات</button>
         </div>
-        <button type="button" className="danger-btn classmode-end-btn" onClick={endClass} title="إنهاء الحصة وحفظها" aria-label="إنهاء الحصة وحفظها"><span className="action-label">إنهاء الحصة</span></button>
+        <button type="button" className="danger-btn classmode-end-btn" onClick={endClass}>إنهاء الحصة</button>
       </div>
       {view === 'students' && students.length > 0 && (
         <div className="classmode-student-drawer-backdrop" role="presentation" onClick={() => setView('board')}>

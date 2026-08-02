@@ -10,14 +10,12 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { identity } from '../../config/identity';
-
-/* MOBDEA_STUDENT_GAME_SERVER_V1 */
 import {
-  joinGameRoom as joinLiveRoom,
-  postGameEvent as postLiveEvent,
-  fetchGameEvents as fetchLiveEvents,
-  createGamePoller as createLivePoller,
-} from '../../services/gameRooms';
+  createLivePoller,
+  fetchLiveEvents,
+  joinLiveRoom,
+  postLiveEvent,
+} from '../../services/liveClass';
 
 function errorText(error) {
   return error?.message || 'تعذر الاتصال بغرفة اللعب.';
@@ -74,7 +72,7 @@ export default function StudentOnlineGameRoom({ payload, onGoHome }) {
 
   useEffect(() => {
     if (!session) return undefined;
-    const poller = createLivePoller({
+    const stop = createLivePoller({
       intervalMs: 700,
       poll: () => fetchLiveEvents(
         session,
@@ -150,7 +148,7 @@ export default function StudentOnlineGameRoom({ payload, onGoHome }) {
       void send({ type: 'heartbeat', targetId: 'teacher', data: {} });
     }, 15_000);
     return () => {
-      poller.stop();
+      stop();
       clearInterval(heartbeat);
     };
   }, [send, session]);
@@ -165,15 +163,10 @@ export default function StudentOnlineGameRoom({ payload, onGoHome }) {
     setNotice('');
     try {
       const joined = await joinLiveRoom(
-        {
-          endpoint: payload.endpoint,
-          workspaceId: payload.workspaceId,
-        },
+        { endpoint: payload.endpoint, workspaceId: payload.workspaceId },
+        payload.roomId,
         payload.joinCode,
-        {
-          name,
-          studentCode,
-        },
+        { name, studentCode },
       );
       const nextSession = { ...joined, roomId: payload.roomId };
       setSession(nextSession);

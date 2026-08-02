@@ -3,7 +3,8 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 const NativeScreenRecorder = registerPlugin('MobdeaScreenRecorder');
 
 export function nativeScreenRecordingAvailable() {
-  return Capacitor.isNativePlatform();
+  return Capacitor.isNativePlatform()
+    && Capacitor.isPluginAvailable('MobdeaScreenRecorder');
 }
 
 export async function startNativeScreenRecording({ title = 'الحصة', withAudio = true } = {}) {

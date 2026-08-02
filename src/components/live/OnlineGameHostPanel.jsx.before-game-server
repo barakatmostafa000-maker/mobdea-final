@@ -20,7 +20,6 @@ import {
   fetchLiveEvents,
   listLiveParticipants,
   postLiveEvent,
-  validateLiveStudentLink,
 } from '../../services/liveClass';
 import { cloudConfigured } from '../../services/cloudSync';
 import { copyToClipboard } from '../../services/share';
@@ -37,28 +36,14 @@ function errorText(error, fallback) {
   return error?.message || fallback;
 }
 
-/* MOBDEA_GAME_ROOMS_HOST_V1 */
-import {
-  createGameRoom as createOnlineGameRoom,
-  postGameEvent as postOnlineGameEvent,
-  fetchGameParticipants as fetchOnlineGameParticipants,
-  fetchGameEvents as fetchOnlineGameEvents,
-  closeGameRoom as closeOnlineGameRoom,
-  createGamePoller as createOnlineGamePoller,
-} from '../../services/gameRooms';
-
 export default function OnlineGameHostPanel({
   cloudSync,
   title = 'تحدي أونلاين',
   grade = '',
   unit = '',
-  lessonId = '',
-  sourceKind = '',
-  sourceFileName = '',
   questions = [],
   onNotice,
   onFinish,
-  onOpenSettings,
 }) {
   const [room, setRoom] = useState(null);
   const [participants, setParticipants] = useState([]);
@@ -113,7 +98,7 @@ export default function OnlineGameHostPanel({
   const send = useCallback(async (event) => {
     const activeRoom = roomRef.current;
     if (!activeRoom) return null;
-    return postOnlineGameEvent(
+    return postLiveEvent(
       activeRoom,
       activeRoom.roomId,
       activeRoom.teacherToken,
@@ -121,32 +106,21 @@ export default function OnlineGameHostPanel({
     );
   }, []);
 
-  const makeStudentLink = useCallback((activeRoom) => {
-    if (!activeRoom) return '';
+  const studentLink = useMemo(() => {
+    if (!room) return '';
     return buildLiveStudentLink({
       experience: 'game',
-      roomId: activeRoom.roomId,
-      joinCode: activeRoom.joinCode,
-      endpoint: activeRoom.endpoint,
-      workspaceId: activeRoom.workspaceId,
+      roomId: room.roomId,
+      joinCode: room.joinCode,
+      endpoint: room.endpoint,
+      workspaceId: room.workspaceId,
       title,
       grade,
       lesson: unit,
-      lessonId,
-      sourceKind,
-      sourceFileName,
-      questionCount: questionSet.length,
       gameTitle: title,
-      expiresAt: activeRoom.expiresAt,
+      expiresAt: room.expiresAt,
     });
-  }, [grade, lessonId, questionSet.length, sourceFileName, sourceKind, title, unit]);
-  const studentLink = useMemo(() => {
-    try {
-      return makeStudentLink(room);
-    } catch {
-      return '';
-    }
-  }, [makeStudentLink, room]);
+  }, [grade, room, title, unit]);
 
   const broadcastScoreboard = useCallback(async (targetId = 'all', extra = {}) => {
     const activeRoom = roomRef.current;
@@ -249,17 +223,17 @@ export default function OnlineGameHostPanel({
   useEffect(() => {
     if (!room) return undefined;
     let disposed = false;
-    const stopParticipants = createOnlineGamePoller({
+    const stopParticipants = createLivePoller({
       intervalMs: 2500,
-      poll: () => fetchOnlineGameParticipants(room, room.roomId, room.teacherToken),
+      poll: () => listLiveParticipants(room, room.roomId, room.teacherToken),
       onData: (result) => {
         if (!disposed) setParticipants(result.participants || []);
       },
       onError: () => {},
     });
-    const stopEvents = createOnlineGamePoller({
+    const stopEvents = createLivePoller({
       intervalMs: 700,
-      poll: () => fetchOnlineGameEvents(
+      poll: () => fetchLiveEvents(
         room,
         room.roomId,
         room.teacherToken,
@@ -289,8 +263,8 @@ export default function OnlineGameHostPanel({
     });
     return () => {
       disposed = true;
-      stopParticipants.stop();
-      stopEvents.stop();
+      stopParticipants();
+      stopEvents();
     };
   }, [broadcastScoreboard, processAnswer, room, sendCurrentQuestion]);
 
@@ -306,8 +280,7 @@ export default function OnlineGameHostPanel({
 
   const createRoom = async () => {
     if (!configured) {
-      showNotice('زر الغرفة يعمل، لكن يلزم حفظ رمز مساحة العمل في إعدادات المزامنة السحابية.');
-      onOpenSettings?.();
+      showNotice('فعّل المزامنة السحابية أولًا لإنشاء غرفة لعب أونلاين.');
       return;
     }
     if (!questionSet.length) {
@@ -317,24 +290,11 @@ export default function OnlineGameHostPanel({
     setBusy(true);
     setNotice('');
     try {
-      const created = await createOnlineGameRoom({ cloudSync }, {
+      const created = await createLiveRoom({ cloudSync }, {
         title,
-        teacherName: 'المعلم',
         grade,
         lesson: unit,
-        mode: 'multiplayer',
-        maxParticipants: 60,
         ttlSeconds: 4 * 60 * 60,
-        state: {
-          grade,
-          unit,
-          lessonId,
-          sourceKind,
-          sourceFileName,
-          questionCount: questionSet.length,
-          questionIds: questionSet.map((question) => question.id),
-          status: 'waiting',
-        },
       });
       setRoom(created);
       roomRef.current = created;
@@ -347,12 +307,7 @@ export default function OnlineGameHostPanel({
       answersRef.current = {};
       setQuestionIndex(-1);
       setPhase('waiting');
-      const createdLink = makeStudentLink(created);
-      if (!validateLiveStudentLink(createdLink)) throw new Error('تعذر تجهيز رابط غرفة اللعب.');
-      const copied = await copyToClipboard(createdLink);
-      showNotice(copied
-        ? 'تم إنشاء غرفة اللعب ونسخ رابط الطلاب تلقائيًا.'
-        : 'تم إنشاء غرفة اللعب. استخدم زر نسخ الرابط أو المعاينة.');
+      showNotice('تم إنشاء غرفة اللعب. أرسل الرابط للطلاب ثم ابدأ التحدي.');
     } catch (error) {
       showNotice(errorText(error, 'تعذر إنشاء غرفة اللعب.'));
     } finally {
@@ -394,9 +349,6 @@ export default function OnlineGameHostPanel({
         title,
         grade,
         unit,
-        lessonId,
-        sourceKind,
-        sourceFileName,
         participantCount: finalBoard.length,
         questionCount: questionSet.length,
         scores: finalBoard,
@@ -438,7 +390,7 @@ export default function OnlineGameHostPanel({
         targetId: 'all',
         data: { title, scoreboard },
       }).catch(() => null);
-      await closeOnlineGameRoom(activeRoom, activeRoom.roomId, activeRoom.teacherToken);
+      await closeLiveRoom(activeRoom, activeRoom.roomId, activeRoom.teacherToken);
       setRoom(null);
       roomRef.current = null;
       setPhase('idle');
@@ -451,12 +403,9 @@ export default function OnlineGameHostPanel({
   };
 
   const copyLink = async () => {
-    if (!studentLink || !validateLiveStudentLink(studentLink)) {
-      showNotice('رابط غرفة اللعب غير مكتمل. أعد إنشاء الغرفة.');
-      return;
-    }
+    if (!studentLink) return;
     const copied = await copyToClipboard(studentLink);
-    showNotice(copied ? 'تم نسخ رابط اللعب الأونلاين.' : 'الرابط جاهز للمشاركة من زر المعاينة.');
+    showNotice(copied ? 'تم نسخ رابط اللعب الأونلاين.' : 'الرابط جاهز للمشاركة.');
   };
 
   return (
@@ -485,7 +434,7 @@ export default function OnlineGameHostPanel({
           <button
             className="primary-btn"
             type="button"
-            disabled={busy || !questionSet.length}
+            disabled={busy || !configured || !questionSet.length}
             onClick={createRoom}
           >
             {busy ? <LoaderCircle className="spin" size={18} /> : <Radio size={18} />}

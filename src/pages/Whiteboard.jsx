@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Circle,
+  Diamond,
   Download,
   Eraser,
   FileImage,
@@ -19,6 +20,7 @@ import {
   Shapes,
   Square,
   Trash2,
+  Triangle,
   Type,
   Undo2,
   ZoomIn,
@@ -33,6 +35,18 @@ import { formatDateAr, todayISO } from '../utils/time';
 const BOARD_WIDTH = 1400;
 const BOARD_HEIGHT = 850;
 const colors = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#d7ad35', '#7c3aed'];
+const lineStyles = [
+  { value: 'solid', label: 'خط متصل' },
+  { value: 'dashed', label: 'خط متقطع' },
+  { value: 'dotted', label: 'خط منقّط' },
+  { value: 'calligraphy', label: 'لمسة خطاط' },
+];
+const boardFonts = [
+  { value: 'Tahoma, Arial, sans-serif', label: 'العربية الأكاديمية' },
+  { value: 'Arial, Tahoma, sans-serif', label: 'العربية الحديثة' },
+  { value: 'Georgia, serif', label: 'العنوان التراثي' },
+  { value: 'serif', label: 'المخطوط الكلاسيكي' },
+];
 
 function actionBounds(action) {
   if (action.kind === 'stroke') {
@@ -46,21 +60,47 @@ function actionBounds(action) {
 
 function drawAction(ctx, action, selected = false) {
   ctx.save();
-  ctx.lineCap = 'round';
+  ctx.lineCap = action.lineStyle === 'calligraphy' ? 'square' : 'round';
   ctx.lineJoin = 'round';
   ctx.strokeStyle = action.color || '#111827';
   ctx.fillStyle = action.color || '#111827';
   ctx.lineWidth = action.width || 5;
+  if (action.lineStyle === 'dashed') ctx.setLineDash([18, 12]);
+  else if (action.lineStyle === 'dotted') ctx.setLineDash([2, 12]);
+  else ctx.setLineDash([]);
 
   if (action.kind === 'stroke') {
     ctx.globalAlpha = action.tool === 'highlighter' ? 0.28 : 1;
     ctx.globalCompositeOperation = action.tool === 'eraser' ? 'destination-out' : 'source-over';
-    ctx.lineWidth = action.tool === 'eraser' ? Math.max(26, action.width || 26) : action.tool === 'highlighter' ? Math.max(18, action.width || 18) : action.width || 5;
-    ctx.beginPath();
-    action.points.forEach((point, index) => index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y));
-    ctx.stroke();
+    ctx.lineWidth = action.tool === 'eraser'
+      ? Math.max(26, action.width || 26)
+      : action.tool === 'highlighter'
+        ? Math.max(18, action.width || 18)
+        : action.lineStyle === 'calligraphy'
+          ? Math.max(7, (action.width || 5) * 1.35)
+          : action.width || 5;
+    const points = action.points || [];
+    if (points.length === 1) {
+      ctx.beginPath();
+      ctx.arc(points[0].x, points[0].y, Math.max(1.5, ctx.lineWidth / 2), 0, Math.PI * 2);
+      ctx.fill();
+    } else if (points.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let index = 1; index < points.length - 1; index += 1) {
+        const current = points[index];
+        const next = points[index + 1];
+        const midX = (current.x + next.x) / 2;
+        const midY = (current.y + next.y) / 2;
+        ctx.quadraticCurveTo(current.x, current.y, midX, midY);
+      }
+      const last = points[points.length - 1];
+      ctx.lineTo(last.x, last.y);
+      ctx.stroke();
+    }
   } else if (action.kind === 'text') {
-    ctx.font = `700 ${action.fontSize || 34}px Tahoma, Arial, sans-serif`;
+    ctx.setLineDash([]);
+    ctx.font = `${action.fontWeight || 700} ${action.fontSize || 34}px ${action.fontFamily || 'Tahoma, Arial, sans-serif'}`;
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
     ctx.fillText(action.text, action.x, action.y);
@@ -73,6 +113,23 @@ function drawAction(ctx, action, selected = false) {
     if (action.kind === 'circle') {
       ctx.beginPath();
       ctx.ellipse(x + width / 2, y + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (action.kind === 'triangle') {
+      ctx.beginPath();
+      ctx.moveTo(x + width / 2, y);
+      ctx.lineTo(action.x2, action.y2);
+      ctx.lineTo(x, action.y2);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    if (action.kind === 'diamond') {
+      ctx.beginPath();
+      ctx.moveTo(x + width / 2, y);
+      ctx.lineTo(action.x2, y + height / 2);
+      ctx.lineTo(x + width / 2, action.y2);
+      ctx.lineTo(x, y + height / 2);
+      ctx.closePath();
       ctx.stroke();
     }
     if (action.kind === 'line' || action.kind === 'arrow') {
@@ -136,6 +193,9 @@ export default function Whiteboard({ data, updateData, navigate }) {
   const [shape, setShape] = useState('rect');
   const [color, setColor] = useState('#2563eb');
   const [width, setWidth] = useState(5);
+  const [lineStyle, setLineStyle] = useState('solid');
+  const [fontFamily, setFontFamily] = useState(boardFonts[0].value);
+  const [fontSize, setFontSize] = useState(34);
   const [zoom, setZoom] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
   const [redo, setRedo] = useState([]);
@@ -202,6 +262,7 @@ export default function Whiteboard({ data, updateData, navigate }) {
 
   const onPointerDown = (event) => {
     event.preventDefault();
+    event.currentTarget?.setPointerCapture?.(event.pointerId);
     const point = pointFromEvent(event);
     if (tool === 'select' || tool === 'move') {
       const id = hitTest(actions, point);
@@ -209,16 +270,27 @@ export default function Whiteboard({ data, updateData, navigate }) {
       if (id && tool === 'move') dragStart.current = { point, actions };
       return;
     }
+    setSelectedId(null);
     if (tool === 'text') {
-      const text = window.prompt('اكتب النص الذي تريد وضعه على السبورة:', '');
+      const text = window.prompt('اكتب النص التوضيحي الذي تريد وضعه على السبورة:', '');
       if (!text?.trim()) return;
-      commitActions([...actions, { id: Date.now(), kind: 'text', text: text.trim(), x: point.x, y: point.y, color, fontSize: Math.max(26, width * 6) }]);
+      commitActions([...actions, {
+        id: Date.now(), kind: 'text', text: text.trim(), x: point.x, y: point.y,
+        color, fontSize, fontFamily, fontWeight: 700,
+      }]);
       setRedo([]);
       return;
     }
     drawing.current = true;
-    if (tool === 'pen' || tool === 'highlighter' || tool === 'eraser') draft.current = { id: Date.now(), kind: 'stroke', tool, points: [point], color, width };
-    else draft.current = { id: Date.now(), kind: shape === 'arrow' ? 'arrow' : shape, x: point.x, y: point.y, x2: point.x, y2: point.y, color, width };
+    if (tool === 'pen' || tool === 'highlighter' || tool === 'eraser') {
+      draft.current = { id: Date.now(), kind: 'stroke', tool, points: [point], color, width, lineStyle };
+    } else {
+      draft.current = {
+        id: Date.now(), kind: shape === 'arrow' ? 'arrow' : shape,
+        x: point.x, y: point.y, x2: point.x, y2: point.y,
+        color, width, lineStyle,
+      };
+    }
   };
 
   const onPointerMove = (event) => {
@@ -233,13 +305,20 @@ export default function Whiteboard({ data, updateData, navigate }) {
     }
     if (!drawing.current || !draft.current) return;
     event.preventDefault();
-    const point = pointFromEvent(event);
-    if (draft.current.kind === 'stroke') draft.current.points.push(point);
-    else { draft.current.x2 = point.x; draft.current.y2 = point.y; }
+    const nativeEvent = event.nativeEvent || event;
+    const samples = nativeEvent.getCoalescedEvents?.() || [nativeEvent];
+    if (draft.current.kind === 'stroke') {
+      samples.forEach((sample) => draft.current.points.push(pointFromEvent(sample)));
+    } else {
+      const point = pointFromEvent(samples[samples.length - 1]);
+      draft.current.x2 = point.x;
+      draft.current.y2 = point.y;
+    }
     render(draft.current);
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (event) => {
+    try { event?.currentTarget?.releasePointerCapture?.(event.pointerId); } catch { /* pointer capture already released */ }
     if (dragStart.current) {
       dragStart.current = null;
       setRedo([]);
@@ -247,7 +326,8 @@ export default function Whiteboard({ data, updateData, navigate }) {
     }
     if (!drawing.current || !draft.current) return;
     commitActions([...actions, draft.current]);
-    setSelectedId(draft.current.id);
+    // لا نحدد الخط تلقائيًا بعد الكتابة؛ التحديد يظهر فقط عند اختيار أداة التحديد.
+    setSelectedId(null);
     setRedo([]);
     draft.current = null;
     drawing.current = false;
@@ -366,33 +446,40 @@ export default function Whiteboard({ data, updateData, navigate }) {
 
       <div className="whiteboard-reference-layout">
         <aside className="whiteboard-tool-rail">
-          <button type="button" className={tool === 'pen' ? 'active' : ''} onClick={() => setTool('pen')}><PenLine /><span>قلم</span></button>
-          <button type="button" className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')}><MousePointer2 /><span>تحديد</span></button>
-          <button type="button" className={tool === 'highlighter' ? 'active' : ''} onClick={() => setTool('highlighter')}><Highlighter /><span>هايلايتر</span></button>
-          <button type="button" className={tool === 'shape' ? 'active' : ''} onClick={() => setTool('shape')}><Shapes /><span>أشكال</span></button>
-          <button type="button" className={tool === 'text' ? 'active' : ''} onClick={() => setTool('text')}><Type /><span>نص</span></button>
-          <button type="button" className={tool === 'move' ? 'active' : ''} onClick={() => setTool('move')}><Move /><span>تحريك</span></button>
-          <button type="button" className={tool === 'eraser' ? 'active' : ''} onClick={() => setTool('eraser')}><Eraser /><span>ممحاة</span></button>
-          <button type="button" onClick={() => fileRef.current?.click()}><ImagePlus /><span>صورة</span></button>
+          <button type="button" className={tool === 'pen' ? 'active' : ''} onClick={() => setTool('pen')}><PenLine /><span>قلم حر</span></button>
+          <button type="button" className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')}><MousePointer2 /><span>تحديد دقيق</span></button>
+          <button type="button" className={tool === 'highlighter' ? 'active' : ''} onClick={() => setTool('highlighter')}><Highlighter /><span>قلم تمييز</span></button>
+          <button type="button" className={tool === 'shape' ? 'active' : ''} onClick={() => setTool('shape')}><Shapes /><span>مكتبة الأشكال</span></button>
+          <button type="button" className={tool === 'text' ? 'active' : ''} onClick={() => setTool('text')}><Type /><span>نص توضيحي</span></button>
+          <button type="button" className={tool === 'move' ? 'active' : ''} onClick={() => setTool('move')}><Move /><span>تحريك العناصر</span></button>
+          <button type="button" className={tool === 'eraser' ? 'active' : ''} onClick={() => setTool('eraser')}><Eraser /><span>الممحاة الذكية</span></button>
+          <button type="button" onClick={() => fileRef.current?.click()}><ImagePlus /><span>إدراج صورة</span></button>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={openLocalImage} />
           <div className="whiteboard-rail-divider" />
-          <button type="button" onClick={() => setZoom((value) => Math.min(2, value + 0.1))}><ZoomIn /><span>تكبير</span></button>
-          <button type="button" onClick={() => setZoom((value) => Math.max(0.6, value - 0.1))}><ZoomOut /><span>تصغير</span></button>
-          <button type="button" onClick={undo} disabled={!actions.length}><Undo2 /><span>تراجع</span></button>
-          <button type="button" onClick={redoAction} disabled={!redo.length}><Redo2 /><span>إعادة</span></button>
-          <button type="button" onClick={saveToPlatform}><Save /><span>حفظ</span></button>
-          <button type="button" onClick={() => { commitActions([]); setRedo([]); setSelectedId(null); }}><RotateCcw /><span>مسح</span></button>
+          <button type="button" onClick={() => setZoom((value) => Math.min(2, value + 0.1))}><ZoomIn /><span>تكبير اللوحة</span></button>
+          <button type="button" onClick={() => setZoom((value) => Math.max(0.6, value - 0.1))}><ZoomOut /><span>تصغير اللوحة</span></button>
+          <button type="button" onClick={undo} disabled={!actions.length}><Undo2 /><span>تراجع خطوة</span></button>
+          <button type="button" onClick={redoAction} disabled={!redo.length}><Redo2 /><span>إعادة خطوة</span></button>
+          <button type="button" onClick={saveToPlatform}><Save /><span>حفظ اللوحة</span></button>
+          <button type="button" onClick={() => { commitActions([]); setRedo([]); setSelectedId(null); }}><RotateCcw /><span>تنظيف اللوحة</span></button>
         </aside>
 
         <main className="whiteboard-paper-stage">
           <div className="whiteboard-resource-strip">
             <label><FileImage size={16} /><select value={resourceId} onChange={(event) => { setResourceId(event.target.value); setLocalImage(''); setLocalImageKey(''); setResourcePage(1); }}><option value="">سبورة فارغة</option>{resources.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
             {['pdf', 'textbook'].includes(resource?.type) && <div className="whiteboard-pdf-nav"><button type="button" onClick={() => setResourcePage((value) => Math.max(1, value - 1))} disabled={resourcePage <= 1}>‹</button><span>صفحة {resourcePage}{pdfPage.pageCount ? ` / ${pdfPage.pageCount}` : ''}</span><button type="button" onClick={() => setResourcePage((value) => pdfPage.pageCount ? Math.min(pdfPage.pageCount, value + 1) : value + 1)} disabled={Boolean(pdfPage.pageCount && resourcePage >= pdfPage.pageCount)}>›</button></div>}
-            <div className="whiteboard-shape-picker">
-              <button type="button" className={shape === 'rect' ? 'active' : ''} onClick={() => { setShape('rect'); setTool('shape'); }} title="مستطيل"><Square size={16} /></button>
-              <button type="button" className={shape === 'circle' ? 'active' : ''} onClick={() => { setShape('circle'); setTool('shape'); }} title="دائرة"><Circle size={16} /></button>
-              <button type="button" className={shape === 'line' ? 'active' : ''} onClick={() => { setShape('line'); setTool('shape'); }} title="خط"><PenLine size={16} /></button>
-              <button type="button" className={shape === 'arrow' ? 'active' : ''} onClick={() => { setShape('arrow'); setTool('shape'); }} title="سهم"><ArrowLeft size={16} /></button>
+            <div className="whiteboard-shape-picker" aria-label="مكتبة الأشكال التعليمية">
+              <button type="button" className={shape === 'rect' ? 'active' : ''} onClick={() => { setShape('rect'); setTool('shape'); }} title="إطار توضيحي"><Square size={16} /></button>
+              <button type="button" className={shape === 'circle' ? 'active' : ''} onClick={() => { setShape('circle'); setTool('shape'); }} title="دائرة مفاهيم"><Circle size={16} /></button>
+              <button type="button" className={shape === 'triangle' ? 'active' : ''} onClick={() => { setShape('triangle'); setTool('shape'); }} title="هرم معرفي"><Triangle size={16} /></button>
+              <button type="button" className={shape === 'diamond' ? 'active' : ''} onClick={() => { setShape('diamond'); setTool('shape'); }} title="معيّن تصنيفي"><Diamond size={16} /></button>
+              <button type="button" className={shape === 'line' ? 'active' : ''} onClick={() => { setShape('line'); setTool('shape'); }} title="خط رابط"><PenLine size={16} /></button>
+              <button type="button" className={shape === 'arrow' ? 'active' : ''} onClick={() => { setShape('arrow'); setTool('shape'); }} title="سهم توجيهي"><ArrowLeft size={16} /></button>
+            </div>
+            <div className="whiteboard-style-pickers">
+              <label title="طراز الخط"><span>الخط</span><select value={lineStyle} onChange={(event) => setLineStyle(event.target.value)}>{lineStyles.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+              <label title="نوع الخط العربي"><span>الكتابة</span><select value={fontFamily} onChange={(event) => setFontFamily(event.target.value)}>{boardFonts.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+              <label title="حجم النص"><span>الحجم</span><select value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))}><option value="28">28</option><option value="34">34</option><option value="42">42</option><option value="52">52</option></select></label>
             </div>
           </div>
           <div className="whiteboard-canvas-viewport">
@@ -405,20 +492,18 @@ export default function Whiteboard({ data, updateData, navigate }) {
                 width={BOARD_WIDTH}
                 height={BOARD_HEIGHT}
                 className="whiteboard-drawing-canvas"
-                onMouseDown={onPointerDown}
-                onMouseMove={onPointerMove}
-                onMouseUp={onPointerUp}
-                onMouseLeave={onPointerUp}
-                onTouchStart={onPointerDown}
-                onTouchMove={onPointerMove}
-                onTouchEnd={onPointerUp}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+                onPointerLeave={(event) => { if (drawing.current) onPointerUp(event); }}
               />
             </div>
           </div>
           <div className="whiteboard-bottom-toolbar">
             <div className="whiteboard-stroke-controls">
               {colors.map((item) => <button key={item} type="button" className={color === item ? 'active' : ''} style={{ background: item }} onClick={() => setColor(item)} aria-label={`اختيار اللون ${item}`} />)}
-              <select value={width} onChange={(event) => setWidth(Number(event.target.value))}><option value="3">3px</option><option value="5">5px</option><option value="8">8px</option><option value="12">12px</option></select>
+              <select value={width} onChange={(event) => setWidth(Number(event.target.value))}><option value="3">رفيع</option><option value="5">متوسط</option><option value="8">عريض</option><option value="12">عريض جدًا</option></select>
             </div>
             <div className="whiteboard-page-controls">
               <button type="button" disabled={pageIndex === 0} onClick={() => { setPageIndex((value) => Math.max(0, value - 1)); setSelectedId(null); }}><ArrowRight size={18} /></button>

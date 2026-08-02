@@ -579,7 +579,7 @@ export default function App() {
     grades: common,
     payments: common,
     questionBank: common,
-    games: { ...common, shareState },
+    games: { ...common, shareState, navigate: setActive },
     achievements: common,
     mapChallenge: { ...common, navigate: setActive },
     messages: common,

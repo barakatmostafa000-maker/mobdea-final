@@ -301,7 +301,33 @@ export function getLessonModeResources(data = {}, grade, lessonId = '') {
       examFileName: exams?.fileName || '',
       boardLayers: lesson.boardLayers || {},
       annotations: lesson.annotations || textbook.annotations || [],
+      sourceKind: 'textbook',
       virtualLessonTextbook: true,
+    });
+  }
+  if (exams && hasResourceSource(exams)) {
+    resources.push({
+      ...exams,
+      id: `lesson-exams:${lesson.id}`,
+      sourceResourceId: exams.id,
+      lessonId: lesson.id,
+      kind: LIBRARY_KINDS.LESSON_MEDIA,
+      type: 'pdf',
+      title: `${lesson.title} — مرجع الامتحانات`,
+      grade: lesson.grade,
+      term: lesson.term,
+      unit: lesson.unit,
+      lesson: lesson.title,
+      pageStart: 1,
+      pageEnd: '',
+      notes: lesson.notes || exams.notes || '',
+      homework: lesson.homework || '',
+      sequence: lesson.sequence || exams.sequence,
+      relatedQuestionIds: lesson.relatedQuestionIds || exams.relatedQuestionIds || [],
+      boardLayers: lesson.boardLayers || {},
+      annotations: lesson.examAnnotations || [],
+      sourceKind: 'exams',
+      virtualLessonExams: true,
     });
   }
   resources.push(...getLessonMedia(data, lesson.id).filter(hasResourceSource).map((item) => ({
@@ -315,6 +341,7 @@ export function getLessonModeResources(data = {}, grade, lessonId = '') {
     notes: item.notes || lesson.notes || '',
     homework: lesson.homework || '',
     sequence: item.sequence?.length ? item.sequence : lesson.sequence,
+    sourceKind: item.sourceKind || item.type || 'lesson-media',
   })));
   if (lesson.recordingAssetId || (lesson.recordingUrl && lesson.recordingUrl !== '#')) {
     resources.push({
@@ -339,6 +366,55 @@ export function getLessonModeResources(data = {}, grade, lessonId = '') {
     });
   }
   return resources;
+}
+
+
+export function getLessonQuestionSources(data = {}, lessonId = '') {
+  const bundle = getLessonBundle(data, lessonId);
+  if (!bundle) return [];
+  const sources = [];
+  if (bundle.textbook && hasResourceSource(bundle.textbook)) {
+    sources.push({
+      ...bundle.textbook,
+      sourceKind: 'textbook',
+      lessonId: bundle.lesson.id,
+      lesson: bundle.lesson.title,
+      unit: bundle.lesson.unit,
+      term: bundle.lesson.term,
+      grade: bundle.lesson.grade,
+      pageStart: bundle.lesson.pageStart || 1,
+      pageEnd: bundle.lesson.pageEnd || bundle.lesson.pageStart || 1,
+      notes: bundle.lesson.notes || bundle.textbook.notes || '',
+      homework: bundle.lesson.homework || '',
+    });
+  }
+  if (bundle.exams && hasResourceSource(bundle.exams)) {
+    sources.push({
+      ...bundle.exams,
+      sourceKind: 'exams',
+      lessonId: bundle.lesson.id,
+      lesson: bundle.lesson.title,
+      unit: bundle.lesson.unit,
+      term: bundle.lesson.term,
+      grade: bundle.lesson.grade,
+      pageStart: 1,
+      pageEnd: '',
+      notes: bundle.lesson.notes || bundle.exams.notes || '',
+      homework: bundle.lesson.homework || '',
+    });
+  }
+  sources.push(...bundle.media.map((item) => ({
+    ...item,
+    sourceKind: item.sourceKind || item.type || 'lesson-media',
+    lessonId: bundle.lesson.id,
+    lesson: bundle.lesson.title,
+    unit: bundle.lesson.unit,
+    term: bundle.lesson.term,
+    grade: bundle.lesson.grade,
+    notes: item.notes || bundle.lesson.notes || '',
+    homework: bundle.lesson.homework || '',
+  })));
+  return sources;
 }
 
 export function clampLessonPage(page, resource = {}, pdfPageCount = Infinity) {

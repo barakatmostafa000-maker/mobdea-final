@@ -26,6 +26,7 @@ import {
   liveClassSupported,
   postLiveEvent,
   updateLiveParticipant,
+  validateLiveStudentLink,
 } from '../../services/liveClass';
 import { cloudConfigured } from '../../services/cloudSync';
 import { copyToClipboard } from '../../services/share';
@@ -137,19 +138,26 @@ export default function TeacherLivePanel({
 
   const configured = cloudConfigured({ cloudSync });
   const supported = liveClassSupported();
-  const studentLink = useMemo(() => {
-    if (!room) return '';
+  const makeStudentLink = useCallback((activeRoom) => {
+    if (!activeRoom) return '';
     return buildLiveStudentLink({
-      roomId: room.roomId,
-      joinCode: room.joinCode,
-      endpoint: room.endpoint,
-      workspaceId: room.workspaceId,
+      roomId: activeRoom.roomId,
+      joinCode: activeRoom.joinCode,
+      endpoint: activeRoom.endpoint,
+      workspaceId: activeRoom.workspaceId,
       title: roomMeta.title,
       grade: roomMeta.grade,
       lesson: roomMeta.lesson,
-      expiresAt: room.expiresAt,
+      expiresAt: activeRoom.expiresAt,
     });
-  }, [room, roomMeta.grade, roomMeta.lesson, roomMeta.title]);
+  }, [roomMeta.grade, roomMeta.lesson, roomMeta.title]);
+  const studentLink = useMemo(() => {
+    try {
+      return makeStudentLink(room);
+    } catch {
+      return '';
+    }
+  }, [makeStudentLink, room]);
 
   const announce = useCallback((message) => {
     if (!message) return;
@@ -383,42 +391,65 @@ export default function TeacherLivePanel({
     teacherMicStreamRef.current?.getTracks().forEach((track) => track.stop());
   }, [closePeer]);
 
-  const startRoom = async () => {
-    if (!configured) {
-      announce('فعّل المزامنة السحابية أولًا من الإعدادات لإنشاء رابط يعمل عند الطلاب.');
-      onOpenSettings?.();
-      return;
+  const copyRoomLink = useCallback(async (link = studentLink) => {
+    if (!link || !validateLiveStudentLink(link)) {
+      announce('رابط الحصة غير مكتمل. أعد إنشاء الغرفة.');
+      return false;
     }
+    const copied = await copyToClipboard(link);
+    announce(copied ? 'تم نسخ رابط الحصة الأونلاين.' : 'الرابط جاهز؛ افتح لوحة الحصة واضغط معاينة أو انسخه يدويًا.');
+    return copied;
+  }, [announce, studentLink]);
+
+  const startRoom = useCallback(async ({ copyAfterCreate = true } = {}) => {
+    if (!configured) {
+      announce('زر الحصة يعمل، لكن يلزم حفظ رمز مساحة العمل مرة واحدة في إعدادات المزامنة السحابية.');
+      setPanelOpen(true);
+      onOpenSettings?.();
+      return null;
+    }
+    if (busy) return null;
     setBusy(true);
     try {
       const created = await createLiveRoom({ cloudSync }, roomMeta);
+      const createdLink = makeStudentLink(created);
+      if (!validateLiveStudentLink(createdLink)) throw new Error('تعذر تكوين رابط الطالب بعد إنشاء الغرفة.');
+      roomRef.current = created;
       setRoom(created);
       eventCursorRef.current = 0;
       setParticipants([]);
       setActivity([]);
       setPanelOpen(true);
-      announce('تم إنشاء الحصة الأونلاين. انسخ الرابط وأرسله للطلاب.');
+      if (copyAfterCreate) {
+        const copied = await copyToClipboard(createdLink);
+        announce(copied
+          ? 'تم إنشاء الحصة ونسخ رابط الطالب تلقائيًا.'
+          : 'تم إنشاء الحصة. افتح لوحة الأونلاين لنسخ الرابط أو معاينته.');
+      } else {
+        announce('تم إنشاء الحصة الأونلاين بنجاح.');
+      }
+      return { room: created, link: createdLink };
     } catch (error) {
       announce(friendlyLiveError(error, 'تعذر إنشاء الحصة الأونلاين.'));
+      return null;
     } finally {
       setBusy(false);
     }
-  };
+  }, [announce, busy, cloudSync, configured, makeStudentLink, onOpenSettings, roomMeta]);
 
   useEffect(() => {
     if (!startRequest || startRequest === lastStartRequestRef.current) return;
     lastStartRequestRef.current = startRequest;
 
-    if (roomRef.current && studentLink) {
+    if (roomRef.current) {
       setPanelOpen(true);
-      void copyToClipboard(studentLink).then((copied) => {
-        announce(copied ? 'تم نسخ رابط الحصة الأونلاين.' : 'الحصة مفتوحة، لكن تعذر نسخ الرابط.');
-      });
+      const link = makeStudentLink(roomRef.current);
+      void copyRoomLink(link);
       return;
     }
 
-    void startRoom();
-  }, [announce, startRequest, studentLink]);
+    void startRoom({ copyAfterCreate: true });
+  }, [copyRoomLink, makeStudentLink, startRequest, startRoom]);
 
   const startTeacherAudio = async () => {
     if (!room || teacherAudioActive) return;
@@ -663,8 +694,8 @@ export default function TeacherLivePanel({
           <button
             className="primary-btn"
             type="button"
-            disabled={busy || !configured}
-            onClick={startRoom}
+            disabled={busy}
+            onClick={() => void startRoom({ copyAfterCreate: true })}
           >
             <Radio size={17} /> {busy ? 'جارٍ الإنشاء…' : 'بدء حصة أونلاين'}
           </button>
@@ -692,10 +723,7 @@ export default function TeacherLivePanel({
 
       <div className="live-room-code-row">
         <div><span>كود الدخول</span><strong>{room.joinCode}</strong></div>
-        <button className="secondary-btn" type="button" onClick={async () => {
-          const copied = await copyToClipboard(studentLink);
-          announce(copied ? 'تم نسخ رابط الحصة.' : 'تعذر نسخ الرابط.');
-        }}><Copy size={15} /> نسخ الرابط</button>
+        <button className="secondary-btn" type="button" onClick={() => void copyRoomLink()}><Copy size={15} /> نسخ الرابط</button>
       </div>
 
       {panelOpen && (
@@ -713,7 +741,7 @@ export default function TeacherLivePanel({
             <button className={teacherAudioActive ? 'danger-btn' : 'secondary-btn'} type="button" disabled={busy} onClick={teacherAudioActive ? stopTeacherAudio : startTeacherAudio}>
               {teacherAudioActive ? <MicOff size={16} /> : <Mic size={16} />} {teacherAudioActive ? 'إيقاف صوت المعلم' : 'تشغيل صوت المعلم'}
             </button>
-            <button className="secondary-btn" type="button" onClick={() => globalThis.open?.(studentLink, '_blank', 'noopener,noreferrer')}>
+            <button className="secondary-btn" type="button" onClick={() => validateLiveStudentLink(studentLink) && globalThis.open?.(studentLink, '_blank', 'noopener,noreferrer')}>
               <Link size={16} /> معاينة رابط الطالب
             </button>
           </div>

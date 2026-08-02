@@ -4,5 +4,6 @@ export const identity = {
   schoolName: 'المُبدع لتعليم ممتع',
   portrait: '/identity/mostafa-barakat.jpg',
   icon: '/identity/mostafa-barakat-icon.png',
-  logo: '/identity/mobdea-logo.png'
+  logo: '/identity/mobdea-logo.png',
+  publicAppUrl: 'https://mobdea-live-barakatmostafa000.pages.dev/'
 };

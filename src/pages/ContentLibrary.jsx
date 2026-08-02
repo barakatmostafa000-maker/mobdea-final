@@ -37,6 +37,7 @@ import {
   getGradeTextbook,
   getLessonMedia,
   getLessonModeResources,
+  getLessonQuestionSources,
   getLessonsForGrade,
   gradeResourceId,
   hasResourceSource,
@@ -91,6 +92,26 @@ function formatSize(bytes = 0) {
 function normalizeTags(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function regenerateLessonQuestions(snapshot, lesson, currentBank = []) {
+  if (!lesson?.id) return currentBank;
+  const sources = getLessonQuestionSources(snapshot, lesson.id);
+  const exams = getGradeExams(snapshot, lesson.grade);
+  const generated = generateQuestionsForLessonBundle({
+    ...lesson,
+    sourceExamResourceId: exams?.id || '',
+    sourceExamAssetId: exams?.assetId || '',
+    sourceExamFileName: exams?.fileName || '',
+  }, sources);
+  return upsertGeneratedQuestions(currentBank, lesson, generated);
+}
+
+function regenerateGradeQuestions(snapshot, grade, currentBank = []) {
+  return getLessonsForGrade(snapshot, grade).reduce(
+    (bank, lesson) => regenerateLessonQuestions(snapshot, lesson, bank),
+    currentBank,
+  );
 }
 
 function MediaIcon({ type, size = 20 }) {
@@ -356,9 +377,20 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
       const contentLibrary = old
         ? (data.contentLibrary || []).map((item) => String(item.id) === String(old.id) ? resource : item)
         : [...(data.contentLibrary || []), resource];
-      await updateData({ ...data, contentLibrary, settings: { ...data.settings, libraryGrade: selectedGrade } });
+      const snapshot = {
+        ...data,
+        contentLibrary,
+        settings: { ...data.settings, libraryGrade: selectedGrade },
+      };
+      const customQuestionBank = regenerateGradeQuestions(
+        snapshot,
+        selectedGrade,
+        data.customQuestionBank || [],
+      );
+      await updateData({ ...snapshot, customQuestionBank });
       if (old?.assetId && old.assetId !== created.id) await deleteAsset(old.assetId).catch(() => {});
-      setNotice(`تم حفظ ${resource.title} بصورة دائمة.`);
+      const affectedLessons = getLessonsForGrade(snapshot, selectedGrade).length;
+      setNotice(`تم حفظ ${resource.title} بصورة دائمة وربطه بـ ${affectedLessons} درس، وتحديث أسئلة الألعاب وبنك الأسئلة.`);
     } catch (error) {
       if (created?.id) await deleteAsset(created.id).catch(() => {});
       setNotice(error?.message || 'تعذر حفظ ملف الصف.');
@@ -375,9 +407,15 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
     const contentLibrary = (data.contentLibrary || []).map((item) => String(item.id) === String(resource.id)
       ? { ...item, assetId: '', url: '', fileName: '', mimeType: '', fileSize: 0, updatedAt: new Date().toISOString() }
       : item);
-    await updateData({ ...data, contentLibrary });
+    const snapshot = { ...data, contentLibrary };
+    const customQuestionBank = regenerateGradeQuestions(
+      snapshot,
+      resource.grade || selectedGrade,
+      data.customQuestionBank || [],
+    );
+    await updateData({ ...snapshot, customQuestionBank });
     if (resource.assetId) await deleteAsset(resource.assetId).catch(() => {});
-    setNotice('تمت إزالة الملف، وستظل البطاقة الدائمة متاحة لرفع بديل.');
+    setNotice('تمت إزالة الملف وتحديث أسئلة الدروس المرتبطة، وستظل البطاقة الدائمة متاحة لرفع بديل.');
   };
 
   const saveLesson = async () => {
@@ -434,48 +472,32 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
       createdAt: item.createdAt || now,
       updatedAt: now,
     }));
-    const examSource = getGradeExams(data, lesson.grade);
-    const generated = generateQuestionsForLessonBundle({
-      ...lesson,
-      sourceExamResourceId: examSource?.id || '',
-      sourceExamAssetId: examSource?.assetId || '',
-      sourceExamFileName: examSource?.fileName || '',
-    }, [...editingMedia, ...mediaRecords]);
-    const customQuestionBank = upsertGeneratedQuestions(data.customQuestionBank || [], lesson, generated);
     try {
-      const textbook = getGradeTextbook(data, lesson.grade);
-      const classResources = [
-        ...(textbook && hasResourceSource(textbook)
-          ? [{
-              id: `lesson-textbook:${lesson.id}`,
-              title: `${lesson.title} — كتاب المنهج`,
-              type: 'textbook',
-              lessonId: lesson.id,
-            }]
-          : []),
-        ...mediaRecords.map((item) => ({
-          id: item.id,
-          title: item.title,
-          type: item.type,
-          lessonId: lesson.id,
-        })),
-        ...editingMedia.map((item) => ({
-          id: item.id,
-          title: item.title,
-          type: item.type,
-          lessonId: lesson.id,
-        })),
-      ];
-      await updateData({
+      const snapshot = {
         ...data,
         contentLibrary: [...withLesson, ...mediaRecords],
+      };
+      const customQuestionBank = regenerateLessonQuestions(
+        snapshot,
+        lesson,
+        data.customQuestionBank || [],
+      );
+      const classResources = getLessonModeResources(snapshot, lesson.grade, lesson.id);
+      await updateData({
+        ...snapshot,
         customQuestionBank,
         settings: {
           ...data.settings,
           libraryGrade: lesson.grade,
           classLessonId: lesson.id,
           classResourceId: classResources[0]?.id || '',
-          classResourceQueue: classResources,
+          classResourceQueue: classResources.map((item) => ({
+            id: item.id,
+            title: item.title,
+            type: item.type,
+            lessonId: lesson.id,
+            sourceKind: item.sourceKind || '',
+          })),
         },
       });
       const removedAssets = (data.contentLibrary || [])
@@ -491,7 +513,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
       setSelectedGrade(lesson.grade);
       setExpandedGrades((current) => new Set([...current, lesson.grade]));
       setEditorOpen(false);
-      setNotice('تم حفظ الدرس ووسائطه وربطه بوضع الحصة، وإنشاء مسودة أسئلة وألعاب تلقائية قابلة للمراجعة.');
+      setNotice('تم حفظ الدرس وظهر فورًا في وضع الحصة مع كتاب الشرح وملف الامتحانات والوسائط، وتم تحديث بنك الأسئلة والألعاب.');
     } catch (error) {
       setNotice(error?.message || 'تعذر حفظ الدرس.');
     } finally {

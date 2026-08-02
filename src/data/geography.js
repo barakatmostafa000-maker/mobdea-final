@@ -65,10 +65,19 @@ export const GEOGRAPHY_REGIONS = Object.freeze({
 
 export const GEOGRAPHY_LAYERS = Object.freeze({
   countries: { title: 'الدول', color: '#d6ae38' },
-  terrain: { title: 'التضاريس', color: '#a87845' },
-  water: { title: 'المياه', color: '#2f80ed' },
+  capitals: { title: 'العواصم', color: '#d64545' },
+  cities: { title: 'المدن', color: '#f28c62' },
+  mountains: { title: 'الجبال', color: '#9a704c' },
+  plateaus: { title: 'الهضاب', color: '#bc8754' },
+  plains: { title: 'السهول', color: '#6f9d63' },
+  rivers: { title: 'الأنهار', color: '#2f80ed' },
+  seas: { title: 'البحار والمحيطات', color: '#38a9db' },
   minerals: { title: 'الثروات', color: '#b85c9e' },
-  capitals: { title: 'المدن والعواصم', color: '#d64545' },
+  terrain: { title: 'كل التضاريس', color: '#a87845' },
+  water: { title: 'كل المياه', color: '#2f80ed' },
+  latitude: { title: 'دوائر العرض', color: '#79c8e8' },
+  longitude: { title: 'خطوط الطول', color: '#98d8ee' },
+  population: { title: 'السكان', color: '#e2b24a' },
 });
 
 export const GEOGRAPHY_FEATURES = Object.freeze({
@@ -277,17 +286,53 @@ export function getRegionCountries(geo, regionKey) {
 
 export function getRegionLayerItems(geo, regionKey, layerKey) {
   const countries = getRegionCountries(geo, regionKey);
-  if (layerKey === 'countries') {
+  if (layerKey === 'countries' || layerKey === 'population') {
     return countries.map((feature) => ({
       id: feature.properties.iso_a3,
-      name: getCountryName(feature),
+      name: layerKey === 'population' ? `سكان ${getCountryName(feature)}` : getCountryName(feature),
       feature,
       coord: featureCenter(feature),
     }));
   }
-  return (GEOGRAPHY_FEATURES[regionKey]?.[layerKey] || []).map((item, index) => ({
-    id: `${regionKey}:${layerKey}:${index}`,
-    name: item[0],
-    coord: [item[1], item[2]],
-  }));
+
+  const derived = {
+    mountains: { source: 'terrain', match: /(جبال|جبل|مرتفعات|حاجز)/u },
+    plateaus: { source: 'terrain', match: /(هضبة|هضاب)/u },
+    plains: { source: 'terrain', match: /(سهل|سهول|دلتا|حوض|منخفض|وادي)/u },
+    rivers: { source: 'water', match: /(نهر|قناة|مضيق)/u },
+    seas: { source: 'water', match: /(بحر|محيط|خليج|بحيرة)/u },
+    cities: { source: 'capitals', match: /.*/u },
+  };
+
+  if (layerKey === 'latitude' || layerKey === 'longitude') {
+    const region = GEOGRAPHY_REGIONS[regionKey] || GEOGRAPHY_REGIONS.world;
+    const [minX, minY, maxX, maxY] = region.bounds;
+    const longitude = (minX + maxX) / 2;
+    const latitude = (minY + maxY) / 2;
+    const lines = layerKey === 'latitude'
+      ? [
+          ['خط الاستواء', longitude, Math.max(minY, Math.min(maxY, 0))],
+          ['مدار السرطان', longitude, Math.max(minY, Math.min(maxY, 23.5))],
+          ['مدار الجدي', longitude, Math.max(minY, Math.min(maxY, -23.5))],
+        ]
+      : [
+          ['خط جرينتش', Math.max(minX, Math.min(maxX, 0)), latitude],
+          ['خط طول 30° شرقًا', Math.max(minX, Math.min(maxX, 30)), latitude],
+          ['خط طول 60° شرقًا', Math.max(minX, Math.min(maxX, 60)), latitude],
+        ];
+    return lines
+      .filter((item) => item[1] >= minX && item[1] <= maxX && item[2] >= minY && item[2] <= maxY)
+      .map((item, index) => ({ id: `${regionKey}:${layerKey}:${index}`, name: item[0], coord: [item[1], item[2]] }));
+  }
+
+  const config = derived[layerKey];
+  const sourceKey = config?.source || layerKey;
+  const source = GEOGRAPHY_FEATURES[regionKey]?.[sourceKey] || [];
+  return source
+    .filter((item) => !config?.match || config.match.test(item[0]))
+    .map((item, index) => ({
+      id: `${regionKey}:${layerKey}:${index}`,
+      name: item[0],
+      coord: [item[1], item[2]],
+    }));
 }

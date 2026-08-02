@@ -48,10 +48,17 @@ const regions = GEOGRAPHY_REGIONS;
 
 const layers = {
   countries: { ...GEOGRAPHY_LAYERS.countries, icon: Flag },
-  terrain: { ...GEOGRAPHY_LAYERS.terrain, icon: Mountain },
-  water: { ...GEOGRAPHY_LAYERS.water, icon: Waves },
-  minerals: { ...GEOGRAPHY_LAYERS.minerals, icon: Gem },
   capitals: { ...GEOGRAPHY_LAYERS.capitals, icon: MapPin },
+  cities: { ...GEOGRAPHY_LAYERS.cities, icon: MapPin },
+  mountains: { ...GEOGRAPHY_LAYERS.mountains, icon: Mountain },
+  plateaus: { ...GEOGRAPHY_LAYERS.plateaus, icon: Mountain },
+  plains: { ...GEOGRAPHY_LAYERS.plains, icon: Layers3 },
+  rivers: { ...GEOGRAPHY_LAYERS.rivers, icon: Waves },
+  seas: { ...GEOGRAPHY_LAYERS.seas, icon: Waves },
+  minerals: { ...GEOGRAPHY_LAYERS.minerals, icon: Gem },
+  latitude: { ...GEOGRAPHY_LAYERS.latitude, icon: Compass },
+  longitude: { ...GEOGRAPHY_LAYERS.longitude, icon: Compass },
+  population: { ...GEOGRAPHY_LAYERS.population, icon: Users },
 };
 
 const modeConfig = {

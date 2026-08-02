@@ -1,7 +1,7 @@
 {
   "name": "mobdea-mobile",
   "private": true,
-  "version": "10.1.0",
+  "version": "10.3.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -38,6 +38,6 @@
     "vite": "^6.1.0"
   },
   "mobdea": {
-    "versionCode": "101"
+    "versionCode": 105
   }
 }

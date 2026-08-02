@@ -1,0 +1,210 @@
+/* الهيكل العام الموحد للتطبيق */
+html,
+body,
+#root{
+  width:100%;
+  min-width:0;
+  min-height:100%;
+  margin:0;
+  overflow-x:hidden
+}
+
+.app-shell-v103:not(.lesson-mode-shell){
+  width:100%!important;
+  min-width:0!important;
+  height:100vh!important;
+  min-height:100vh!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 286px!important;
+  grid-template-areas:"content sidebar"!important;
+  overflow:hidden!important
+}
+
+.app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area{
+  grid-area:sidebar!important;
+  position:relative!important;
+  width:286px!important;
+  min-width:0!important;
+  height:100vh!important;
+  max-height:100vh!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  z-index:50!important
+}
+
+.app-shell-v103:not(.lesson-mode-shell) > .app-content{
+  grid-area:content!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:100vh!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important
+}
+
+.app-shell-v103:not(.lesson-mode-shell) > .mobile-header,
+.app-shell-v103:not(.lesson-mode-shell) > .app-shell-backdrop{
+  display:none!important
+}
+
+/* التابلت والموبايل */
+@media (max-width:1100px){
+  .app-shell-v103:not(.lesson-mode-shell){
+    display:block!important;
+    width:100%!important;
+    height:100vh!important;
+    min-height:100vh!important;
+    overflow:hidden!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header{
+    position:fixed!important;
+    top:0!important;
+    right:0!important;
+    left:0!important;
+    z-index:10000!important;
+    width:100%!important;
+    height:58px!important;
+    min-height:58px!important;
+    padding:5px 9px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:7px!important;
+    overflow:hidden!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:100vh!important;
+    margin:0!important;
+    padding:66px 10px 10px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area{
+    position:fixed!important;
+    top:0!important;
+    right:0!important;
+    bottom:0!important;
+    left:auto!important;
+    z-index:10002!important;
+    width:300px!important;
+    max-width:86vw!important;
+    height:100vh!important;
+    max-height:100vh!important;
+    margin:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+    transform:translateX(105%)!important;
+    transition:
+      transform .24s ease,
+      visibility .24s ease!important;
+    box-shadow:-12px 0 35px rgba(0,0,0,.55)!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area.is-open{
+    visibility:visible!important;
+    pointer-events:auto!important;
+    transform:translateX(0)!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-shell-backdrop{
+    position:fixed!important;
+    inset:0!important;
+    z-index:10001!important;
+    width:100%!important;
+    height:100%!important;
+    margin:0!important;
+    padding:0!important;
+    display:block!important;
+    border:0!important;
+    background:rgba(0,0,0,.58)!important;
+    backdrop-filter:blur(2px)!important
+  }
+
+  .app-shell-v103 .drawer-close{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important
+  }
+
+  .app-shell-v103 .sidebar-nav button,
+  .app-shell-v103 .sidebar-search-button,
+  .app-shell-v103 .session-mini-card{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important
+  }
+
+  .app-shell-v103 .nav-copy{
+    min-width:0!important;
+    overflow:hidden!important
+  }
+
+  .app-shell-v103 .nav-copy strong,
+  .app-shell-v103 .nav-copy small{
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important
+  }
+}
+
+/* الموبايل الأفقي */
+@media (max-width:900px) and (orientation:landscape){
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header{
+    height:46px!important;
+    min-height:46px!important;
+    padding:3px 7px!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content{
+    padding:51px 6px 6px!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area{
+    width:270px!important;
+    max-width:78vw!important
+  }
+
+  .app-shell-v103 .mobile-brand-copy strong{
+    font-size:11px!important
+  }
+
+  .app-shell-v103 .mobile-brand-copy span,
+  .app-shell-v103 .mobile-header-pill{
+    font-size:8px!important
+  }
+}
+
+/* الموبايل الرأسي */
+@media (max-width:600px) and (orientation:portrait){
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header{
+    height:56px!important;
+    min-height:56px!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content{
+    padding:63px 7px 8px!important
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area{
+    width:310px!important;
+    max-width:88vw!important
+  }
+}
+
+/* عدم تأثير الهيكل العام على الشاشات الخاصة */
+.lesson-mode-shell,
+.lesson-mode-shell > .app-content{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important
+}

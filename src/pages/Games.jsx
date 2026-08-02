@@ -43,7 +43,7 @@ function playTone(kind = 'correct', settings = {}) {
   } catch {}
 }
 
-export default function Games({ data, updateData, shareState }) {
+export default function Games({ data, updateData, shareState, navigate }) {
   const [gradeKey, setGradeKey] = useState('6');
   const [unit, setUnit] = useState('all');
   const [mode, setMode] = useState(null);
@@ -92,6 +92,18 @@ export default function Games({ data, updateData, shareState }) {
 
   const sharedInvite = shareState?.kind === 'game' ? shareState.payload : null;
   const pendingInvite = data.settings?.pendingChallenge || null;
+  const pinnedLesson = useMemo(() => (data.contentLibrary || []).find((item) => (
+    item.type === 'lesson'
+    && String(item.id) === String(data.settings?.classLessonId || '')
+  )) || null, [data.contentLibrary, data.settings?.classLessonId]);
+
+  useEffect(() => {
+    if (!pinnedLesson) return;
+    const nextGradeKey = gradeKeyFromLabel(pinnedLesson.grade);
+    setGradeKey(nextGradeKey);
+    setUnit(pinnedLesson.unit || 'all');
+    setFocusResourceId(pinnedLesson.id);
+  }, [pinnedLesson?.id]);
 
   useEffect(() => {
     const invite = sharedInvite || pendingInvite;
@@ -333,6 +345,10 @@ export default function Games({ data, updateData, shareState }) {
       fileName: focusResource.fileName || '',
     } : null,
     roomTitle: `${gradeLabel || 'الصف'} • ${focusResource?.lesson || focusResource?.title || 'تحدي'}`,
+    lessonId: focusResource?.id || null,
+    questionIds: focusedQuestions.map((question) => question.id),
+    questionCount: focusedQuestions.length,
+    sources: [...new Set(focusedQuestions.map((question) => question.sourceKind || question.questionOrigin || 'lesson-content'))],
     createdAt: new Date().toISOString(),
   });
 
@@ -444,9 +460,13 @@ export default function Games({ data, updateData, shareState }) {
       title={`${gradeLabel || 'الصف الحالي'} — ${focusResource?.lesson || focusResource?.title || (unit === 'all' ? 'تحدي المراجعة' : unit)}`}
       grade={gradeLabel}
       unit={focusResource?.unit || (unit === 'all' ? '' : unit)}
+      lessonId={focusResource?.id || ''}
+      sourceKind={focusedQuestions[0]?.sourceKind || ''}
+      sourceFileName={focusedQuestions[0]?.sourceFileName || focusedQuestions[0]?.sourceExamFileName || ''}
       questions={focusedQuestions}
       onNotice={setShareNotice}
       onFinish={saveOnlineGameResult}
+      onOpenSettings={() => navigate?.('settings')}
     />
 
     {shareNotice && <div className="game-feedback good">{shareNotice}</div>}

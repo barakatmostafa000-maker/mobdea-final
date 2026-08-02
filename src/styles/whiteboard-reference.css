@@ -1,0 +1,481 @@
+.whiteboard-page{
+  width:100%!important;
+  height:100dvh!important;
+  margin:0!important;
+  padding:5px!important;
+  overflow:hidden!important;
+  direction:rtl;
+  color:#f3d394;
+  background:radial-gradient(circle at 50% 10%,rgba(130,80,25,.22),transparent 42%),#090806!important
+}
+.whiteboard-page *{box-sizing:border-box}
+.whiteboard-reference-layout{
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  grid-template-columns:78px minmax(0,1fr) 245px!important;
+  grid-template-rows:64px minmax(0,1fr) 52px!important;
+  gap:5px!important;
+  overflow:hidden!important
+}
+.whiteboard-reference-header{
+  grid-column:1/-1!important;
+  height:64px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid rgba(220,160,72,.4)!important;
+  border-radius:11px!important;
+  background:#120f0b!important
+}
+.whiteboard-title-plaque{
+  min-width:250px!important;
+  padding:8px 25px!important;
+  text-align:center!important;
+  font-size:24px!important;
+  font-weight:900!important;
+  color:#efc674!important;
+  border:1px solid #9f6a2d!important;
+  border-radius:9px!important;
+  background:#090806!important
+}
+.whiteboard-brand-flag{
+  position:absolute!important;
+  top:10px!important;
+  left:12px!important;
+  width:65px!important;
+  height:45px!important;
+  z-index:20!important;
+  overflow:hidden!important
+}
+.whiteboard-brand-flag img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important
+}
+
+.whiteboard-tool-rail{
+  grid-column:1!important;
+  grid-row:2!important;
+  width:78px!important;
+  min-height:0!important;
+  padding:4px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:4px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  border:1px solid rgba(220,160,72,.38)!important;
+  border-radius:10px!important;
+  background:#100e0b!important
+}
+.whiteboard-tool-rail button{
+  width:100%!important;
+  min-height:38px!important;
+  padding:4px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:3px!important;
+  color:#f1d092!important;
+  border:1px solid rgba(220,160,72,.25)!important;
+  border-radius:7px!important;
+  background:rgba(255,255,255,.025)!important;
+  font-size:10px!important
+}
+.whiteboard-tool-rail button.active,
+.whiteboard-tool-rail button:hover{
+  color:#ffe3a2!important;
+  border-color:rgba(232,174,83,.75)!important;
+  background:rgba(194,126,39,.17)!important
+}
+
+.whiteboard-paper-stage{
+  grid-column:2!important;
+  grid-row:2!important;
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:7px!important;
+  overflow:hidden!important;
+  border:2px solid #9c6428!important;
+  border-radius:12px!important;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(90,55,18,.035) 0 1px,
+      transparent 1px 28px
+    ),
+    linear-gradient(135deg,#ecd7ad,#d8b172)!important;
+  box-shadow:
+    inset 0 0 34px rgba(70,35,8,.22),
+    0 10px 28px rgba(0,0,0,.35)!important
+}
+.whiteboard-paper-stage::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.1;
+  background:
+    radial-gradient(circle at 12% 15%,transparent 0 35px,#77501e 36px 37px,transparent 38px),
+    radial-gradient(circle at 88% 88%,transparent 0 42px,#77501e 43px 44px,transparent 45px)
+}
+.whiteboard-canvas-stack,
+.whiteboard-canvas-viewport{
+  position:relative!important;
+  z-index:2!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  border-radius:8px!important
+}
+.whiteboard-drawing-canvas,
+.whiteboard-canvas-stack canvas,
+.whiteboard-canvas-viewport canvas{
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  touch-action:none!important
+}
+
+.whiteboard-students-panel{
+  grid-column:3!important;
+  grid-row:2!important;
+  width:245px!important;
+  min-width:0!important;
+  min-height:0!important;
+  height:100%!important;
+  padding:7px!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr) auto!important;
+  gap:6px!important;
+  overflow:hidden!important;
+  border:1px solid rgba(220,160,72,.4)!important;
+  border-radius:11px!important;
+  background:linear-gradient(180deg,#1b1711,#090806)!important
+}
+.whiteboard-students-list{
+  min-height:0!important;
+  max-height:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:4px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important
+}
+.whiteboard-students-list > *{
+  min-height:34px!important;
+  border:1px solid rgba(226,169,83,.2)!important;
+  border-radius:7px!important;
+  background:rgba(255,255,255,.025)!important
+}
+
+.whiteboard-teacher-card{
+  position:absolute!important;
+  z-index:45!important;
+  left:92px!important;
+  bottom:60px!important;
+  min-width:118px!important;
+  max-width:170px!important;
+  min-height:44px!important;
+  padding:4px 7px!important;
+  display:grid!important;
+  grid-template-columns:38px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:6px!important;
+  overflow:hidden!important;
+  color:#f3d397!important;
+  border:1px solid rgba(214,151,62,.5)!important;
+  border-radius:24px 9px 9px 24px!important;
+  background:rgba(13,11,8,.88)!important;
+  box-shadow:0 7px 18px rgba(0,0,0,.38)!important
+}
+.whiteboard-teacher-card img,
+.whiteboard-teacher-card .avatar,
+.whiteboard-teacher-card [class*="avatar"]{
+  width:36px!important;
+  height:36px!important;
+  min-width:36px!important;
+  min-height:36px!important;
+  border-radius:50%!important;
+  object-fit:cover!important;
+  border:1px solid rgba(229,174,90,.7)!important
+}
+.whiteboard-teacher-card strong,
+.whiteboard-teacher-card h3,
+.whiteboard-teacher-card p,
+.whiteboard-teacher-card span{
+  margin:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:9px!important;
+  line-height:1.25!important
+}
+
+.whiteboard-reference-footer,
+.whiteboard-bottom-toolbar{
+  grid-column:1/-1!important;
+  grid-row:3!important;
+  height:52px!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:5px 8px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex-wrap:nowrap!important;
+  gap:5px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  border:1px solid rgba(220,160,72,.36)!important;
+  border-radius:10px!important;
+  background:#0c0a08!important
+}
+.whiteboard-bottom-toolbar button,
+.whiteboard-page-controls button,
+.whiteboard-view-controls button,
+.whiteboard-stroke-controls button,
+.whiteboard-shape-picker button{
+  min-height:37px!important;
+  flex:0 0 auto!important;
+  color:#f2d091!important;
+  border:1px solid rgba(223,165,77,.28)!important;
+  border-radius:8px!important;
+  background:rgba(255,255,255,.025)!important
+}
+
+/* تثبيت ترتيب السبورة: الأدوات يسارًا والطلاب يمينًا */
+.whiteboard-reference-layout{
+  direction:ltr!important
+}
+.whiteboard-reference-header,
+.whiteboard-tool-rail,
+.whiteboard-paper-stage,
+.whiteboard-students-panel,
+.whiteboard-reference-footer,
+.whiteboard-bottom-toolbar{
+  direction:rtl!important
+}
+
+/* التابلت الأفقي */
+@media (max-width:1100px) and (orientation:landscape){
+  .whiteboard-page{
+    padding:3px!important
+  }
+
+  .whiteboard-reference-layout{
+    grid-template-columns:60px minmax(0,1fr) 202px!important;
+    grid-template-rows:54px minmax(0,1fr) 44px!important;
+    gap:3px!important
+  }
+
+  .whiteboard-reference-header{
+    height:54px!important
+  }
+
+  .whiteboard-title-plaque{
+    min-width:195px!important;
+    min-height:40px!important;
+    padding:5px 16px!important;
+    font-size:16px!important
+  }
+
+  .whiteboard-brand-flag{
+    top:7px!important;
+    left:7px!important;
+    width:52px!important;
+    height:38px!important
+  }
+
+  .whiteboard-tool-rail{
+    width:60px!important;
+    padding:3px!important;
+    gap:3px!important
+  }
+
+  .whiteboard-tool-rail button{
+    min-height:32px!important;
+    padding:3px!important;
+    font-size:8px!important
+  }
+
+  .whiteboard-students-panel{
+    width:202px!important;
+    padding:5px!important;
+    gap:4px!important;
+    font-size:10px!important
+  }
+
+  .whiteboard-students-list > *{
+    min-height:30px!important
+  }
+
+  .whiteboard-teacher-card{
+    left:67px!important;
+    bottom:49px!important;
+    min-width:100px!important;
+    max-width:140px!important;
+    min-height:37px!important;
+    padding:3px 5px!important;
+    grid-template-columns:31px minmax(0,1fr)!important
+  }
+
+  .whiteboard-teacher-card img,
+  .whiteboard-teacher-card .avatar,
+  .whiteboard-teacher-card [class*="avatar"]{
+    width:30px!important;
+    height:30px!important;
+    min-width:30px!important;
+    min-height:30px!important
+  }
+
+  .whiteboard-reference-footer,
+  .whiteboard-bottom-toolbar{
+    height:44px!important;
+    padding:3px 5px!important
+  }
+
+  .whiteboard-bottom-toolbar button,
+  .whiteboard-page-controls button,
+  .whiteboard-view-controls button{
+    min-height:32px!important;
+    font-size:9px!important
+  }
+}
+
+/* الموبايل الأفقي */
+@media (max-width:900px) and (orientation:landscape){
+  .whiteboard-page{
+    padding:2px!important
+  }
+
+  .whiteboard-reference-layout{
+    grid-template-columns:44px minmax(0,1fr) 142px!important;
+    grid-template-rows:40px minmax(0,1fr) 37px!important;
+    gap:2px!important
+  }
+
+  .whiteboard-reference-header{
+    height:40px!important;
+    padding:2px!important
+  }
+
+  .whiteboard-title-plaque{
+    min-width:135px!important;
+    max-width:45vw!important;
+    min-height:31px!important;
+    padding:3px 9px!important;
+    font-size:11px!important
+  }
+
+  .whiteboard-brand-flag{
+    top:4px!important;
+    left:4px!important;
+    width:38px!important;
+    height:30px!important
+  }
+
+  .whiteboard-tool-rail{
+    width:44px!important;
+    padding:2px!important;
+    gap:2px!important
+  }
+
+  .whiteboard-tool-rail button{
+    min-height:27px!important;
+    padding:2px!important;
+    font-size:0!important
+  }
+
+  .whiteboard-tool-rail button svg{
+    width:14px!important;
+    height:14px!important
+  }
+
+  .whiteboard-paper-stage{
+    padding:3px!important;
+    border-radius:7px!important
+  }
+
+  .whiteboard-students-panel{
+    width:142px!important;
+    padding:3px!important;
+    gap:3px!important;
+    font-size:7px!important
+  }
+
+  .whiteboard-students-list{
+    gap:2px!important
+  }
+
+  .whiteboard-students-list > *{
+    min-height:25px!important
+  }
+
+  .whiteboard-teacher-card{
+    left:48px!important;
+    bottom:40px!important;
+    min-width:73px!important;
+    max-width:102px!important;
+    min-height:27px!important;
+    padding:2px 3px!important;
+    grid-template-columns:23px minmax(0,1fr)!important;
+    gap:2px!important
+  }
+
+  .whiteboard-teacher-card img,
+  .whiteboard-teacher-card .avatar,
+  .whiteboard-teacher-card [class*="avatar"]{
+    width:22px!important;
+    height:22px!important;
+    min-width:22px!important;
+    min-height:22px!important
+  }
+
+  .whiteboard-teacher-card strong,
+  .whiteboard-teacher-card h3,
+  .whiteboard-teacher-card p,
+  .whiteboard-teacher-card span{
+    font-size:6px!important
+  }
+
+  .whiteboard-reference-footer,
+  .whiteboard-bottom-toolbar{
+    height:37px!important;
+    padding:2px 3px!important;
+    gap:2px!important
+  }
+
+  .whiteboard-bottom-toolbar button,
+  .whiteboard-page-controls button,
+  .whiteboard-view-controls button{
+    min-height:28px!important;
+    padding:2px 4px!important;
+    font-size:7px!important
+  }
+}
+
+/* منع تشغيل السبورة رأسيًا على الموبايل */
+@media (max-width:900px) and (orientation:portrait){
+  .whiteboard-page::after{
+    content:"لف الهاتف للوضع العرضي لتشغيل السبورة";
+    position:fixed;
+    inset:0;
+    z-index:999999;
+    display:grid;
+    place-items:center;
+    padding:28px;
+    text-align:center;
+    font-size:18px;
+    font-weight:900;
+    color:#f0ce89;
+    background:radial-gradient(circle at center,rgba(117,71,22,.28),transparent 55%),#080706
+  }
+}

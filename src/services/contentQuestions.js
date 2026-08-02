@@ -2,13 +2,18 @@ import { sanitizeQuestion } from './assessment.js';
 import { gradeOptions } from '../data/questionBank.js';
 
 const RESOURCE_TYPE_LABELS = {
-  video: 'فيديو',
-  pdf: 'كتاب أو شرح PDF',
+  textbook: 'كتاب المنهج الرئيسي',
+  exams: 'ملف الامتحانات الرئيسي',
+  video: 'فيديو تعليمي',
+  pdf: 'شرح PDF',
   image: 'صورة تعليمية',
   map: 'خريطة تعليمية',
-  audio: 'صوت',
+  audio: 'ملف صوتي',
   slides: 'عرض تقديمي',
+  document: 'مستند تعليمي',
+  file: 'ملف مرتبط بالدرس',
   link: 'رابط خارجي',
+  lesson: 'خطة الدرس',
 };
 
 function normalize(value) {
@@ -25,7 +30,13 @@ function inferGradeKey(grade = '') {
 }
 
 function inferTopic(resource = {}) {
-  const text = normalize([resource.title, resource.unit, resource.lesson, resource.notes, ...(Array.isArray(resource.tags) ? resource.tags : [])].join(' '));
+  const text = normalize([
+    resource.title,
+    resource.unit,
+    resource.lesson,
+    resource.notes,
+    ...(Array.isArray(resource.tags) ? resource.tags : []),
+  ].join(' '));
   if (/خريطة|map|atlas|خرائط/i.test(text) || resource.type === 'map') return 'الخريطة والمهارات الجغرافية';
   if (/تاريخ|حضارة|مصر|الوطن العربي|دولة|حدود|موقع/i.test(text)) return 'المفاهيم الأساسية';
   return normalize(resource.tags?.[0] || resource.lesson || resource.unit || 'عام');
@@ -50,37 +61,126 @@ function buildQuestion(id, input, fallback) {
   return sanitizeQuestion({ id, ...input }, fallback);
 }
 
-export function generateQuestionsFromResource(resource = {}) {
-  if (!resource?.id) return [];
+function sourceKind(resource = {}) {
+  if (resource.sourceKind) return normalize(resource.sourceKind).toLowerCase();
+  if (resource.type === 'textbook' || resource.kind === 'grade-textbook') return 'textbook';
+  if (resource.type === 'exams' || resource.kind === 'grade-exams') return 'exams';
+  return normalize(resource.type || 'lesson').toLowerCase();
+}
 
+function sourceLabel(resource = {}) {
+  const kind = sourceKind(resource);
+  return RESOURCE_TYPE_LABELS[kind] || RESOURCE_TYPE_LABELS[resource.type] || normalize(resource.title || 'المحتوى المرتبط');
+}
+
+function splitNoteLines(value = '') {
+  return String(value || '')
+    .replace(/\r/g, '\n')
+    .split(/\n+|[؛;]+|(?<=[.!؟])\s+/u)
+    .map((line) => normalize(line.replace(/^[\s\-–—•*\d٠-٩]+[.)ـ:\-–—]*\s*/u, '')))
+    .filter((line) => line.length >= 8)
+    .slice(0, 16);
+}
+
+function extractDefinitions(lines = []) {
+  const output = [];
+  for (const line of lines) {
+    const match = line.match(/^(.{2,55}?)\s*(?::|：|—|–|-)\s*(.{8,220})$/u);
+    if (!match) continue;
+    const term = normalize(match[1]);
+    const definition = normalize(match[2]);
+    if (!term || !definition || term.length > 55) continue;
+    output.push({ term, definition });
+  }
+  return output.slice(0, 6);
+}
+
+function questionBase(resource = {}) {
   const gradeKey = inferGradeKey(resource.grade);
   const grade = normalize(resource.grade || gradeOptions.find((item) => item.key === gradeKey)?.label || 'غير محدد');
   const title = normalize(resource.title || 'مورد تعليمي');
   const unit = normalize(resource.unit || 'الوحدة');
   const lesson = normalize(resource.lesson || title);
   const topic = inferTopic(resource);
-  const notes = normalize(resource.notes || resource.summary || '');
+  const term = normalize(resource.term || 'الترم الأول');
+  return { gradeKey, grade, title, unit, lesson, topic, term };
+}
+
+function buildQuestionsFromNotes(resource, baseId, common) {
+  const notes = normalize(resource.notes || resource.summary || resource.extractedText || '');
+  const lines = splitNoteLines(notes);
+  if (!lines.length) return [];
+
+  const definitions = extractDefinitions(lines);
+  const definitionPool = definitions.map((item) => item.definition);
+  const items = [];
+
+  definitions.forEach((item, index) => {
+    const options = uniqueOptions(item.definition, [
+      ...definitionPool.filter((value) => value !== item.definition),
+      `مفهوم مختلف لا يعبّر عن ${item.term}`,
+      `نتيجة جانبية وليست تعريف ${item.term}`,
+    ]);
+    items.push(buildQuestion(`${baseId}-definition-${index + 1}`, {
+      ...common,
+      type: 'mcq',
+      text: `ما المقصود بـ «${item.term}»؟`,
+      options,
+      answer: item.definition,
+      answerIndex: options.indexOf(item.definition),
+      difficulty: 'متوسط',
+      maxScore: 2,
+      source: 'auto',
+    }));
+  });
+
+  lines.slice(0, 5).forEach((line, index) => {
+    items.push(buildQuestion(`${baseId}-fact-${index + 1}`, {
+      ...common,
+      type: 'tf',
+      text: line.endsWith('.') || line.endsWith('؟') ? line : `${line}.`,
+      options: ['صح', 'خطأ'],
+      answer: 'صح',
+      answerIndex: 0,
+      difficulty: index < 2 ? 'سهل' : 'متوسط',
+      maxScore: 1,
+      source: 'auto',
+    }));
+  });
+
+  return items;
+}
+
+export function generateQuestionsFromResource(resource = {}) {
+  if (!resource?.id) return [];
+
+  const { gradeKey, grade, title, unit, lesson, topic, term } = questionBase(resource);
+  const notes = normalize(resource.notes || resource.summary || resource.extractedText || '');
   const homework = normalize(resource.homework || '');
-  const modelIdea = normalize(notes.split(/[.!؟؛]/)[0] || notes || `المفاهيم الأساسية في درس ${lesson}`);
+  const kind = sourceKind(resource);
+  const label = sourceLabel(resource);
+  const modelIdea = normalize(splitNoteLines(notes)[0] || notes || `المفاهيم الأساسية في درس ${lesson}`);
   const pages = resource.pageStart && resource.pageEnd
     ? `من صفحة ${resource.pageStart} إلى صفحة ${resource.pageEnd}`
     : resource.pageStart
       ? `ابتداءً من صفحة ${resource.pageStart}`
-      : 'داخل محتوى الدرس المحفوظ في المكتبة';
+      : `داخل ${label}`;
   const base = `auto-${resource.id}`;
+  const common = { gradeKey, grade, term, unit, lesson, topic };
 
   const lessonOptions = uniqueOptions(lesson, distractorsForLesson(resource));
   const unitOptions = uniqueOptions(unit, ['الوحدة الأولى', 'الوحدة الثانية', 'مراجعة عامة']);
+  const sourceOptions = uniqueOptions(label, [
+    'ملف غير مرتبط بالصف الحالي',
+    'مورد ترفيهي خارج الدرس',
+    'سجل إداري للطلاب',
+  ]);
+
   const items = [
     buildQuestion(`${base}-lesson-mcq`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
+      ...common,
       type: 'mcq',
-      text: `أي عنوان يطابق المحتوى المحفوظ في هذا الدرس؟`,
+      text: 'أي عنوان يطابق المحتوى المستخدم في هذه الحصة؟',
       options: lessonOptions,
       answer: lesson,
       answerIndex: lessonOptions.indexOf(lesson),
@@ -89,12 +189,7 @@ export function generateQuestionsFromResource(resource = {}) {
       source: 'auto',
     }),
     buildQuestion(`${base}-unit-mcq`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
+      ...common,
       type: 'mcq',
       text: `ينتمي درس «${lesson}» إلى أي وحدة؟`,
       options: unitOptions,
@@ -104,15 +199,21 @@ export function generateQuestionsFromResource(resource = {}) {
       maxScore: 1,
       source: 'auto',
     }),
+    buildQuestion(`${base}-source-mcq`, {
+      ...common,
+      type: 'mcq',
+      text: `ما المصدر الأساسي المرتبط بهذا الجزء من درس «${lesson}»؟`,
+      options: sourceOptions,
+      answer: label,
+      answerIndex: sourceOptions.indexOf(label),
+      difficulty: 'سهل',
+      maxScore: 1,
+      source: 'auto',
+    }),
     buildQuestion(`${base}-content-tf`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
+      ...common,
       type: 'tf',
-      text: `المحتوى الحالي جزء من درس «${lesson}».`,
+      text: `المحتوى الحالي من «${label}» ومرتبط بدرس «${lesson}».`,
       options: ['صح', 'خطأ'],
       answer: 'صح',
       answerIndex: 0,
@@ -120,57 +221,49 @@ export function generateQuestionsFromResource(resource = {}) {
       maxScore: 1,
       source: 'auto',
     }),
-    buildQuestion(`${base}-main-idea`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
-      type: 'essay',
-      text: `اشرح الفكرة الرئيسة في درس «${lesson}» بأسلوبك.`,
-      answer: modelIdea,
-      difficulty: 'متوسط',
-      maxScore: 3,
-      source: 'auto',
-    }),
     buildQuestion(`${base}-concept`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
+      ...common,
       type: 'fill',
-      text: `${pages}: اكتب اسم المفهوم أو الدرس الذي تشرحه هذه الصفحات.`,
+      text: `${pages}: اكتب اسم الدرس الذي تشرحه هذه الصفحات أو المادة.`,
       answer: lesson,
       difficulty: 'سهل',
       maxScore: 1,
       source: 'auto',
     }),
-    buildQuestion(`${base}-review`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
+    buildQuestion(`${base}-main-idea`, {
+      ...common,
       type: 'essay',
-      text: `اذكر نقطتين مهمتين يجب مراجعتهما بعد دراسة «${lesson}».`,
-      answer: notes || `تُراجع أهداف الدرس والمفاهيم والأمثلة الواردة ${pages}.`,
+      text: `اشرح الفكرة الرئيسة في درس «${lesson}» اعتمادًا على ${label}.`,
+      answer: modelIdea,
       difficulty: 'متوسط',
-      maxScore: 2,
+      maxScore: 3,
       source: 'auto',
     }),
   ];
 
-  if (/خريطة|map|خرائط|جغراف/i.test(title + ' ' + lesson + ' ' + unit + ' ' + topic) || resource.type === 'map' || resource.mapState) {
+  items.push(...buildQuestionsFromNotes(resource, base, common));
+
+  if (kind === 'exams') {
+    items.push(buildQuestion(`${base}-exam-training`, {
+      ...common,
+      type: 'mcq',
+      text: `أي تدريب يجب اختياره لمراجعة درس «${lesson}» وفق ملف الامتحانات الرئيسي؟`,
+      options: uniqueOptions(`أسئلة ${lesson}`, [
+        `أسئلة درس مختلف من ${unit}`,
+        'أسئلة غير مرتبطة بالمنهج',
+        'تدريبات بلا إجابات أو مصدر',
+      ]),
+      answer: `أسئلة ${lesson}`,
+      answerIndex: 0,
+      difficulty: 'سهل',
+      maxScore: 1,
+      source: 'auto',
+    }));
+  }
+
+  if (/خريطة|map|خرائط|جغراف/i.test(`${title} ${lesson} ${unit} ${topic}`) || resource.type === 'map' || resource.mapState) {
     items.push(buildQuestion(`${base}-map`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
+      ...common,
       topic: 'الخريطة والظاهرات الجغرافية',
       type: 'map',
       text: `حدد على الخريطة أهم موقع أو ظاهرة جغرافية مرتبطة بدرس «${lesson}»، ثم وضح أهميتها.`,
@@ -183,12 +276,7 @@ export function generateQuestionsFromResource(resource = {}) {
 
   if (homework) {
     items.push(buildQuestion(`${base}-homework`, {
-      gradeKey,
-      grade,
-      term: normalize(resource.term || 'الترم الأول'),
-      unit,
-      lesson,
-      topic,
+      ...common,
       type: 'essay',
       text: `سؤال الواجب المرتبط بدرس «${lesson}»: ${homework}`,
       answer: `تُراجع إجابة الطالب وفق عناصر الواجب المحفوظة في درس ${lesson}.`,
@@ -202,11 +290,17 @@ export function generateQuestionsFromResource(resource = {}) {
     ...question,
     resourceId: resource.id,
     resourceTitle: title,
-    sourceExamResourceId: resource.sourceExamResourceId || '',
-    sourceExamAssetId: resource.sourceExamAssetId || '',
-    sourceExamFileName: resource.sourceExamFileName || '',
+    sourceKind: kind,
+    sourceLabel: label,
+    sourceResourceId: resource.sourceResourceId || resource.id,
+    sourceAssetId: resource.assetId || '',
+    sourceFileName: resource.fileName || '',
+    sourceExamResourceId: resource.sourceExamResourceId || (kind === 'exams' ? resource.id : ''),
+    sourceExamAssetId: resource.sourceExamAssetId || (kind === 'exams' ? resource.assetId || '' : ''),
+    sourceExamFileName: resource.sourceExamFileName || (kind === 'exams' ? resource.fileName || '' : ''),
     sourcePageStart: resource.pageStart || '',
     sourcePageEnd: resource.pageEnd || '',
+    questionOrigin: kind === 'exams' ? 'official-exams' : kind === 'textbook' ? 'official-textbook' : 'lesson-content',
     source: 'auto',
   }));
 }
@@ -224,14 +318,16 @@ export function generateQuestionsForLessonBundle(lesson = {}, resources = []) {
   }).map((question) => ({
     ...question,
     lessonId: lesson.id || resource.lessonId || resource.parentLessonId || '',
+    lessonTitle: lesson.title || lesson.lesson || resource.lesson || '',
   })));
+
   const seen = new Set();
   return generated.filter((question) => {
-    const key = `${question.type}|${question.text}`;
+    const key = `${question.type}|${normalize(question.text)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  });
+  }).slice(0, 80);
 }
 
 export function upsertGeneratedQuestions(questionBank = [], resource = {}, generatedQuestions = []) {
@@ -255,7 +351,8 @@ export function removeGeneratedQuestions(questionBank = [], resourceId) {
   const prefix = `auto-${key}`;
   return (Array.isArray(questionBank) ? questionBank : []).filter((question) => {
     const sameResource = String(question?.resourceId ?? '') === key;
+    const sameLesson = String(question?.lessonId ?? '') === key;
     const samePrefix = String(question?.id ?? '').startsWith(prefix);
-    return !(sameResource || samePrefix);
+    return !(sameResource || sameLesson || samePrefix);
   });
 }

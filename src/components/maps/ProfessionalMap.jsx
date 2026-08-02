@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { geometryPath, featureCenter, getCountryName } from '../../data/geography';
 
 function mapItemColor(layerKey) {
-  return { terrain: '#d8b18d', water: '#68b8f5', minerals: '#eaa0d2', capitals: '#ff846f' }[layerKey] || '#f0d478';
+  return { terrain: '#d8b18d', mountains: '#c69b73', plateaus: '#d0a06b', plains: '#8fc77e', water: '#68b8f5', rivers: '#55aef2', seas: '#65c7e8', minerals: '#eaa0d2', capitals: '#ff846f', cities: '#ff9d77', latitude: '#8ed8ef', longitude: '#a7e3f2', population: '#f0c45f' }[layerKey] || '#f0d478';
 }
 
 
@@ -235,13 +235,11 @@ export default function ProfessionalMap({
           width="1000"
           height="620"
           className={`map-pro-draw-canvas ${['pen', 'eraser', 'highlighter'].includes(drawTool) ? 'active' : ''}`}
-          onMouseDown={onPointerDown}
-          onMouseMove={onPointerMove}
-          onMouseUp={onPointerUp}
-          onMouseLeave={onPointerUp}
-          onTouchStart={onPointerDown}
-          onTouchMove={onPointerMove}
-          onTouchEnd={onPointerUp}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onPointerLeave={onPointerUp}
         />
       </div>
     </div>
