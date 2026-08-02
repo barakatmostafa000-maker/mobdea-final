@@ -609,6 +609,12 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [zoom, setZoom] = useState(1);
   const [boardReady, setBoardReady] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
+
+  useEffect(() => {
+    if (!shareNotice) return undefined;
+    const timer = window.setTimeout(() => setShareNotice(''), 4500);
+    return () => window.clearTimeout(timer);
+  }, [shareNotice]);
   const [challengeMode, setChallengeMode] = useState('battle');
   const [challengePickIds, setChallengePickIds] = useState([]);
   const [challengeNotice, setChallengeNotice] = useState('');
@@ -1528,7 +1534,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const currentCount = students.length;
 
   return (
-    <section className={`page classmode-scene classmode-v103 ${fullscreen ? 'fullscreen' : ''}`} ref={sceneRef}>
+    <section className={`page classmode-scene classmode-v103 classmode-final-layout ${fullscreen ? 'fullscreen' : ''}`} ref={sceneRef}>
       <div className="classmode-top-header">
         <div className="classmode-header-brand">
           <img src={identity.logo || identity.icon} alt={identity.schoolName} />
@@ -1841,6 +1847,78 @@ export default function ClassMode({ data, updateData, navigate }) {
               <button className="secondary-btn" onClick={() => navigate('attendance')} type="button"><Camera size={16} /> مسح QR</button>
               <button className="secondary-btn" onClick={() => navigate('games')} type="button"><Gamepad2 size={16} /> جولة سريعة</button>
               <button className="secondary-btn" onClick={() => selectedStudent && praise(selectedStudent, 'comic')} disabled={!selectedStudent} type="button"><Sparkles size={16} /> تشجيع</button>
+        {/* MOBDEA PHRASE ICONS V2 */}
+        <div className="classmode-phrase-icon-row">
+          {selectedStudent ? (
+            <>
+              <details className="classmode-phrase-menu classmode-phrase-menu-positive">
+                <summary
+                  title="الجمل التشجيعية"
+                  aria-label="فتح الجمل التشجيعية"
+                >
+                  <span aria-hidden="true">⭐</span>
+                  <small>تشجيع</small>
+                </summary>
+
+                <div className="classmode-phrase-popover">
+                  <strong>جمل تشجيعية</strong>
+
+                  <div className="classmode-phrase-choices">
+                    {phrases.map((phrase, index) => (
+                      <button
+                        type="button"
+                        key={`positive-${phrase}-${index}`}
+                        onClick={() => sayPhrase(phrase)}
+                      >
+                        {phrase}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+
+              <details className="classmode-phrase-menu classmode-phrase-menu-corrective">
+                <summary
+                  title="الجمل التنبيهية"
+                  aria-label="فتح الجمل التنبيهية"
+                >
+                  <span aria-hidden="true">⚠️</span>
+                  <small>تنبيه</small>
+                </summary>
+
+                <div className="classmode-phrase-popover">
+                  <strong>جمل تنبيهية</strong>
+
+                  <div className="classmode-phrase-choices">
+                    {[
+                      "ركز وحاول مرة أخرى",
+                      "انتبه إلى السؤال جيدًا",
+                      "اهدأ وفكر قبل الإجابة",
+                      "راجع إجابتك مرة أخرى",
+                      "أحتاج منك تركيزًا أكبر",
+                      "لا تتعجل في الإجابة",
+                      "حاول أن تشارك معنا",
+                      "انتبه للشرح من فضلك",
+                    ].map((phrase, index) => (
+                      <button
+                        type="button"
+                        key={`corrective-${phrase}-${index}`}
+                        onClick={() => sayPhrase(phrase)}
+                      >
+                        {phrase}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            </>
+          ) : (
+            <span className="classmode-select-student-notice">
+              اختر طالبًا أولًا
+            </span>
+          )}
+        </div>
+
             </div>
             {selectedStudent && (
               <div className="classmode-selected-student">

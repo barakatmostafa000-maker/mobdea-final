@@ -17,7 +17,8 @@ const resources = [
 test('class media navigator filters every supported lesson media type', () => {
   assert.deepEqual(resourcesForContentMode(resources, 'images').map((item) => item.id), ['img-1', 'img-2']);
   assert.deepEqual(resourcesForContentMode(resources, 'videos').map((item) => item.id), ['video-1']);
-  assert.deepEqual(resourcesForContentMode(resources, 'files').map((item) => item.id), ['slides-1', 'doc-1']);
+  assert.deepEqual(resourcesForContentMode(resources, 'slides').map((item) => item.id), ['slides-1']);
+  assert.deepEqual(resourcesForContentMode(resources, 'files').map((item) => item.id), ['doc-1']);
   assert.deepEqual(resourcesForContentMode(resources, 'pdf').map((item) => item.id), ['pdf-1']);
 });
 

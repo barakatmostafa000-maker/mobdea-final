@@ -1,3 +1,5 @@
+@import "./whiteboard-reference.css";
+@import "./maps-reference.css";
 
 :root{
   font-family:Tahoma,Arial,sans-serif;
@@ -6341,3 +6343,1108 @@ body.mobdea-printing-cards .print-pack-page{background:#fff!important}
 .runtime-error-screen p{max-width:580px;color:#d3d8e0;overflow-wrap:anywhere}
 .runtime-error-screen>div{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .runtime-error-screen small{color:#9ba8b8}
+
+/* ===== MOBDEA CLASSMODE RESPONSIVE V2 START ===== */
+
+.classmode-board-page {
+  width: 100% !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 6px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  direction: rtl;
+  color: #f7dfaa;
+  background:
+    radial-gradient(
+      circle at 50% 15%,
+      rgba(146, 91, 26, 0.18),
+      transparent 44%
+    ),
+    linear-gradient(
+      180deg,
+      #17130e 0%,
+      #080706 100%
+    ) !important;
+}
+
+/* منع تمدد مكونات وضع الحصة خارج الشاشة */
+.classmode-board-page * {
+  box-sizing: border-box;
+}
+
+.classmode-board-page .classmode-shell {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* الشريط العلوي */
+.classmode-board-page .classmode-header,
+.classmode-board-page .classmode-topbar,
+.classmode-board-page .classmode-media-navigator,
+.classmode-board-page .media-navigator {
+  min-width: 0 !important;
+  margin: 0 !important;
+  border: 1px solid rgba(220, 160, 72, 0.35) !important;
+  border-radius: 12px !important;
+  background: rgba(12, 11, 9, 0.97) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* أيقونات المحتوى */
+.classmode-board-page .classmode-mode-tabs,
+.classmode-board-page .classmode-media-tabs,
+.classmode-board-page .media-navigator-tabs,
+.classmode-board-page [class*="media-nav"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: nowrap !important;
+  gap: 5px !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: thin;
+}
+
+.classmode-board-page .classmode-mode-tabs button,
+.classmode-board-page .classmode-media-tabs button,
+.classmode-board-page .media-navigator button,
+.classmode-board-page [class*="media-nav"] button {
+  flex: 0 0 auto !important;
+  min-width: 68px !important;
+  min-height: 48px !important;
+  padding: 5px 8px !important;
+  border: 1px solid rgba(224, 169, 83, 0.3) !important;
+  border-radius: 9px !important;
+  color: #f2cd80 !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+/* مساحة الشرح وقائمة الطلاب */
+.classmode-board-page .classmode-main,
+.classmode-board-page .classmode-layout,
+.classmode-board-page .classmode-workspace,
+.classmode-board-page .classmode-content {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(230px, 22vw, 290px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 7px !important;
+  overflow: hidden !important;
+}
+
+/* شاشة العرض الرئيسية */
+.classmode-board-page .classmode-board-panel,
+.classmode-board-page .classmode-stage,
+.classmode-board-page .classmode-display,
+.classmode-board-page .classmode-resource-stage,
+.classmode-board-page .classmode-canvas-wrap {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  border: 2px solid rgba(190, 128, 48, 0.58) !important;
+  border-radius: 12px !important;
+  background:
+    linear-gradient(
+      rgba(239, 215, 169, 0.96),
+      rgba(220, 185, 123, 0.96)
+    ),
+    #d7b57d !important;
+  box-shadow:
+    inset 0 0 38px rgba(84, 42, 5, 0.2),
+    0 10px 28px rgba(0, 0, 0, 0.32) !important;
+}
+
+/* المحتوى يملأ شاشة الشرح */
+.classmode-board-page canvas,
+.classmode-board-page iframe,
+.classmode-board-page video,
+.classmode-board-page img,
+.classmode-board-page .react-pdf__Page,
+.classmode-board-page .react-pdf__Page__canvas,
+.classmode-board-page .classmode-resource-viewer {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* لوحة الطلاب على التابلت */
+.classmode-board-page .classmode-side-panel:not(.classmode-phrases-pane) {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 7px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(218, 160, 72, 0.38) !important;
+  border-radius: 12px !important;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(27, 24, 18, 0.98),
+      rgba(10, 9, 7, 0.98)
+    ) !important;
+}
+
+/* إخفاء لوحة الجمل القديمة لأنها استبدلت بالأيقونتين */
+.classmode-board-page .classmode-phrases-pane {
+  display: none !important;
+}
+
+/* قائمة الطلاب */
+.classmode-board-page .classmode-students-list {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 3px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+
+.classmode-board-page .classmode-student-row {
+  min-height: 36px !important;
+  padding: 4px 5px !important;
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 5px !important;
+  border: 1px solid rgba(224, 169, 83, 0.22) !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+.classmode-board-page .classmode-student-row button {
+  min-width: 29px !important;
+  min-height: 29px !important;
+  padding: 3px !important;
+}
+
+/* منطقة أزرار الطالب */
+.classmode-board-page .classmode-student-actions {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  padding-top: 6px !important;
+}
+
+/* أيقونتا الجمل */
+.classmode-board-page .classmode-phrase-icon-row {
+  position: relative !important;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  margin-top: 4px !important;
+}
+
+.classmode-board-page .classmode-phrase-menu {
+  position: relative !important;
+  min-width: 0 !important;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary {
+  min-height: 42px !important;
+  padding: 5px 7px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  cursor: pointer !important;
+  list-style: none !important;
+  border: 1px solid rgba(224, 169, 83, 0.42) !important;
+  border-radius: 9px !important;
+  color: #f6d995 !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  user-select: none;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary span {
+  font-size: 19px !important;
+  line-height: 1 !important;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary small {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}
+
+.classmode-board-page .classmode-phrase-menu-positive > summary {
+  border-color: rgba(67, 194, 105, 0.48) !important;
+}
+
+.classmode-board-page .classmode-phrase-menu-corrective > summary {
+  border-color: rgba(232, 152, 45, 0.55) !important;
+}
+
+/* القائمة المنبثقة للجمل */
+.classmode-board-page .classmode-phrase-popover {
+  position: absolute !important;
+  z-index: 300 !important;
+  right: 0 !important;
+  bottom: calc(100% + 7px) !important;
+  width: min(280px, 72vw) !important;
+  max-height: 260px !important;
+  padding: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(224, 169, 83, 0.48) !important;
+  border-radius: 11px !important;
+  color: #f6dfab !important;
+  background: rgba(12, 11, 9, 0.99) !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.55) !important;
+}
+
+.classmode-board-page .classmode-phrase-popover strong {
+  display: block !important;
+  margin-bottom: 7px !important;
+  text-align: center !important;
+  color: #e7b85c !important;
+}
+
+.classmode-board-page .classmode-phrase-choices {
+  max-height: 205px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  overflow-y: auto !important;
+}
+
+.classmode-board-page .classmode-phrase-choices button {
+  width: 100% !important;
+  min-height: 35px !important;
+  padding: 6px 8px !important;
+  text-align: right !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 7px !important;
+  color: #f5e3bb !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.classmode-board-page .classmode-phrase-choices button:active {
+  transform: scale(0.98);
+}
+
+.classmode-board-page .classmode-select-student-notice {
+  grid-column: 1 / -1 !important;
+  padding: 7px !important;
+  text-align: center !important;
+  font-size: 11px !important;
+  color: rgba(247, 223, 170, 0.72) !important;
+}
+
+/* الشريط السفلي */
+.classmode-board-page .classmode-footer,
+.classmode-board-page .classmode-bottom-bar,
+.classmode-board-page .classmode-session-actions {
+  min-width: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 5px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border: 1px solid rgba(218, 160, 72, 0.35) !important;
+  border-radius: 11px !important;
+  background: rgba(11, 10, 8, 0.97) !important;
+}
+
+.classmode-board-page .classmode-footer button,
+.classmode-board-page .classmode-bottom-bar button,
+.classmode-board-page .classmode-session-actions button {
+  flex: 0 0 auto !important;
+}
+
+/* تابلت متوسط */
+@media (max-width: 1100px) and (orientation: landscape) {
+  .classmode-board-page {
+    padding: 4px !important;
+  }
+
+  .classmode-board-page .classmode-main,
+  .classmode-board-page .classmode-layout,
+  .classmode-board-page .classmode-workspace,
+  .classmode-board-page .classmode-content {
+    grid-template-columns: minmax(0, 1fr) 220px !important;
+    gap: 4px !important;
+  }
+
+  .classmode-board-page .classmode-student-row {
+    min-height: 32px !important;
+    font-size: 10px !important;
+  }
+
+  .classmode-board-page .classmode-mode-tabs button,
+  .classmode-board-page .classmode-media-tabs button,
+  .classmode-board-page .media-navigator button {
+    min-width: 61px !important;
+    min-height: 43px !important;
+    font-size: 9px !important;
+  }
+}
+
+/* الموبايل العرضي */
+@media (max-width: 900px) and (orientation: landscape) {
+  .classmode-board-page {
+    padding: 2px !important;
+  }
+
+  .classmode-board-page .classmode-main,
+  .classmode-board-page .classmode-layout,
+  .classmode-board-page .classmode-workspace,
+  .classmode-board-page .classmode-content {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* مساحة الشرح تملأ الشاشة */
+  .classmode-board-page .classmode-board-panel,
+  .classmode-board-page .classmode-stage,
+  .classmode-board-page .classmode-display,
+  .classmode-board-page .classmode-resource-stage,
+  .classmode-board-page .classmode-canvas-wrap {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Drawer الطلاب الموجود في المشروع */
+  .classmode-board-page .classmode-student-drawer-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1200 !important;
+    display: grid !important;
+    justify-items: end !important;
+    background: rgba(0, 0, 0, 0.62) !important;
+  }
+
+  .classmode-board-page .classmode-student-drawer {
+    width: min(290px, 78vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 8px !important;
+    overflow: hidden !important;
+    border-left: 1px solid rgba(224, 169, 83, 0.45) !important;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(29, 25, 18, 0.99),
+        rgba(8, 7, 6, 0.99)
+      ) !important;
+    box-shadow: -22px 0 55px rgba(0, 0, 0, 0.62) !important;
+  }
+
+  .classmode-board-page .classmode-student-drawer-list {
+    min-height: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .classmode-board-page .classmode-phrase-popover {
+    position: fixed !important;
+    right: 8px !important;
+    bottom: 65px !important;
+    width: min(290px, calc(100vw - 16px)) !important;
+    max-height: calc(100dvh - 90px) !important;
+  }
+
+  .classmode-board-page .classmode-phrase-choices {
+    max-height: calc(100dvh - 145px) !important;
+  }
+
+  .classmode-board-page .classmode-mode-tabs button,
+  .classmode-board-page .classmode-media-tabs button,
+  .classmode-board-page .media-navigator button {
+    min-width: 55px !important;
+    min-height: 39px !important;
+    padding: 3px 5px !important;
+    font-size: 8px !important;
+  }
+}
+
+/* رسالة تدوير الهاتف عند الوضع الرأسي */
+@media (max-width: 900px) and (orientation: portrait) {
+  .classmode-board-page::before {
+    content: "لف الهاتف للوضع العرضي لتشغيل وضع الحصة";
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: #f3d28c;
+    background:
+      radial-gradient(
+        circle at center,
+        rgba(110, 67, 22, 0.3),
+        transparent 55%
+      ),
+      #090806;
+  }
+
+  .classmode-board-page > * {
+    visibility: hidden !important;
+  }
+}
+
+/* ===== MOBDEA CLASSMODE RESPONSIVE V2 END ===== */
+
+
+/* =========================================================
+   MOBDEA FINAL UI HOTFIX — 2026-08-02
+   Fixes the real JSX structure used by AppShell, ClassMode and
+   Whiteboard on low-height Android tablets and landscape phones.
+   ========================================================= */
+html, body, #root {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+body { overflow: hidden !important; }
+
+/* ---------- Main application shell ---------- */
+.app-shell-v103:not(.lesson-mode-shell) {
+  width: 100% !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.app-shell-v103:not(.lesson-mode-shell) > .app-content {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+@media (max-width: 1100px), (orientation: portrait) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: 50px minmax(0, 1fr) !important;
+    grid-template-areas: "mobileHeader" "content" !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    grid-area: mobileHeader !important;
+    position: relative !important;
+    inset: auto !important;
+    z-index: 100 !important;
+    width: 100% !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    padding: 4px 8px !important;
+    display: grid !important;
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+    direction: rtl !important;
+    background: rgba(8, 11, 17, .98) !important;
+    border-bottom: 1px solid rgba(215, 173, 53, .24) !important;
+  }
+
+  .app-shell-v103 .mobile-menu-button,
+  .app-shell-v103 .mobile-alert-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+  }
+
+  .app-shell-v103 .mobile-brand-copy {
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103 .mobile-brand-avatar {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    object-fit: contain !important;
+    border-radius: 9px !important;
+  }
+
+  .app-shell-v103 .mobile-brand-copy > div,
+  .app-shell-v103 .mobile-brand-copy strong,
+  .app-shell-v103 .mobile-brand-copy span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .app-shell-v103 .mobile-brand-copy strong { font-size: 12px !important; }
+  .app-shell-v103 .mobile-brand-copy span { font-size: 8px !important; }
+
+  .app-shell-v103 .mobile-header-actions {
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103 .mobile-role-pill {
+    max-width: 72px !important;
+    padding: 4px 7px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 8px !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    grid-area: content !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar,
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 1002 !important;
+    width: min(82vw, 310px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    transform: translateX(105%) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar.open,
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area.is-open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  .app-shell-v103 .sidebar-nav {
+    min-height: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .app-shell-v103 > .drawer-overlay,
+  .app-shell-v103 > .app-shell-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1001 !important;
+    display: block !important;
+    background: rgba(0, 0, 0, .62) !important;
+    backdrop-filter: blur(2px) !important;
+  }
+}
+
+/* ---------- Compact dashboard on real Android landscape viewports ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    grid-template-rows: 44px minmax(0, 1fr) !important;
+  }
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 3px 6px !important;
+  }
+  .app-shell-v103 .mobile-menu-button,
+  .app-shell-v103 .mobile-alert-button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+  .app-shell-v103 .mobile-brand-avatar {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+  }
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content { padding: 4px !important; }
+
+  .dashboard-desktop-topbar { display: none !important; }
+  .dashboard-reference-layout,
+  .dashboard-v103 { gap: 5px !important; }
+  .dashboard-reference-hero,
+  .dashboard-v103 .dashboard-reference-hero {
+    min-height: 170px !important;
+    max-height: 190px !important;
+    grid-template-columns: minmax(0, 1fr) minmax(185px, .65fr) !important;
+    overflow: hidden !important;
+  }
+  .dashboard-reference-copy { padding: 10px 14px !important; }
+  .dashboard-reference-copy h2 { font-size: clamp(2.5rem, 7vw, 4rem) !important; }
+  .dashboard-reference-copy h3 { margin: 4px 0 7px !important; font-size: 1rem !important; }
+  .dashboard-reference-copy p { display: none !important; }
+  .dashboard-reference-portrait { min-height: 170px !important; height: 170px !important; }
+  .dashboard-today-panel { display: none !important; }
+  .dashboard-feature-grid,
+  .dashboard-v103 .dashboard-feature-grid {
+    grid-template-columns: repeat(6, minmax(105px, 1fr)) !important;
+    gap: 5px !important;
+    overflow-x: auto !important;
+  }
+  .dashboard-feature-card,
+  .dashboard-v103 .dashboard-feature-card {
+    min-width: 105px !important;
+    min-height: 92px !important;
+    padding: 7px !important;
+  }
+  .dashboard-feature-card p,
+  .dashboard-feature-card small,
+  .dashboard-reference-bottom { display: none !important; }
+}
+
+/* ---------- Class mode: board gets ~80%, students stay on the right ---------- */
+.classmode-v103.classmode-final-layout,
+.classmode-v103.classmode-final-layout.fullscreen {
+  width: 100% !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: 50px minmax(0, 1fr) 44px !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  overflow: hidden !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-top-header {
+  height: 50px !important;
+  min-height: 50px !important;
+  grid-template-columns: clamp(44px, 10vw, 155px) minmax(330px, 1fr) clamp(58px, 11vw, 145px) !important;
+  gap: 5px !important;
+  padding: 3px 5px !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-layout {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(175px, 20vw, 225px) !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+  direction: ltr !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-board-panel {
+  grid-column: 1 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  direction: rtl !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-side-column {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) auto !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+  direction: rtl !important;
+}
+
+.classmode-v103.classmode-final-layout .live-teacher-panel.is-idle { display: none !important; }
+.classmode-v103.classmode-final-layout .live-teacher-panel:not(.is-idle) {
+  position: fixed !important;
+  z-index: 450 !important;
+  top: 58px !important;
+  right: 8px !important;
+  width: min(360px, 88vw) !important;
+  max-height: calc(100dvh - 112px) !important;
+  overflow: auto !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .7) !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-students-panel {
+  grid-row: 1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 5px !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-phrases-panel {
+  grid-row: 2 !important;
+  max-height: 82px !important;
+  padding: 5px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-phrases-panel .panel-heading,
+.classmode-v103.classmode-final-layout .classmode-phrases-panel .classmode-phrase-add { display: none !important; }
+.classmode-v103.classmode-final-layout .classmode-phrase-list {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 4px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+.classmode-v103.classmode-final-layout .classmode-phrase-row { flex: 0 0 auto !important; }
+
+.classmode-v103.classmode-final-layout .classmode-student-row-actions {
+  grid-template-columns: repeat(6, minmax(23px, 1fr)) !important;
+  gap: 2px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-student-row-actions button {
+  min-width: 0 !important;
+  min-height: 25px !important;
+  padding: 1px !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.classmode-v103.classmode-final-layout .classmode-student-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 3px !important;
+  overflow: visible !important;
+}
+.classmode-v103.classmode-final-layout .classmode-student-actions > button {
+  min-width: 0 !important;
+  width: 100% !important;
+  padding: 4px 3px !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: .58rem !important;
+}
+.classmode-v103.classmode-final-layout .classmode-phrase-icon-row {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 3px !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-bottom-actions {
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 3px 5px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-bottom-actions button {
+  min-height: 30px !important;
+  padding: 3px 7px !important;
+  font-size: .62rem !important;
+}
+
+.classmode-v103.classmode-final-layout > .spoken-banner {
+  left: 50% !important;
+  bottom: 49px !important;
+  width: auto !important;
+  min-width: 220px !important;
+  max-width: min(430px, 78vw) !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  pointer-events: none !important;
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .classmode-v103.classmode-final-layout,
+  .classmode-v103.classmode-final-layout.fullscreen {
+    grid-template-rows: 42px minmax(0, 1fr) 38px !important;
+    gap: 3px !important;
+    padding: 3px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-top-header {
+    height: 42px !important;
+    min-height: 42px !important;
+    grid-template-columns: 38px minmax(300px, 1fr) 48px !important;
+    padding: 2px 4px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-header-brand > div,
+  .classmode-v103.classmode-final-layout .classmode-header-meta .header-meta-item:not(:first-child) { display: none !important; }
+  .classmode-v103.classmode-final-layout .classmode-header-brand img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-header-tabs button {
+    min-height: 34px !important;
+    padding: 2px !important;
+    font-size: .5rem !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-header-tabs svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-layout {
+    grid-template-columns: minmax(0, 1fr) clamp(165px, 20vw, 205px) !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-board-topbar {
+    flex-basis: 29px !important;
+    min-height: 29px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-current-badge,
+  .classmode-v103.classmode-final-layout .classmode-top-actions .secondary-btn,
+  .classmode-v103.classmode-final-layout .classmode-top-actions .danger-btn { display: none !important; }
+  .classmode-v103.classmode-final-layout .classmode-media-navigator {
+    flex-basis: 30px !important;
+    min-height: 30px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-toolbar {
+    flex-basis: 31px !important;
+    min-height: 31px !important;
+    max-height: 31px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-phrases-panel { display: none !important; }
+  .classmode-v103.classmode-final-layout .classmode-side-column {
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-bottom-actions {
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-bottom-actions-mid > button:nth-child(n + 6) { display: none !important; }
+  .classmode-v103.classmode-final-layout > .spoken-banner { bottom: 42px !important; }
+}
+
+/* ---------- Standalone whiteboard: header/layout/footer are siblings ---------- */
+.whiteboard-page {
+  width: 100% !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 3px !important;
+  display: grid !important;
+  grid-template-rows: 48px minmax(0, 1fr) 40px !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+}
+.whiteboard-page > .whiteboard-reference-header {
+  grid-row: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  margin: 0 !important;
+}
+.whiteboard-page > .whiteboard-reference-layout {
+  grid-row: 2 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: 54px minmax(0, 1fr) clamp(165px, 18vw, 215px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+  direction: ltr !important;
+}
+.whiteboard-page > .whiteboard-reference-footer {
+  grid-row: 3 !important;
+  width: 100% !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  margin: 0 !important;
+  padding: 3px 6px !important;
+}
+.whiteboard-page .whiteboard-tool-rail {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  direction: rtl !important;
+}
+.whiteboard-page .whiteboard-paper-stage {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 4px !important;
+  display: grid !important;
+  grid-template-rows: 36px minmax(0, 1fr) 38px !important;
+  overflow: hidden !important;
+  direction: rtl !important;
+}
+.whiteboard-page .whiteboard-resource-strip {
+  min-width: 0 !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 3px 5px !important;
+  overflow: hidden !important;
+}
+.whiteboard-page .whiteboard-resource-strip label,
+.whiteboard-page .whiteboard-resource-strip select { min-width: 0 !important; }
+.whiteboard-page .whiteboard-canvas-viewport {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 3px !important;
+  overflow: hidden !important;
+}
+.whiteboard-page .whiteboard-canvas-stack {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+}
+.whiteboard-page .whiteboard-bottom-toolbar {
+  grid-row: 3 !important;
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 2px 4px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+  gap: 4px !important;
+  overflow-x: auto !important;
+}
+.whiteboard-page .whiteboard-students-panel {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 4px !important;
+  overflow: hidden !important;
+  direction: rtl !important;
+}
+.whiteboard-page .whiteboard-students-list {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
+.whiteboard-page .whiteboard-motto { min-height: 58px !important; }
+.whiteboard-page .whiteboard-teacher-card {
+  left: 58px !important;
+  bottom: auto !important;
+  top: 4px !important;
+  min-height: 36px !important;
+  max-height: 40px !important;
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .whiteboard-page {
+    grid-template-rows: 38px minmax(0, 1fr) 34px !important;
+    gap: 2px !important;
+    padding: 2px !important;
+  }
+  .whiteboard-page > .whiteboard-reference-header {
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+  }
+  .whiteboard-page > .whiteboard-reference-layout {
+    grid-template-columns: 42px minmax(0, 1fr) clamp(145px, 18vw, 185px) !important;
+    gap: 2px !important;
+  }
+  .whiteboard-page > .whiteboard-reference-footer {
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+  }
+  .whiteboard-page .whiteboard-title-plaque {
+    min-width: 125px !important;
+    max-width: 42vw !important;
+    min-height: 30px !important;
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+  }
+  .whiteboard-page .whiteboard-title-plaque small { display: none !important; }
+  .whiteboard-page .whiteboard-brand-flag {
+    top: 3px !important;
+    left: 3px !important;
+    width: 34px !important;
+    height: 30px !important;
+  }
+  .whiteboard-page .whiteboard-teacher-card { display: none !important; }
+  .whiteboard-page .whiteboard-tool-rail button {
+    min-height: 26px !important;
+    padding: 2px !important;
+    font-size: 0 !important;
+  }
+  .whiteboard-page .whiteboard-tool-rail button svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  .whiteboard-page .whiteboard-paper-stage {
+    grid-template-rows: 30px minmax(0, 1fr) 32px !important;
+    padding: 2px !important;
+  }
+  .whiteboard-page .whiteboard-resource-strip {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 2px 3px !important;
+  }
+  .whiteboard-page .whiteboard-bottom-toolbar {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+  }
+  .whiteboard-page .whiteboard-bottom-toolbar button,
+  .whiteboard-page .whiteboard-page-controls button,
+  .whiteboard-page .whiteboard-view-controls button {
+    min-height: 25px !important;
+    padding: 2px 4px !important;
+    font-size: 7px !important;
+  }
+  .whiteboard-page .whiteboard-motto { display: none !important; }
+}

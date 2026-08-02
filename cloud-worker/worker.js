@@ -448,6 +448,1254 @@ async function writeLiveEvent(env, room, event) {
   return record;
 }
 
+
+/* MOBDEA_GAME_ROOMS_CORE_V1 */
+
+function gameRoomKey(workspace, roomId) {
+  return `game-room:${workspace}:${roomId}`;
+}
+
+function gameCodeKey(workspace, joinCode) {
+  return `game-code:${workspace}:${joinCode}`;
+}
+
+function gameParticipantPrefix(workspace, roomId) {
+  return `game-participant:${workspace}:${roomId}:`;
+}
+
+function gameParticipantKey(workspace, roomId, participantId) {
+  return `${gameParticipantPrefix(workspace, roomId)}${participantId}`;
+}
+
+function gameEventPrefix(workspace, roomId) {
+  return `game-event:${workspace}:${roomId}:`;
+}
+
+function gameTokenIndexKey(workspace, roomId, tokenHashValue) {
+  return `game-token:${workspace}:${roomId}:${tokenHashValue}`;
+}
+
+function validGameJoinCode(value) {
+  const code = String(value || '').trim();
+  return /^[0-9]{6}$/.test(code) ? code : '';
+}
+
+function gameExpirationTtl(room) {
+  return liveExpirationTtl(room);
+}
+
+async function readGameRoom(env, workspace, roomId) {
+  const validRoomId = validLiveRoomId(roomId);
+  if (!validRoomId) return null;
+
+  const key = gameRoomKey(workspace, validRoomId);
+  const encrypted = await env.MOBDEA_DATA.get(key);
+  if (!encrypted) return null;
+
+  const room = await decryptJson(encrypted, env, key);
+
+  if (!room || Date.parse(room.expiresAt || '') <= Date.now()) {
+    return null;
+  }
+
+  return room;
+}
+
+async function writeGameRoom(env, room) {
+  const key = gameRoomKey(room.workspace, room.roomId);
+
+  await env.MOBDEA_DATA.put(
+    key,
+    await encryptJson(room, env, key),
+    { expirationTtl: gameExpirationTtl(room) },
+  );
+}
+
+async function readGameParticipant(
+  env,
+  workspace,
+  roomId,
+  participantId,
+) {
+  const key = gameParticipantKey(
+    workspace,
+    roomId,
+    participantId,
+  );
+
+  const encrypted = await env.MOBDEA_DATA.get(key);
+  if (!encrypted) return null;
+
+  return decryptJson(encrypted, env, key);
+}
+
+async function writeGameParticipant(env, room, participant) {
+  const key = gameParticipantKey(
+    room.workspace,
+    room.roomId,
+    participant.participantId,
+  );
+
+  await env.MOBDEA_DATA.put(
+    key,
+    await encryptJson(participant, env, key),
+    { expirationTtl: gameExpirationTtl(room) },
+  );
+}
+
+async function writeGameEvent(env, room, event = {}) {
+  const createdAtMs = Number(event.createdAtMs || Date.now());
+  const suffix = randomToken().slice(0, 8);
+
+  const key = `${gameEventPrefix(
+    room.workspace,
+    room.roomId,
+  )}${String(createdAtMs).padStart(13, '0')}:${suffix}`;
+
+  const record = {
+    id: key.slice(gameEventPrefix(
+      room.workspace,
+      room.roomId,
+    ).length),
+    createdAtMs,
+    createdAt: new Date(createdAtMs).toISOString(),
+    ...event,
+  };
+
+  await env.MOBDEA_DATA.put(
+    key,
+    await encryptJson(record, env, key),
+    { expirationTtl: gameExpirationTtl(room) },
+  );
+
+  return record;
+}
+
+async function authenticateGame(
+  request,
+  env,
+  workspace,
+  roomId,
+) {
+  const room = await readGameRoom(
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!room) return null;
+
+  const token = String(
+    request.headers.get('X-Mobdea-Game-Token') || '',
+  ).trim();
+
+  if (!token) return null;
+
+  if (
+    await tokenHash(token) ===
+    await tokenHash(room.teacherToken)
+  ) {
+    return {
+      room,
+      role: 'teacher',
+      participantId: 'teacher',
+    };
+  }
+
+  const participantId = await env.MOBDEA_DATA.get(
+    gameTokenIndexKey(
+      workspace,
+      roomId,
+      await tokenHash(token),
+    ),
+  );
+
+  if (!participantId) return null;
+
+  const participant = await readGameParticipant(
+    env,
+    workspace,
+    roomId,
+    participantId,
+  );
+
+  if (!participant || participant.status === 'removed') {
+    return null;
+  }
+
+  return {
+    room,
+    role: 'participant',
+    participantId,
+    participant,
+  };
+}
+
+
+/* MOBDEA_GAME_ROOMS_HANDLERS_V1 */
+
+function publicGameRoom(room = {}) {
+  return {
+    roomId: room.roomId,
+    workspace: room.workspace,
+    joinCode: room.joinCode,
+    title: room.title,
+    mode: room.mode,
+    status: room.status,
+    teacherName: room.teacherName,
+    maxParticipants: room.maxParticipants,
+    teamMode: Boolean(room.teamMode),
+    teams: Array.isArray(room.teams) ? room.teams : [],
+    state: room.state || {},
+    createdAt: room.createdAt,
+    startedAt: room.startedAt || null,
+    closedAt: room.closedAt || null,
+    expiresAt: room.expiresAt,
+  };
+}
+
+async function createUniqueGameJoinCode(env, workspace) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const values = crypto.getRandomValues(new Uint32Array(1));
+    const code = String(100000 + (values[0] % 900000));
+
+    const existing = await env.MOBDEA_DATA.get(
+      gameCodeKey(workspace, code),
+    );
+
+    if (!existing) return code;
+  }
+
+  throw new Error('Could not create a unique game code');
+}
+
+async function handleCreateGameRoom(request, env, auth) {
+  if (
+    await rateLimit(
+      request,
+      env,
+      auth.workspace,
+      true,
+      20,
+      'game-create',
+    )
+  ) {
+    return json(
+      request,
+      env,
+      { error: 'rate_limited' },
+      429,
+      { 'Retry-After': '60' },
+    );
+  }
+
+  const body = await parseJsonBody(request, 100000);
+
+  const ttlSeconds = Math.max(
+    LIVE_ROOM_TTL_MIN,
+    Math.min(
+      LIVE_ROOM_TTL_MAX,
+      Number(body.ttlSeconds || 21600),
+    ),
+  );
+
+  const roomId = randomToken().slice(0, 18);
+  const teacherToken = randomToken();
+  const joinCode = await createUniqueGameJoinCode(
+    env,
+    auth.workspace,
+  );
+
+  const createdAt = new Date().toISOString();
+  const expiresAt = new Date(
+    Date.now() + ttlSeconds * 1000,
+  ).toISOString();
+
+  const teams = Array.isArray(body.teams)
+    ? body.teams
+        .map((team) => safeLiveText(team, 40))
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
+
+  const room = {
+    roomId,
+    workspace: auth.workspace,
+    joinCode,
+    teacherToken,
+    teacherName: safeLiveText(
+      body.teacherName || body.hostName || 'المعلم',
+      80,
+    ),
+    title: safeLiveText(
+      body.title || 'تحدي مباشر',
+      140,
+    ),
+    mode: safeLiveText(
+      body.mode || 'individual',
+      30,
+    ),
+    teamMode: Boolean(body.teamMode || teams.length),
+    teams,
+    status: 'waiting',
+    maxParticipants: Math.max(
+      2,
+      Math.min(100, Number(body.maxParticipants || 40)),
+    ),
+    state: {
+      round: 0,
+      questionIndex: 0,
+      question: null,
+      started: false,
+      ...(body.state && typeof body.state === 'object'
+        ? body.state
+        : {}),
+    },
+    createdAt,
+    expiresAt,
+  };
+
+  await writeGameRoom(env, room);
+
+  await env.MOBDEA_DATA.put(
+    gameCodeKey(auth.workspace, joinCode),
+    roomId,
+    { expirationTtl: ttlSeconds },
+  );
+
+  await writeGameEvent(env, room, {
+    type: 'room-created',
+    actorRole: 'teacher',
+  });
+
+  return json(
+    request,
+    env,
+    {
+      ok: true,
+      room: publicGameRoom(room),
+      teacherToken,
+      joinCode,
+    },
+    201,
+  );
+}
+
+async function handleJoinGameRoom(request, env, workspace) {
+  if (
+    await rateLimit(
+      request,
+      env,
+      workspace,
+      false,
+      60,
+      'game-join',
+    )
+  ) {
+    return json(
+      request,
+      env,
+      { error: 'rate_limited' },
+      429,
+      { 'Retry-After': '60' },
+    );
+  }
+
+  const body = await parseJsonBody(request, 50000);
+  const joinCode = validGameJoinCode(body.joinCode);
+
+  if (!joinCode) {
+    return json(
+      request,
+      env,
+      { error: 'invalid_join_code' },
+      400,
+    );
+  }
+
+  const roomId = await env.MOBDEA_DATA.get(
+    gameCodeKey(workspace, joinCode),
+  );
+
+  if (!roomId) {
+    return json(
+      request,
+      env,
+      { error: 'game_room_not_found' },
+      404,
+    );
+  }
+
+  const room = await readGameRoom(
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!room) {
+    return json(
+      request,
+      env,
+      { error: 'game_room_not_found' },
+      404,
+    );
+  }
+
+  if (room.status === 'closed') {
+    return json(
+      request,
+      env,
+      { error: 'game_room_closed' },
+      410,
+    );
+  }
+
+  const displayName = safeLiveText(
+    body.displayName || body.studentName || body.name,
+    80,
+  );
+
+  if (!displayName) {
+    return json(
+      request,
+      env,
+      { error: 'display_name_required' },
+      400,
+    );
+  }
+
+  const participantId = randomToken().slice(0, 18);
+  const participantToken = randomToken();
+  const joinedAt = new Date().toISOString();
+
+  const requestedTeam = safeLiveText(
+    body.team || '',
+    40,
+  );
+
+  const team =
+    room.teamMode &&
+    room.teams.includes(requestedTeam)
+      ? requestedTeam
+      : '';
+
+  const participant = {
+    participantId,
+    roomId: room.roomId,
+    workspace: room.workspace,
+    studentId: safeLiveText(body.studentId || '', 80),
+    displayName,
+    team,
+    score: 0,
+    correctAnswers: 0,
+    wrongAnswers: 0,
+    answeredQuestions: 0,
+    status: 'waiting',
+    joinedAt,
+    updatedAt: joinedAt,
+  };
+
+  await writeGameParticipant(
+    env,
+    room,
+    participant,
+  );
+
+  await env.MOBDEA_DATA.put(
+    gameTokenIndexKey(
+      workspace,
+      room.roomId,
+      await tokenHash(participantToken),
+    ),
+    participantId,
+    { expirationTtl: gameExpirationTtl(room) },
+  );
+
+  await writeGameEvent(env, room, {
+    type: 'participant-joined',
+    participantId,
+    displayName,
+    team,
+  });
+
+  return json(
+    request,
+    env,
+    {
+      ok: true,
+      room: publicGameRoom(room),
+      participant,
+      participantToken,
+    },
+    201,
+  );
+}
+
+
+/* MOBDEA_GAME_CONTROL_V1 */
+
+async function listGameParticipants(
+  env,
+  workspace,
+  roomId,
+) {
+  const page = await env.MOBDEA_DATA.list({
+    prefix: gameParticipantPrefix(workspace, roomId),
+    limit: 250,
+  });
+
+  const participants = [];
+
+  for (const item of page.keys || []) {
+    const encrypted = await env.MOBDEA_DATA.get(item.name);
+    if (!encrypted) continue;
+
+    const participant = await decryptJson(
+      encrypted,
+      env,
+      item.name,
+    );
+
+    if (
+      participant &&
+      participant.status !== 'removed'
+    ) {
+      participants.push(participant);
+    }
+  }
+
+  participants.sort((left, right) => {
+    const scoreDifference =
+      Number(right.score || 0) - Number(left.score || 0);
+
+    if (scoreDifference) return scoreDifference;
+
+    return String(left.joinedAt || '').localeCompare(
+      String(right.joinedAt || ''),
+    );
+  });
+
+  return participants;
+}
+
+function buildGameLeaderboard(participants = []) {
+  return participants.map((participant, index) => ({
+    rank: index + 1,
+    participantId: participant.participantId,
+    displayName: participant.displayName,
+    team: participant.team || '',
+    score: Number(participant.score || 0),
+    correctAnswers: Number(
+      participant.correctAnswers || 0,
+    ),
+    wrongAnswers: Number(
+      participant.wrongAnswers || 0,
+    ),
+    answeredQuestions: Number(
+      participant.answeredQuestions || 0,
+    ),
+    status: participant.status,
+  }));
+}
+
+function buildTeamLeaderboard(participants = []) {
+  const teams = new Map();
+
+  for (const participant of participants) {
+    const team = String(participant.team || '').trim();
+    if (!team) continue;
+
+    const current = teams.get(team) || {
+      team,
+      score: 0,
+      correctAnswers: 0,
+      members: 0,
+    };
+
+    current.score += Number(participant.score || 0);
+    current.correctAnswers += Number(
+      participant.correctAnswers || 0,
+    );
+    current.members += 1;
+
+    teams.set(team, current);
+  }
+
+  return Array.from(teams.values())
+    .sort((left, right) => right.score - left.score)
+    .map((team, index) => ({
+      rank: index + 1,
+      ...team,
+    }));
+}
+
+async function handleGameParticipants(
+  request,
+  env,
+  workspace,
+  roomId,
+) {
+  const auth = await authenticateGame(
+    request,
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!auth) {
+    return json(
+      request,
+      env,
+      { error: 'unauthorized' },
+      401,
+    );
+  }
+
+  const participants = await listGameParticipants(
+    env,
+    workspace,
+    roomId,
+  );
+
+  return json(request, env, {
+    ok: true,
+    room: publicGameRoom(auth.room),
+    participants,
+    leaderboard: buildGameLeaderboard(participants),
+    teamLeaderboard: buildTeamLeaderboard(participants),
+  });
+}
+
+async function handleGameRoomState(
+  request,
+  env,
+  workspace,
+  roomId,
+) {
+  const auth = await authenticateGame(
+    request,
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!auth) {
+    return json(
+      request,
+      env,
+      { error: 'unauthorized' },
+      401,
+    );
+  }
+
+  if (request.method === 'GET') {
+    const participants = await listGameParticipants(
+      env,
+      workspace,
+      roomId,
+    );
+
+    return json(request, env, {
+      ok: true,
+      room: publicGameRoom(auth.room),
+      participant:
+        auth.role === 'participant'
+          ? auth.participant
+          : null,
+      leaderboard: buildGameLeaderboard(participants),
+      teamLeaderboard: buildTeamLeaderboard(participants),
+    });
+  }
+
+  if (auth.role !== 'teacher') {
+    return json(
+      request,
+      env,
+      { error: 'teacher_required' },
+      403,
+    );
+  }
+
+  const body = await parseJsonBody(request, 120000);
+  const room = auth.room;
+  const previousStatus = room.status;
+
+  const allowedStatuses = new Set([
+    'waiting',
+    'active',
+    'paused',
+    'finished',
+    'closed',
+  ]);
+
+  if (
+    body.status &&
+    allowedStatuses.has(String(body.status))
+  ) {
+    room.status = String(body.status);
+  }
+
+  if (
+    body.state &&
+    typeof body.state === 'object' &&
+    !Array.isArray(body.state)
+  ) {
+    room.state = {
+      ...(room.state || {}),
+      ...body.state,
+    };
+  }
+
+  if (body.questionId !== undefined) {
+    room.state = {
+      ...(room.state || {}),
+      questionId: safeLiveText(body.questionId, 100),
+    };
+  }
+
+  if (body.answerKey !== undefined) {
+    room.answerKey = Array.isArray(body.answerKey)
+      ? body.answerKey
+          .map((answer) => safeLiveText(answer, 300))
+          .filter(Boolean)
+          .slice(0, 20)
+      : safeLiveText(body.answerKey, 300);
+  }
+
+  if (body.pointsPerCorrect !== undefined) {
+    room.pointsPerCorrect = Math.max(
+      0,
+      Math.min(
+        1000,
+        Number(body.pointsPerCorrect || 0),
+      ),
+    );
+  }
+
+  if (
+    room.status === 'active' &&
+    previousStatus !== 'active'
+  ) {
+    room.startedAt =
+      room.startedAt || new Date().toISOString();
+
+    room.state = {
+      ...(room.state || {}),
+      started: true,
+    };
+  }
+
+  if (
+    room.status === 'finished' ||
+    room.status === 'closed'
+  ) {
+    room.finishedAt =
+      room.finishedAt || new Date().toISOString();
+
+    room.state = {
+      ...(room.state || {}),
+      started: false,
+    };
+  }
+
+  room.updatedAt = new Date().toISOString();
+
+  await writeGameRoom(env, room);
+
+  await writeGameEvent(env, room, {
+    type: 'room-state-updated',
+    actorRole: 'teacher',
+    status: room.status,
+    questionId: room.state?.questionId || '',
+  });
+
+  const participants = await listGameParticipants(
+    env,
+    workspace,
+    roomId,
+  );
+
+  return json(request, env, {
+    ok: true,
+    room: publicGameRoom(room),
+    leaderboard: buildGameLeaderboard(participants),
+    teamLeaderboard: buildTeamLeaderboard(participants),
+  });
+}
+
+
+/* MOBDEA_GAME_PLAY_V1 */
+
+function normalizeGameAnswer(value) {
+  return String(value ?? '')
+    .normalize('NFKC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('ar');
+}
+
+function gameAnswerIsCorrect(answer, answerKey) {
+  const submitted = normalizeGameAnswer(answer);
+
+  if (!submitted) return false;
+
+  const acceptedAnswers = Array.isArray(answerKey)
+    ? answerKey
+    : [answerKey];
+
+  return acceptedAnswers.some(
+    (accepted) =>
+      normalizeGameAnswer(accepted) === submitted,
+  );
+}
+
+async function handleGameAnswer(
+  request,
+  env,
+  workspace,
+  roomId,
+) {
+  const auth = await authenticateGame(
+    request,
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!auth) {
+    return json(
+      request,
+      env,
+      { error: 'unauthorized' },
+      401,
+    );
+  }
+
+  if (auth.role !== 'participant') {
+    return json(
+      request,
+      env,
+      { error: 'participant_required' },
+      403,
+    );
+  }
+
+  const room = auth.room;
+
+  if (room.status !== 'active') {
+    return json(
+      request,
+      env,
+      { error: 'game_not_active' },
+      409,
+    );
+  }
+
+  const body = await parseJsonBody(request, 50000);
+
+  const questionId = safeLiveText(
+    body.questionId ||
+      room.state?.questionId ||
+      room.state?.questionIndex ||
+      '',
+    100,
+  );
+
+  if (!questionId) {
+    return json(
+      request,
+      env,
+      { error: 'question_not_ready' },
+      409,
+    );
+  }
+
+  if (
+    !room.answerKey ||
+    (
+      Array.isArray(room.answerKey) &&
+      room.answerKey.length === 0
+    )
+  ) {
+    return json(
+      request,
+      env,
+      { error: 'answer_key_not_ready' },
+      409,
+    );
+  }
+
+  const participant = await readGameParticipant(
+    env,
+    workspace,
+    roomId,
+    auth.participantId,
+  );
+
+  if (!participant) {
+    return json(
+      request,
+      env,
+      { error: 'participant_not_found' },
+      404,
+    );
+  }
+
+  if (
+    String(participant.lastQuestionId || '') ===
+    String(questionId)
+  ) {
+    return json(
+      request,
+      env,
+      {
+        error: 'answer_already_submitted',
+        participant,
+      },
+      409,
+    );
+  }
+
+  const answer = safeLiveText(
+    body.answer ?? body.value ?? '',
+    300,
+  );
+
+  if (!answer) {
+    return json(
+      request,
+      env,
+      { error: 'answer_required' },
+      400,
+    );
+  }
+
+  const correct = gameAnswerIsCorrect(
+    answer,
+    room.answerKey,
+  );
+
+  const basePoints = Math.max(
+    0,
+    Math.min(
+      1000,
+      Number(room.pointsPerCorrect ?? 100),
+    ),
+  );
+
+  const elapsedMs = Math.max(
+    0,
+    Math.min(
+      3600000,
+      Number(body.elapsedMs || 0),
+    ),
+  );
+
+  const timeLimitMs = Math.max(
+    0,
+    Number(room.state?.timeLimitMs || 0),
+  );
+
+  let awardedPoints = correct ? basePoints : 0;
+
+  if (
+    correct &&
+    timeLimitMs > 0 &&
+    elapsedMs > 0 &&
+    elapsedMs < timeLimitMs
+  ) {
+    const speedRatio = Math.max(
+      0,
+      (timeLimitMs - elapsedMs) / timeLimitMs,
+    );
+
+    awardedPoints += Math.round(
+      basePoints * 0.25 * speedRatio,
+    );
+  }
+
+  const answeredAt = new Date().toISOString();
+
+  participant.score =
+    Number(participant.score || 0) + awardedPoints;
+
+  participant.correctAnswers =
+    Number(participant.correctAnswers || 0) +
+    (correct ? 1 : 0);
+
+  participant.wrongAnswers =
+    Number(participant.wrongAnswers || 0) +
+    (correct ? 0 : 1);
+
+  participant.answeredQuestions =
+    Number(participant.answeredQuestions || 0) + 1;
+
+  participant.lastQuestionId = questionId;
+  participant.lastAnswer = answer;
+  participant.lastAnswerCorrect = correct;
+  participant.lastAwardedPoints = awardedPoints;
+  participant.lastAnsweredAt = answeredAt;
+  participant.status = 'active';
+  participant.updatedAt = answeredAt;
+
+  await writeGameParticipant(
+    env,
+    room,
+    participant,
+  );
+
+  await writeGameEvent(env, room, {
+    type: 'answer-submitted',
+    participantId: participant.participantId,
+    displayName: participant.displayName,
+    team: participant.team || '',
+    questionId,
+    correct,
+    awardedPoints,
+    elapsedMs,
+  });
+
+  const participants = await listGameParticipants(
+    env,
+    workspace,
+    roomId,
+  );
+
+  return json(request, env, {
+    ok: true,
+    correct,
+    awardedPoints,
+    participant,
+    leaderboard: buildGameLeaderboard(participants),
+    teamLeaderboard: buildTeamLeaderboard(participants),
+  });
+}
+
+async function handleGameEvents(
+  request,
+  env,
+  workspace,
+  roomId,
+) {
+  const auth = await authenticateGame(
+    request,
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!auth) {
+    return json(
+      request,
+      env,
+      { error: 'unauthorized' },
+      401,
+    );
+  }
+
+  const url = new URL(request.url);
+
+  const after = Math.max(
+    0,
+    Number(url.searchParams.get('after') || 0),
+  );
+
+  const page = await env.MOBDEA_DATA.list({
+    prefix: gameEventPrefix(workspace, roomId),
+    limit: 250,
+  });
+
+  const events = [];
+
+  for (const item of page.keys || []) {
+    const encrypted = await env.MOBDEA_DATA.get(
+      item.name,
+    );
+
+    if (!encrypted) continue;
+
+    const event = await decryptJson(
+      encrypted,
+      env,
+      item.name,
+    );
+
+    if (
+      event &&
+      Number(event.createdAtMs || 0) > after
+    ) {
+      events.push(event);
+    }
+  }
+
+  events.sort(
+    (left, right) =>
+      Number(left.createdAtMs || 0) -
+      Number(right.createdAtMs || 0),
+  );
+
+  return json(request, env, {
+    ok: true,
+    room: publicGameRoom(auth.room),
+    events: events.slice(-100),
+    serverTime: Date.now(),
+  });
+}
+
+async function handleCloseGameRoom(
+  request,
+  env,
+  workspace,
+  roomId,
+) {
+  const auth = await authenticateGame(
+    request,
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!auth) {
+    return json(
+      request,
+      env,
+      { error: 'unauthorized' },
+      401,
+    );
+  }
+
+  if (auth.role !== 'teacher') {
+    return json(
+      request,
+      env,
+      { error: 'teacher_required' },
+      403,
+    );
+  }
+
+  const room = auth.room;
+  room.status = 'closed';
+  room.closedAt = new Date().toISOString();
+  room.updatedAt = room.closedAt;
+  room.state = {
+    ...(room.state || {}),
+    started: false,
+  };
+
+  await writeGameRoom(env, room);
+
+  await writeGameEvent(env, room, {
+    type: 'room-closed',
+    actorRole: 'teacher',
+  });
+
+  const participants = await listGameParticipants(
+    env,
+    workspace,
+    roomId,
+  );
+
+  return json(request, env, {
+    ok: true,
+    room: publicGameRoom(room),
+    leaderboard: buildGameLeaderboard(participants),
+    teamLeaderboard: buildTeamLeaderboard(participants),
+  });
+}
+
+
+/* MOBDEA_GAME_POST_EVENTS_V1 */
+
+async function handlePostGameEvent(
+  request,
+  env,
+  workspace,
+  roomId,
+) {
+  const auth = await authenticateGame(
+    request,
+    env,
+    workspace,
+    roomId,
+  );
+
+  if (!auth) {
+    return json(
+      request,
+      env,
+      { error: 'unauthorized' },
+      401,
+    );
+  }
+
+  const body = await parseJsonBody(request, 120000);
+
+  const type = safeLiveText(body.type || '', 60);
+
+  if (!type) {
+    return json(
+      request,
+      env,
+      { error: 'event_type_required' },
+      400,
+    );
+  }
+
+  const participantAllowed = new Set([
+    'game-answer',
+    'participant-ready',
+    'participant-status',
+    'microphone-request',
+  ]);
+
+  if (
+    auth.role !== 'teacher' &&
+    !participantAllowed.has(type)
+  ) {
+    return json(
+      request,
+      env,
+      { error: 'teacher_required' },
+      403,
+    );
+  }
+
+  const data =
+    body.data &&
+    typeof body.data === 'object' &&
+    !Array.isArray(body.data)
+      ? body.data
+      : {};
+
+  const event = await writeGameEvent(
+    env,
+    auth.room,
+    {
+      type,
+      targetId: safeLiveText(
+        body.targetId || '',
+        100,
+      ),
+      actorRole: auth.role,
+      participantId:
+        auth.role === 'participant'
+          ? auth.participantId
+          : 'teacher',
+      data,
+    },
+  );
+
+  return json(
+    request,
+    env,
+    {
+      ok: true,
+      event,
+    },
+    201,
+  );
+}
+
 async function handleCreateLiveRoom(request, env, auth) {
   if (!(await rateLimit(request, env, auth.workspace, true, 20, 'live-create'))) {
     return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
@@ -769,7 +2017,122 @@ export default {
         return handleCloseLiveRoom(request, env, liveWorkspace, validLiveRoomId(liveRoomMatch[1]));
       }
 
-      const auth = await authenticate(request, env);
+      
+      /* MOBDEA_GAME_PUBLIC_ROUTES_V1 */
+      const gameWorkspace = validWorkspace(
+        request.headers.get('X-Mobdea-Workspace'),
+      );
+
+      if (
+        url.pathname === '/game/rooms/join' &&
+        request.method === 'POST'
+      ) {
+        return handleJoinGameRoom(
+          request,
+          env,
+          gameWorkspace,
+        );
+      }
+
+      const gameStateMatch =
+        /^\/game\/rooms\/([a-zA-Z0-9_-]+)\/state$/.exec(
+          url.pathname,
+        );
+
+      if (
+        gameStateMatch &&
+        ['GET', 'PATCH'].includes(request.method)
+      ) {
+        return handleGameRoomState(
+          request,
+          env,
+          gameWorkspace,
+          validLiveRoomId(gameStateMatch[1]),
+        );
+      }
+
+      const gameParticipantsMatch =
+        /^\/game\/rooms\/([a-zA-Z0-9_-]+)\/participants$/.exec(
+          url.pathname,
+        );
+
+      if (
+        gameParticipantsMatch &&
+        request.method === 'GET'
+      ) {
+        return handleGameParticipants(
+          request,
+          env,
+          gameWorkspace,
+          validLiveRoomId(gameParticipantsMatch[1]),
+        );
+      }
+
+      const gameAnswerMatch =
+        /^\/game\/rooms\/([a-zA-Z0-9_-]+)\/answer$/.exec(
+          url.pathname,
+        );
+
+      if (
+        gameAnswerMatch &&
+        request.method === 'POST'
+      ) {
+        return handleGameAnswer(
+          request,
+          env,
+          gameWorkspace,
+          validLiveRoomId(gameAnswerMatch[1]),
+        );
+      }
+
+      const gameEventsMatch =
+        /^\/game\/rooms\/([a-zA-Z0-9_-]+)\/events$/.exec(
+          url.pathname,
+        );
+
+      if (
+        gameEventsMatch &&
+        ['GET', 'POST'].includes(request.method)
+      ) {
+        const gameEventRoomId = validLiveRoomId(
+          gameEventsMatch[1],
+        );
+
+        if (request.method === 'POST') {
+          return handlePostGameEvent(
+            request,
+            env,
+            gameWorkspace,
+            gameEventRoomId,
+          );
+        }
+
+        return handleGameEvents(
+          request,
+          env,
+          gameWorkspace,
+          gameEventRoomId,
+        );
+      }
+
+      const gameRoomMatch =
+        /^\/game\/rooms\/([a-zA-Z0-9_-]+)$/.exec(
+          url.pathname,
+        );
+
+      if (
+        gameRoomMatch &&
+        request.method === 'DELETE'
+      ) {
+        return handleCloseGameRoom(
+          request,
+          env,
+          gameWorkspace,
+          validLiveRoomId(gameRoomMatch[1]),
+        );
+      }
+
+const auth = await authenticate(request, env);
       if (!auth) {
         const allowed = await rateLimit(request, env, 'auth', true);
         return allowed
@@ -777,6 +2140,19 @@ export default {
           : json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
       }
       if (url.pathname === '/live/rooms' && request.method === 'POST') return handleCreateLiveRoom(request, env, auth);
+
+      /* MOBDEA_GAME_PRIVATE_ROUTES_V1 */
+      if (
+        url.pathname === '/game/rooms' &&
+        request.method === 'POST'
+      ) {
+        return handleCreateGameRoom(
+          request,
+          env,
+          auth,
+        );
+      }
+
       if (url.pathname === '/assets/status' && request.method === 'POST') return handleAssetStatus(request, env, auth);
       const assetMatch = /^\/assets\/([a-zA-Z0-9._-]+)$/.exec(url.pathname);
       if (assetMatch && ['GET', 'HEAD', 'PUT', 'DELETE'].includes(request.method)) return handleAsset(request, env, auth, assetMatch[1]);

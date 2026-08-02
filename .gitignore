@@ -28,3 +28,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 .cache/
+
+# Local patch backups
+*.before-*
+*.bak

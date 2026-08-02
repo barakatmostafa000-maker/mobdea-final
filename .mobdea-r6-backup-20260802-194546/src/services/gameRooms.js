@@ -4,7 +4,14 @@ import {
   timeoutFetch,
   validateCloudConfig,
 } from './cloudSync';
-import { safeTrim } from '../utils/safe';
+/* LOCAL_SAFE_TRIM_V1 */
+function safeTrim(value, maxLength = 500) {
+  return String(value ?? '')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, Math.max(0, Number(maxLength) || 0));
+}
 
 const GAME_TOKEN_HEADER = 'X-Mobdea-Game-Token';
 const GAME_WORKSPACE_HEADER = 'X-Mobdea-Workspace';

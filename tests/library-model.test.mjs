@@ -47,6 +47,28 @@ test('lesson mode builds one automatic textbook resource and all lesson media', 
   assert.deepEqual(resources.map((item) => item.type), ['textbook', 'image', 'video', 'audio']);
 });
 
+test('selected lesson content still opens when the active class grade is stale', () => {
+  const data = {
+    contentLibrary: [
+      { id: 'book-6', kind: LIBRARY_KINDS.GRADE_TEXTBOOK, type: 'textbook', grade: 'الصف السادس الابتدائي', assetId: 'book-asset', title: 'كتاب السادس' },
+      { id: 'lesson-6', kind: LIBRARY_KINDS.LESSON, type: 'lesson', grade: 'الصف السادس الابتدائي', title: 'درس محفوظ', pageStart: 3, pageEnd: 8 },
+      { id: 'lesson-image', kind: LIBRARY_KINDS.LESSON_MEDIA, lessonId: 'lesson-6', type: 'image', assetId: 'image-asset', title: 'صورة الدرس' },
+    ],
+  };
+
+  const resources = getLessonModeResources(
+    data,
+    'الصف الرابع الابتدائي',
+    'lesson-6',
+  );
+
+  assert.equal(resources[0].virtualLessonTextbook, true);
+  assert.equal(resources[0].sourceResourceId, 'book-6');
+  assert.equal(resources[0].pageStart, 3);
+  assert.equal(resources[1].lessonId, 'lesson-6');
+  assert.equal(resources[1].type, 'image');
+});
+
 test('lesson PDF navigation never leaves the selected page range', () => {
   const resource = { pageStart: 7, pageEnd: 11 };
   assert.equal(clampLessonPage(1, resource, 100), 7);
@@ -89,4 +111,35 @@ test('lesson map keeps independent explanation layers for every selected region'
   assert.equal(state.regions.asia.placements[0].id, 'asia-mountain');
   assert.equal(state.regions.asia.strokes[0].id, 'asia-line');
   assert.equal(state.regions.europe.placements[0].id, 'europe-river');
+});
+
+test('library resources match a grade even when the session adds a group suffix', () => {
+  const data = {
+    contentLibrary: [
+      {
+        id: 'book-grade-normalized',
+        kind: LIBRARY_KINDS.GRADE_TEXTBOOK,
+        type: 'textbook',
+        grade: 'الصف الأول الإعدادي',
+        assetId: 'book-normalized',
+      },
+      {
+        id: 'lesson-grade-normalized',
+        kind: LIBRARY_KINDS.LESSON,
+        type: 'lesson',
+        grade: 'الصف الأول الإعدادي',
+        title: 'الدرس الأول',
+      },
+    ],
+  };
+
+  const textbook = getGradeTextbook(data, 'الصف الأول الإعدادي - مجموعة أ');
+  const resources = getLessonModeResources(
+    data,
+    'الصف الأول الإعدادي - مجموعة أ',
+    'lesson-grade-normalized',
+  );
+
+  assert.equal(textbook?.assetId, 'book-normalized');
+  assert.equal(resources[0]?.virtualLessonTextbook, true);
 });

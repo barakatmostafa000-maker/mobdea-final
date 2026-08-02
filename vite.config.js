@@ -6,6 +6,8 @@ export default defineConfig({
   base: './',
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    target: 'chrome61',
+    cssTarget: 'chrome61'
   }
 });

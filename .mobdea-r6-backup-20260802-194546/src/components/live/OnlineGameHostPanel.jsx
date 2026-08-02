@@ -36,6 +36,16 @@ function errorText(error, fallback) {
   return error?.message || fallback;
 }
 
+/* MOBDEA_GAME_ROOMS_HOST_V1 */
+import {
+  createGameRoom as createOnlineGameRoom,
+  postGameEvent as postOnlineGameEvent,
+  fetchGameParticipants as fetchOnlineGameParticipants,
+  fetchGameEvents as fetchOnlineGameEvents,
+  closeGameRoom as closeOnlineGameRoom,
+  createGamePoller as createOnlineGamePoller,
+} from '../../services/gameRooms';
+
 export default function OnlineGameHostPanel({
   cloudSync,
   title = 'تحدي أونلاين',
@@ -98,7 +108,7 @@ export default function OnlineGameHostPanel({
   const send = useCallback(async (event) => {
     const activeRoom = roomRef.current;
     if (!activeRoom) return null;
-    return postLiveEvent(
+    return postOnlineGameEvent(
       activeRoom,
       activeRoom.roomId,
       activeRoom.teacherToken,
@@ -223,17 +233,17 @@ export default function OnlineGameHostPanel({
   useEffect(() => {
     if (!room) return undefined;
     let disposed = false;
-    const stopParticipants = createLivePoller({
+    const stopParticipants = createOnlineGamePoller({
       intervalMs: 2500,
-      poll: () => listLiveParticipants(room, room.roomId, room.teacherToken),
+      poll: () => fetchOnlineGameParticipants(room, room.roomId, room.teacherToken),
       onData: (result) => {
         if (!disposed) setParticipants(result.participants || []);
       },
       onError: () => {},
     });
-    const stopEvents = createLivePoller({
+    const stopEvents = createOnlineGamePoller({
       intervalMs: 700,
-      poll: () => fetchLiveEvents(
+      poll: () => fetchOnlineGameEvents(
         room,
         room.roomId,
         room.teacherToken,
@@ -290,7 +300,7 @@ export default function OnlineGameHostPanel({
     setBusy(true);
     setNotice('');
     try {
-      const created = await createLiveRoom({ cloudSync }, {
+      const created = await createOnlineGameRoom({ cloudSync }, {
         title,
         grade,
         lesson: unit,
@@ -390,7 +400,7 @@ export default function OnlineGameHostPanel({
         targetId: 'all',
         data: { title, scoreboard },
       }).catch(() => null);
-      await closeLiveRoom(activeRoom, activeRoom.roomId, activeRoom.teacherToken);
+      await closeOnlineGameRoom(activeRoom, activeRoom.roomId, activeRoom.teacherToken);
       setRoom(null);
       roomRef.current = null;
       setPhase('idle');
