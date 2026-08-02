@@ -32,3 +32,10 @@ npm-debug.log*
 # Local patch backups
 *.before-*
 *.bak
+
+# Mobdea temporary patches and backups
+.mobdea-*-backup-*/
+MOBDEA-*.zip
+*.before-*
+*.bak
+cloudflare-login-link.txt
