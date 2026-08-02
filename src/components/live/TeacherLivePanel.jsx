@@ -30,6 +30,23 @@ import {
 import { cloudConfigured } from '../../services/cloudSync';
 import { copyToClipboard } from '../../services/share';
 
+
+function friendlyLiveError(error, fallback = 'تعذر تشغيل الحصة الأونلاين.') {
+  const raw = String(error?.message || error || '').trim();
+  const normalized = raw.toLowerCase();
+
+  if (normalized.includes('unauthorized') || normalized.includes('401') || normalized.includes('forbidden') || normalized.includes('403')) {
+    return 'تعذر إنشاء رابط الحصة: رمز مساحة العمل غير صحيح أو غير محفوظ. راجع إعدادات المزامنة السحابية.';
+  }
+  if (normalized.includes('failed to fetch') || normalized.includes('network') || normalized.includes('internet')) {
+    return 'تعذر الاتصال بخادم الحصة. تأكد من الإنترنت ثم حاول مرة أخرى.';
+  }
+  if (normalized.includes('timeout') || normalized.includes('مهلة')) {
+    return 'استغرق الخادم وقتًا طويلًا في الرد. حاول مرة أخرى بعد لحظات.';
+  }
+  return raw || fallback;
+}
+
 function participantLabel(participant) {
   return participant.studentCode
     ? `${participant.name} — ${participant.studentCode}`
@@ -78,6 +95,8 @@ export default function TeacherLivePanel({
   liveState,
   buildSnapshot,
   onNotice,
+  onOpenSettings,
+  startRequest = 0,
 }) {
   const [room, setRoom] = useState(null);
   const [participants, setParticipants] = useState([]);
@@ -98,6 +117,7 @@ export default function TeacherLivePanel({
   const participantsRef = useRef(participants);
   const renegotiatingRef = useRef(new Set());
   const pendingIceRef = useRef(new Map());
+  const lastStartRequestRef = useRef(0);
 
   useEffect(() => {
     roomRef.current = room;
@@ -319,7 +339,7 @@ export default function TeacherLivePanel({
         }
       },
       onError: (error) => {
-        if (!stopped) announce(error?.message || 'تعذر تحديث الحصة الأونلاين.');
+        if (!stopped) announce(friendlyLiveError(error, 'تعذر تحديث الحصة الأونلاين.'));
       },
     });
     return () => {
@@ -366,6 +386,7 @@ export default function TeacherLivePanel({
   const startRoom = async () => {
     if (!configured) {
       announce('فعّل المزامنة السحابية أولًا من الإعدادات لإنشاء رابط يعمل عند الطلاب.');
+      onOpenSettings?.();
       return;
     }
     setBusy(true);
@@ -378,11 +399,26 @@ export default function TeacherLivePanel({
       setPanelOpen(true);
       announce('تم إنشاء الحصة الأونلاين. انسخ الرابط وأرسله للطلاب.');
     } catch (error) {
-      announce(error?.message || 'تعذر إنشاء الحصة الأونلاين.');
+      announce(friendlyLiveError(error, 'تعذر إنشاء الحصة الأونلاين.'));
     } finally {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!startRequest || startRequest === lastStartRequestRef.current) return;
+    lastStartRequestRef.current = startRequest;
+
+    if (roomRef.current && studentLink) {
+      setPanelOpen(true);
+      void copyToClipboard(studentLink).then((copied) => {
+        announce(copied ? 'تم نسخ رابط الحصة الأونلاين.' : 'الحصة مفتوحة، لكن تعذر نسخ الرابط.');
+      });
+      return;
+    }
+
+    void startRoom();
+  }, [announce, startRequest, studentLink]);
 
   const startTeacherAudio = async () => {
     if (!room || teacherAudioActive) return;
@@ -623,14 +659,21 @@ export default function TeacherLivePanel({
             هذا الجهاز لا يدعم WebRTC كاملًا؛ سيعمل رابط المحتوى دون بث الصوت والصورة.
           </div>
         )}
-        <button
-          className="primary-btn"
-          type="button"
-          disabled={busy || !configured}
-          onClick={startRoom}
-        >
-          <Radio size={17} /> {busy ? 'جارٍ الإنشاء…' : 'بدء حصة أونلاين'}
-        </button>
+        <div className="live-idle-actions">
+          <button
+            className="primary-btn"
+            type="button"
+            disabled={busy || !configured}
+            onClick={startRoom}
+          >
+            <Radio size={17} /> {busy ? 'جارٍ الإنشاء…' : 'بدء حصة أونلاين'}
+          </button>
+          {!configured && (
+            <button className="secondary-btn" type="button" onClick={onOpenSettings}>
+              <Link size={16} /> إعداد الرابط الآن
+            </button>
+          )}
+        </div>
       </article>
     );
   }

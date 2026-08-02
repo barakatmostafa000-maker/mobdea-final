@@ -2,6 +2,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './components/AppShell';
+import AppErrorBoundary from './components/AppErrorBoundary';
 import LockScreen from './components/LockScreen';
 import Placeholder from './pages/Placeholder';
 import SharedAccess from './pages/SharedAccess';
@@ -17,6 +18,8 @@ import { release } from './config/release';
 import { ROLE_HOME, getRoleModules, buildWelcomeMessage } from './utils/auth';
 import { identity } from './config/identity';
 
+import MapChallenge from './pages/MapChallenge';
+import ContentLibrary from './pages/ContentLibrary';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Students = lazy(() => import('./pages/Students'));
 const Attendance = lazy(() => import('./pages/Attendance'));
@@ -30,7 +33,7 @@ const Reports = lazy(() => import('./pages/Reports'));
 const Games = lazy(() => import('./pages/Games'));
 const Achievements = lazy(() => import('./pages/Achievements'));
 const QuestionBankManager = lazy(() => import('./pages/QuestionBankManager'));
-const MapChallenge = lazy(() => import('./pages/MapChallenge'));
+
 const ClassMode = lazy(() => import('./pages/ClassMode'));
 const Whiteboard = lazy(() => import('./pages/Whiteboard'));
 const StudentCards = lazy(() => import('./pages/StudentCards'));
@@ -38,7 +41,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const PortalPreview = lazy(() => import('./pages/PortalPreview'));
 const DeviceDiagnostics = lazy(() => import('./pages/DeviceDiagnostics'));
 const SmartAssistant = lazy(() => import('./pages/SmartAssistant'));
-const ContentLibrary = lazy(() => import('./pages/ContentLibrary'));
+
 const Updates = lazy(() => import('./pages/Updates'));
 
 const LoadingScreen = () => <div className="loading-screen"><div className="loading-mark">م</div><h1>منصة المُبدع</h1><p>جارٍ تحميل الصفحة...</p></div>;
@@ -190,6 +193,13 @@ export default function App() {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [auth, setAuth] = useState(() => readAuthFromStorage());
+  useEffect(() => {
+    if (!auth) return;
+    if (active === 'dashboard' && ['student', 'guardian'].includes(auth.role)) {
+      setActive('portalPreview');
+    }
+  }, [active, auth?.role]);
+
   const rememberRef = useRef(Boolean(globalThis.localStorage?.getItem(AUTH_STORAGE_KEY)));
   const [welcomePlayed, setWelcomePlayed] = useState(false);
   const [welcomeToast, setWelcomeToast] = useState('');
@@ -277,9 +287,16 @@ export default function App() {
 
   useEffect(() => {
     if (!data || !auth || !['student', 'guardian'].includes(auth.role)) return;
-    const stillExists = data.students.some((student) => String(student.id) === String(auth.studentId));
-    if (!stillExists) handleLogout();
-  }, [data?.students, auth?.role, auth?.studentId]);
+    const students = Array.isArray(data.students) ? data.students : [];
+    const normalize = (value) => String(value || '').replace(/\D/g, '').slice(-10);
+    const linked = students.some((student) => {
+      if (String(student.id) === String(auth.studentId)) return true;
+      if (auth.role === 'student' && String(student.code) === String(auth.studentCode || '')) return true;
+      if (auth.role === 'guardian' && normalize(student.guardianPhone) === normalize(auth.guardianPhone)) return true;
+      return false;
+    });
+    if (!linked) handleLogout();
+  }, [data?.students, auth?.guardianPhone, auth?.role, auth?.studentCode, auth?.studentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -550,7 +567,7 @@ export default function App() {
     whiteboard: { ...common, navigate: setActive },
     students: common,
     studentCards: { data, auth },
-    portalPreview: { data, auth },
+    portalPreview: { data, auth, navigate: setActive },
     diagnostics: { data, auth },
     smartAssistant: { data, auth },
     contentLibrary: { ...common, navigate: setActive },
@@ -596,7 +613,9 @@ export default function App() {
     settings: Settings,
   };
 
-  const constrainedActive = allowedModules && !allowedModules.has(active) ? 'dashboard' : active;
+  const constrainedActive = allowedModules && !allowedModules.has(active)
+    ? ROLE_HOME[auth?.role] || 'dashboard'
+    : active;
   const Screen = screenMap[constrainedActive] || Placeholder;
   const ScreenProps = screenProps[constrainedActive] || { title: 'قيد التطوير', subtitle: 'سيتم استكمال الوحدة في الإصدار التالي.' };
 
@@ -616,11 +635,13 @@ export default function App() {
         auth={auth}
         onLogout={handleLogout}
       >
-        <Suspense fallback={<LoadingScreen />}>
-          <div key={constrainedActive} className="screen-stage">
-            <Screen {...ScreenProps} />
-          </div>
-        </Suspense>
+        <AppErrorBoundary key={constrainedActive} onReset={() => setActive(ROLE_HOME[auth?.role] || 'dashboard')}>
+          <Suspense fallback={<LoadingScreen />}>
+            <div className="screen-stage">
+              <Screen {...ScreenProps} />
+            </div>
+          </Suspense>
+        </AppErrorBoundary>
       </AppShell>
     </>
   );

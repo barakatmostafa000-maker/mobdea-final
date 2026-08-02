@@ -295,7 +295,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const recentBest = Math.max(0, ...(data?.mapResults || []).map((result) => Number(result.score || 0)));
 
   return (
-    <section className="page map-challenge-pro">
+    <section className="page map-challenge-pro map-game-v103">
       <header className="map-game-topbar">
         <div className="map-player-profile"><img src={identity.portrait} alt={identity.teacherName}/><div><strong>{identity.teacherName}</strong><small>مستوى الجغرافيا 12</small></div></div>
         <div className="map-game-counters"><span>🪙 <b>{score}</b></span><span>⭐ <b>{streak * 5}</b></span><span>⚡ <b>{Math.max(0, Math.round((lives / activeConfig.lives) * 100))}/100</b></span></div>

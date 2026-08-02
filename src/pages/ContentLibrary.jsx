@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   BookMarked,
@@ -23,8 +23,11 @@ import {
   Trash2,
   Upload,
   X,
+  ChevronLeft,
+  ChevronRight,
+  PlayCircle,
 } from 'lucide-react';
-import { generateQuestionsFromResource, removeGeneratedQuestions, upsertGeneratedQuestions } from '../services/contentQuestions';
+import { generateQuestionsForLessonBundle, removeGeneratedQuestions, upsertGeneratedQuestions } from '../services/contentQuestions';
 import { deleteAsset, storeAsset } from '../services/assetStore';
 import { useAssetUrl } from '../hooks/useAssetUrl';
 import {
@@ -114,12 +117,39 @@ function LessonThumbnail({ lesson }) {
   );
 }
 
-function LessonAccessAction({ data, lesson, canManage, onOpenLessonMode }) {
-  const firstResource = getLessonModeResources(data, lesson.grade, lesson.id)[0] || null;
-  const url = useAssetUrl(firstResource?.assetId, firstResource?.url);
+function LessonAccessAction({ data, lesson, canManage, onOpenLessonMode, onOpenViewer }) {
+  const resources = getLessonModeResources(data, lesson.grade, lesson.id);
   if (canManage) return <button className="primary-btn" type="button" onClick={onOpenLessonMode}><Sparkles size={15}/> فتح الحصة</button>;
-  if (url) return <a className="primary-btn" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/> عرض محتوى الدرس</a>;
+  if (resources.length) return <button className="primary-btn" type="button" onClick={onOpenViewer}><PlayCircle size={15}/> عرض محتوى الدرس</button>;
   return <span className="library-content-unavailable">لا يوجد ملف متاح للعرض</span>;
+}
+
+function StudentLessonResource({ resource }) {
+  const url = useAssetUrl(resource?.assetId, resource?.url);
+  if (!resource) return <div className="empty-state">لا يوجد محتوى في هذا الدرس.</div>;
+  if (!url) return <div className="empty-state"><File size={34}/><strong>{resource.title}</strong><span>الملف غير متاح على هذا الجهاز أو لم تتم مزامنته بعد.</span></div>;
+  if (resource.type === 'image') return <img className="student-lesson-media" src={url} alt={resource.title}/>;
+  if (resource.type === 'video') return <video className="student-lesson-media" controls playsInline src={url}/>;
+  if (resource.type === 'audio') return <audio className="student-lesson-audio" controls src={url}/>;
+  if (['pdf', 'textbook'].includes(resource.type)) return <iframe className="student-lesson-document" title={resource.title} src={`${url}#toolbar=1&navpanes=0`}/>;
+  return <div className="student-lesson-file-fallback"><MediaIcon type={resource.type} size={44}/><strong>{resource.title}</strong><small>{resource.fileName || resource.mimeType || mediaLabels[resource.type] || 'ملف الدرس'}</small><a className="primary-btn" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/> فتح الملف</a></div>;
+}
+
+function StudentLessonViewer({ data, lesson, index, onIndex, onClose }) {
+  const resources = getLessonModeResources(data, lesson?.grade, lesson?.id);
+  const safeIndex = resources.length ? Math.max(0, Math.min(index, resources.length - 1)) : 0;
+  const resource = resources[safeIndex] || null;
+  return <div className="student-lesson-viewer-backdrop" role="presentation" onClick={onClose}>
+    <section className="student-lesson-viewer" role="dialog" aria-modal="true" aria-label={`محتوى ${lesson?.title || 'الدرس'}`} onClick={(event) => event.stopPropagation()}>
+      <header><div><span className="eyebrow">محتوى الدرس</span><h2>{lesson?.title}</h2><small>{resource?.title || 'لا يوجد ملف'} {resources.length ? `— ${safeIndex + 1} من ${resources.length}` : ''}</small></div><button className="icon-action" type="button" onClick={onClose} aria-label="إغلاق"><X/></button></header>
+      <div className="student-lesson-viewer-stage"><StudentLessonResource resource={resource}/></div>
+      <footer>
+        <button className="secondary-btn" type="button" disabled={resources.length < 2} onClick={() => onIndex((safeIndex - 1 + resources.length) % resources.length)}><ChevronRight size={17}/> السابق</button>
+        <div className="student-lesson-resource-tabs">{resources.map((item, itemIndex) => <button key={item.id} className={itemIndex === safeIndex ? 'active' : ''} type="button" onClick={() => onIndex(itemIndex)} title={item.title}><MediaIcon type={item.type} size={16}/><span>{item.title}</span></button>)}</div>
+        <button className="secondary-btn" type="button" disabled={resources.length < 2} onClick={() => onIndex((safeIndex + 1) % resources.length)}>التالي <ChevronLeft size={17}/></button>
+      </footer>
+    </section>
+  </div>;
 }
 
 function PermanentCard({ kind, resource, grade, canManage, busy, onUpload, onRemove }) {
@@ -150,7 +180,17 @@ function PermanentCard({ kind, resource, grade, canManage, busy, onUpload, onRem
 export default function ContentLibrary({ data, updateData, auth, navigate }) {
   const canManage = !auth || ['admin', 'teacher'].includes(auth.role);
   const grades = useMemo(() => getAllLibraryGrades(data), [data]);
-  const [selectedGrade, setSelectedGrade] = useState(data.settings?.libraryGrade || grades.find((item) => item === defaultGrade) || grades[0] || defaultGrade);
+  const studentRecord = useMemo(() => {
+    if (auth?.role !== 'student') return null;
+    return (data.students || []).find((item) => Number(item.id) === Number(auth.studentId))
+      || (data.students || []).find((item) => String(item.code) === String(auth.studentCode || ''))
+      || null;
+  }, [auth?.role, auth?.studentCode, auth?.studentId, data.students]);
+  const visibleGrades = useMemo(() => {
+    if (auth?.role !== 'student') return grades;
+    return studentRecord?.grade ? [studentRecord.grade] : grades.slice(0, 1);
+  }, [auth?.role, grades, studentRecord?.grade]);
+  const [selectedGrade, setSelectedGrade] = useState(studentRecord?.grade || data.settings?.libraryGrade || grades.find((item) => item === defaultGrade) || grades[0] || defaultGrade);
   const [expandedGrades, setExpandedGrades] = useState(() => new Set([selectedGrade]));
   const [search, setSearch] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
@@ -160,11 +200,20 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
   const [replacedAssetIds, setReplacedAssetIds] = useState([]);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [viewerLessonId, setViewerLessonId] = useState('');
+  const [viewerIndex, setViewerIndex] = useState(0);
   const textbookInputRef = useRef(null);
   const examsInputRef = useRef(null);
   const mediaInputRef = useRef(null);
   const thumbnailInputRef = useRef(null);
   const recordingInputRef = useRef(null);
+
+  useEffect(() => {
+    if (auth?.role === 'student' && studentRecord?.grade && selectedGrade !== studentRecord.grade) {
+      setSelectedGrade(studentRecord.grade);
+      setExpandedGrades(new Set([studentRecord.grade]));
+    }
+  }, [auth?.role, selectedGrade, studentRecord?.grade]);
 
   const summary = useMemo(() => librarySummary(data), [data]);
   const selectedTextbook = useMemo(() => getGradeTextbook(data, selectedGrade), [data, selectedGrade]);
@@ -386,12 +435,12 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
       updatedAt: now,
     }));
     const examSource = getGradeExams(data, lesson.grade);
-    const generated = generateQuestionsFromResource({
+    const generated = generateQuestionsForLessonBundle({
       ...lesson,
       sourceExamResourceId: examSource?.id || '',
       sourceExamAssetId: examSource?.assetId || '',
       sourceExamFileName: examSource?.fileName || '',
-    });
+    }, [...editingMedia, ...mediaRecords]);
     const customQuestionBank = upsertGeneratedQuestions(data.customQuestionBank || [], lesson, generated);
     try {
       const textbook = getGradeTextbook(data, lesson.grade);
@@ -442,7 +491,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
       setSelectedGrade(lesson.grade);
       setExpandedGrades((current) => new Set([...current, lesson.grade]));
       setEditorOpen(false);
-      setNotice('تم حفظ الدرس وكل وسائطه وربطه تلقائيًا بوضع الحصة. يمكنك فتحه الآن مباشرة.');
+      setNotice('تم حفظ الدرس ووسائطه وربطه بوضع الحصة، وإنشاء مسودة أسئلة وألعاب تلقائية قابلة للمراجعة.');
     } catch (error) {
       setNotice(error?.message || 'تعذر حفظ الدرس.');
     } finally {
@@ -492,7 +541,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
   };
 
   return (
-    <section className="page content-page library-system-page">
+    <section className="page content-page library-system-page library-v103">
       <input ref={textbookInputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => void uploadPermanent(LIBRARY_KINDS.GRADE_TEXTBOOK, event.target.files?.[0])}/>
       <input ref={examsInputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => void uploadPermanent(LIBRARY_KINDS.GRADE_EXAMS, event.target.files?.[0])}/>
       <input ref={mediaInputRef} type="file" multiple hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.pps,.ppsx,.odp,.xls,.xlsx,.txt" onChange={(event) => void stageLessonMedia(event.target.files)}/>
@@ -503,7 +552,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
         <div><span className="eyebrow">المصدر الموحد للمحتوى</span><h2>المكتبة وإدارة الدروس</h2><p>الكتاب والامتحانات والدروس ووسائطها تُدار من هنا، وتفتح تلقائيًا داخل وضع الحصة.</p></div>
         <div className="library-heading-actions">
           <label>الصف النشط<select value={selectedGrade} onChange={(event) => { setSelectedGrade(event.target.value); setExpandedGrades((current) => new Set([...current, event.target.value])); }}>
-            {grades.map((item) => <option key={item} value={item}>{item}</option>)}
+            {visibleGrades.map((item) => <option key={item} value={item}>{item}</option>)}
           </select></label>
           {canManage && <button className="primary-btn" type="button" onClick={() => openCreateLesson(selectedGrade)}><Plus size={17}/> درس جديد</button>}
         </div>
@@ -526,7 +575,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
       <div className="library-search-bar"><Search size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث باسم الدرس أو الوحدة أو الملاحظات"/><span>{summary.lessons} درس</span></div>
 
       <div className="library-grade-accordions">
-        {grades.map((grade) => {
+        {visibleGrades.map((grade) => {
           const opened = expandedGrades.has(grade);
           const lessons = filteredLessons(grade);
           const textbook = getGradeTextbook(data, grade);
@@ -553,7 +602,7 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
                         <div className="library-media-chips">{media.slice(0, 6).map((item) => <span key={item.id}><MediaIcon type={item.type} size={13}/>{item.title}</span>)}{media.length > 6 && <span>+{media.length - 6}</span>}</div>
                       </div>
                       <div className="library-lesson-actions">
-                        <LessonAccessAction data={data} lesson={lesson} canManage={canManage} onOpenLessonMode={() => void openInLessonMode(lesson)}/>
+                        <LessonAccessAction data={data} lesson={lesson} canManage={canManage} onOpenLessonMode={() => void openInLessonMode(lesson)} onOpenViewer={() => { setViewerLessonId(lesson.id); setViewerIndex(0); }}/>
                         {canManage && <button className="secondary-btn" type="button" onClick={() => openEditLesson(lesson)}><PencilLine size={15}/> تعديل</button>}
                         {canManage && <button className="icon-action danger-text" type="button" onClick={() => void deleteLesson(lesson)} title="حذف الدرس"><Trash2 size={16}/></button>}
                       </div>
@@ -566,6 +615,14 @@ export default function ContentLibrary({ data, updateData, auth, navigate }) {
           );
         })}
       </div>
+
+      {viewerLessonId && <StudentLessonViewer
+        data={data}
+        lesson={(data.contentLibrary || []).find((item) => String(item.id) === String(viewerLessonId))}
+        index={viewerIndex}
+        onIndex={setViewerIndex}
+        onClose={() => { setViewerLessonId(''); setViewerIndex(0); }}
+      />}
 
       {editorOpen && <div className="library-editor-backdrop" role="presentation" onClick={() => void closeEditor()}>
         <aside className="library-lesson-editor" role="dialog" aria-modal="true" aria-label="محرر الدرس" onClick={(event) => event.stopPropagation()}>

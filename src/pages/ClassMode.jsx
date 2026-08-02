@@ -17,6 +17,7 @@ import {
   PenTool,
   Plus,
   Presentation,
+  Radio,
   Clock,
   Redo2,
   RotateCcw,
@@ -101,7 +102,8 @@ const modeResourceTypes = {
   images: ['image'],
   videos: ['video'],
   audio: ['audio'],
-  files: ['file', 'document', 'slides', 'link'],
+  slides: ['slides'],
+  files: ['file', 'document', 'link'],
 };
 
 const normalizeSequence = (sequence) => {
@@ -472,8 +474,19 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
 }
 
 export default function ClassMode({ data, updateData, navigate }) {
-  const current = data.sessions.find((session) => session.current) || data.sessions[0] || null;
-  const students = current ? data.students.filter((student) => student.group === current.group) : [];
+  const sessionList = Array.isArray(data.sessions) ? data.sessions : [];
+  const current = sessionList.find((session) => session.current) || sessionList[0] || {
+    id: 'standalone-class',
+    title: 'حصة جديدة',
+    group: '',
+    grade: '',
+    time: '',
+    current: false,
+  };
+  const studentList = Array.isArray(data.students) ? data.students : [];
+  const students = current.group
+    ? studentList.filter((student) => student.group === current.group)
+    : studentList;
   const today = todayISO();
   const availableGrades = useMemo(
     () => getAllLibraryGrades(data),
@@ -566,6 +579,8 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [redoStack, setRedoStack] = useState([]);
   const [selectedBoardActionId, setSelectedBoardActionId] = useState(null);
   const [recordingActive, setRecordingActive] = useState(false);
+  const [recordingBusy, setRecordingBusy] = useState(false);
+  const [liveStartRequest, setLiveStartRequest] = useState(0);
   const [recordingPaused, setRecordingPaused] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingBackend, setRecordingBackend] = useState('');
@@ -594,6 +609,12 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [zoom, setZoom] = useState(1);
   const [boardReady, setBoardReady] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
+
+  useEffect(() => {
+    if (!shareNotice) return undefined;
+    const timer = window.setTimeout(() => setShareNotice(''), 4500);
+    return () => window.clearTimeout(timer);
+  }, [shareNotice]);
   const [challengeMode, setChallengeMode] = useState('battle');
   const [challengePickIds, setChallengePickIds] = useState([]);
   const [challengeNotice, setChallengeNotice] = useState('');
@@ -630,22 +651,27 @@ export default function ClassMode({ data, updateData, navigate }) {
   const selectedResourceUrl = useAssetUrl(selectedResource?.assetId, selectedResource?.url);
 
   useEffect(() => {
-    if (!selectedResource) return;
+    if (!selectedResource) {
+      setContentMode('board');
+      return;
+    }
     const mode = selectedResource.type === 'image'
       ? 'images'
       : selectedResource.type === 'video'
         ? 'videos'
         : selectedResource.type === 'audio'
           ? 'audio'
-          : ['slides', 'document', 'file', 'link'].includes(selectedResource.type)
-            ? 'files'
+          : selectedResource.type === 'slides'
+            ? 'slides'
+            : ['document', 'file', 'link'].includes(selectedResource.type)
+              ? 'files'
             : ['pdf', 'textbook'].includes(selectedResource.type)
               ? 'pdf'
               : null;
     if (mode && !modeResourceTypes[contentMode]?.includes(selectedResource.type)) {
       setContentMode(mode);
     }
-  }, [selectedResource?.id]);
+  }, [selectedResource?.id, selectedResource?.type]);
 
   const selectedExamUrl = useAssetUrl(selectedResource?.examAssetId, selectedResource?.examUrl);
   const [classPage, setClassPage] = useState(null);
@@ -1049,7 +1075,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   }, [running]);
 
   const attendanceMap = useMemo(() => Object.fromEntries(
-    data.attendance
+    (Array.isArray(data.attendance) ? data.attendance : [])
       .filter((item) => item.date === today && item.sessionId === current?.id)
       .map((item) => [item.studentId, item.status])
   ), [data.attendance, today, current?.id]);
@@ -1268,147 +1294,153 @@ export default function ClassMode({ data, updateData, navigate }) {
   };
 
   const toggleClassRecording = async () => {
-    if (recordingActive || recordingBackendRef.current) {
-      await stopActiveRecording();
-      return;
-    }
-
-    setRecordingSeconds(0);
-    recordingStartedAtRef.current = Date.now();
-    recordingTimelineRef.current = [{
-      atSeconds: 0,
-      type: 'recording-started',
-      contentMode,
-      resourceId: selectedResource?.id || '',
-      resourceTitle: selectedResource?.title || '',
-      page: classPage || 1,
-      createdAt: new Date().toISOString(),
-    }];
-
-    if (nativeScreenRecordingAvailable()) {
-      try {
-        await startNativeScreenRecording({
-          title: activeLesson?.title || current?.title || 'الحصة',
-          withAudio: true,
-        });
-        recordingBackendRef.current = 'native';
-        setRecordingBackend('native');
-        setRecordingActive(true);
-        setRecordingPaused(false);
-        setShareNotice('بدأ تسجيل شاشة تطبيق Android وصوت المعلم. اضغط مرة أخرى للإيقاف والحفظ.');
+    if (recordingBusy) return;
+    setRecordingBusy(true);
+    try {
+      if (recordingActive || recordingBackendRef.current) {
+        await stopActiveRecording();
         return;
-      } catch (error) {
-        setShareNotice(error?.message || 'تعذر بدء تسجيل Android؛ سيتم استخدام التسجيل البديل.');
       }
-    }
 
-    if (navigator.mediaDevices?.getDisplayMedia && globalThis.MediaRecorder) {
-      try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { frameRate: { ideal: 15, max: 24 } },
-          audio: true,
-        });
-        let microphoneStream = null;
+      setRecordingSeconds(0);
+      recordingStartedAtRef.current = Date.now();
+      recordingTimelineRef.current = [{
+        atSeconds: 0,
+        type: 'recording-started',
+        contentMode,
+        resourceId: selectedResource?.id || '',
+        resourceTitle: selectedResource?.title || '',
+        page: classPage || 1,
+        createdAt: new Date().toISOString(),
+      }];
+
+      if (nativeScreenRecordingAvailable()) {
         try {
-          microphoneStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
-            video: false,
+          await startNativeScreenRecording({
+            title: activeLesson?.title || current?.title || 'الحصة',
+            withAudio: true,
           });
-        } catch {
-          setShareNotice('بدأ تسجيل الشاشة بدون ميكروفون المعلم؛ اسمح بالميكروفون لتسجيل الصوت.');
+          recordingBackendRef.current = 'native';
+          setRecordingBackend('native');
+          setRecordingActive(true);
+          setRecordingPaused(false);
+          setShareNotice('بدأ تسجيل شاشة تطبيق Android وصوت المعلم. اضغط مرة أخرى للإيقاف والحفظ.');
+          return;
+        } catch (error) {
+          setShareNotice(error?.message || 'تعذر بدء تسجيل Android؛ سيتم استخدام التسجيل البديل.');
         }
-
-        const combinedStream = new MediaStream();
-        displayStream.getVideoTracks().forEach((track) => combinedStream.addTrack(track));
-        const AudioEngine = globalThis.AudioContext || globalThis.webkitAudioContext;
-        const audioContext = AudioEngine ? new AudioEngine() : null;
-        if (audioContext) {
-          const mixedDestination = audioContext.createMediaStreamDestination();
-          for (const stream of [displayStream, microphoneStream].filter(Boolean)) {
-            if (!stream.getAudioTracks().length) continue;
-            audioContext.createMediaStreamSource(stream).connect(mixedDestination);
-          }
-          mixedDestination.stream.getAudioTracks().forEach((track) => combinedStream.addTrack(track));
-        } else {
-          const preferredAudio = microphoneStream?.getAudioTracks()?.[0]
-            || displayStream.getAudioTracks()?.[0];
-          if (preferredAudio) combinedStream.addTrack(preferredAudio);
-        }
-
-        const mimeCandidates = [
-          'video/webm;codecs=vp9,opus',
-          'video/webm;codecs=vp8,opus',
-          'video/webm',
-        ];
-        const mimeType = mimeCandidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) || '';
-        const recorder = new MediaRecorder(combinedStream, mimeType ? { mimeType } : undefined);
-        recordingChunksRef.current = [];
-        recorder.ondataavailable = (event) => {
-          if (event.data?.size) recordingChunksRef.current.push(event.data);
-        };
-        recorder.onpause = () => setRecordingPaused(true);
-        recorder.onresume = () => setRecordingPaused(false);
-        recorder.onerror = () => setShareNotice('حدث خطأ أثناء تسجيل الشاشة؛ سيتم حفظ سجل الحصة المتاح.');
-        recorder.onstop = async () => {
-          const durationSeconds = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
-          try {
-            const blob = recordingChunksRef.current.length
-              ? new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'video/webm' })
-              : null;
-            await saveCapturedRecording({
-              blob,
-              name: `تسجيل-${current?.title || 'الحصة'}-${today}-${Date.now()}.webm`,
-              type: blob?.type || 'video/webm',
-              durationSeconds,
-            });
-            setShareNotice(blob?.size
-              ? 'تم حفظ فيديو الحصة داخل قائمة التسجيلات بالترتيب الزمني.'
-              : 'تم حفظ سجل الحصة، لكن لم ينتج ملف فيديو من الجهاز.');
-          } catch (error) {
-            setShareNotice(error?.message || 'تعذر حفظ فيديو الحصة.');
-          } finally {
-            recordingChunksRef.current = [];
-            cleanupRecordingResources();
-            resetRecordingState();
-            recordingStopResolverRef.current?.();
-            recordingStopResolverRef.current = null;
-          }
-        };
-        const stopFromSystem = () => {
-          if (recorder.state !== 'inactive') recorder.stop();
-        };
-        displayStream.getVideoTracks()[0]?.addEventListener('ended', stopFromSystem, { once: true });
-        recordingCleanupRef.current = () => {
-          displayStream.getTracks().forEach((track) => track.stop());
-          microphoneStream?.getTracks().forEach((track) => track.stop());
-          combinedStream.getTracks().forEach((track) => track.stop());
-          audioContext?.close?.().catch(() => null);
-        };
-        recorder.start(1000);
-        mediaRecorderRef.current = recorder;
-        recordingBackendRef.current = 'web';
-        setRecordingBackend('web');
-        setRecordingActive(true);
-        setRecordingPaused(false);
-        setShareNotice('بدأ تسجيل شاشة الحصة وصوت المعلم.');
-        return;
-      } catch (error) {
-        cleanupRecordingResources();
-        setShareNotice(error?.name === 'NotAllowedError'
-          ? 'لم يتم منح إذن تسجيل الشاشة؛ بدأ حفظ سير الحصة النصي والسبورة.'
-          : 'تعذر تسجيل الشاشة؛ بدأ حفظ سير الحصة النصي والسبورة.');
       }
-    }
 
-    recordingBackendRef.current = 'timeline';
-    setRecordingBackend('timeline');
-    setRecordingActive(true);
-    setRecordingPaused(false);
-    setShareNotice('بدأ تسجيل سير الحصة داخل المنصة. اضغط مرة أخرى للإيقاف والحفظ.');
+      if (navigator.mediaDevices?.getDisplayMedia && globalThis.MediaRecorder) {
+        try {
+          const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: { ideal: 15, max: 24 } },
+            audio: true,
+          });
+          let microphoneStream = null;
+          try {
+            microphoneStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+              video: false,
+            });
+          } catch {
+            setShareNotice('بدأ تسجيل الشاشة بدون ميكروفون المعلم؛ اسمح بالميكروفون لتسجيل الصوت.');
+          }
+
+          const combinedStream = new MediaStream();
+          displayStream.getVideoTracks().forEach((track) => combinedStream.addTrack(track));
+          const AudioEngine = globalThis.AudioContext || globalThis.webkitAudioContext;
+          const audioContext = AudioEngine ? new AudioEngine() : null;
+          if (audioContext) {
+            const mixedDestination = audioContext.createMediaStreamDestination();
+            for (const stream of [displayStream, microphoneStream].filter(Boolean)) {
+              if (!stream.getAudioTracks().length) continue;
+              audioContext.createMediaStreamSource(stream).connect(mixedDestination);
+            }
+            mixedDestination.stream.getAudioTracks().forEach((track) => combinedStream.addTrack(track));
+          } else {
+            const preferredAudio = microphoneStream?.getAudioTracks()?.[0]
+              || displayStream.getAudioTracks()?.[0];
+            if (preferredAudio) combinedStream.addTrack(preferredAudio);
+          }
+
+          const mimeCandidates = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+          ];
+          const mimeType = mimeCandidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) || '';
+          const recorder = new MediaRecorder(combinedStream, mimeType ? { mimeType } : undefined);
+          recordingChunksRef.current = [];
+          recorder.ondataavailable = (event) => {
+            if (event.data?.size) recordingChunksRef.current.push(event.data);
+          };
+          recorder.onpause = () => setRecordingPaused(true);
+          recorder.onresume = () => setRecordingPaused(false);
+          recorder.onerror = () => setShareNotice('حدث خطأ أثناء تسجيل الشاشة؛ سيتم حفظ سجل الحصة المتاح.');
+          recorder.onstop = async () => {
+            const durationSeconds = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
+            try {
+              const blob = recordingChunksRef.current.length
+                ? new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'video/webm' })
+                : null;
+              await saveCapturedRecording({
+                blob,
+                name: `تسجيل-${current?.title || 'الحصة'}-${today}-${Date.now()}.webm`,
+                type: blob?.type || 'video/webm',
+                durationSeconds,
+              });
+              setShareNotice(blob?.size
+                ? 'تم حفظ فيديو الحصة داخل قائمة التسجيلات بالترتيب الزمني.'
+                : 'تم حفظ سجل الحصة، لكن لم ينتج ملف فيديو من الجهاز.');
+            } catch (error) {
+              setShareNotice(error?.message || 'تعذر حفظ فيديو الحصة.');
+            } finally {
+              recordingChunksRef.current = [];
+              cleanupRecordingResources();
+              resetRecordingState();
+              recordingStopResolverRef.current?.();
+              recordingStopResolverRef.current = null;
+            }
+          };
+          const stopFromSystem = () => {
+            if (recorder.state !== 'inactive') recorder.stop();
+          };
+          displayStream.getVideoTracks()[0]?.addEventListener('ended', stopFromSystem, { once: true });
+          recordingCleanupRef.current = () => {
+            displayStream.getTracks().forEach((track) => track.stop());
+            microphoneStream?.getTracks().forEach((track) => track.stop());
+            combinedStream.getTracks().forEach((track) => track.stop());
+            audioContext?.close?.().catch(() => null);
+          };
+          recorder.start(1000);
+          mediaRecorderRef.current = recorder;
+          recordingBackendRef.current = 'web';
+          setRecordingBackend('web');
+          setRecordingActive(true);
+          setRecordingPaused(false);
+          setShareNotice('بدأ تسجيل شاشة الحصة وصوت المعلم.');
+          return;
+        } catch (error) {
+          cleanupRecordingResources();
+          setShareNotice(error?.name === 'NotAllowedError'
+            ? 'لم يتم منح إذن تسجيل الشاشة؛ بدأ حفظ سير الحصة النصي والسبورة.'
+            : 'تعذر تسجيل الشاشة؛ بدأ حفظ سير الحصة النصي والسبورة.');
+        }
+      }
+
+      recordingBackendRef.current = 'timeline';
+      setRecordingBackend('timeline');
+      setRecordingActive(true);
+      setRecordingPaused(false);
+      setShareNotice('بدأ تسجيل سير الحصة داخل المنصة. اضغط مرة أخرى للإيقاف والحفظ.');
+    } finally {
+      setRecordingBusy(false);
+    }
   };
 
   stopRecordingOnUnmountRef.current = stopActiveRecording;
@@ -1502,7 +1534,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const currentCount = students.length;
 
   return (
-    <section className={`page classmode-scene ${fullscreen ? 'fullscreen' : ''}`} ref={sceneRef}>
+    <section className={`page classmode-scene classmode-v103 classmode-final-layout ${fullscreen ? 'fullscreen' : ''}`} ref={sceneRef}>
       <div className="classmode-top-header">
         <div className="classmode-header-brand">
           <img src={identity.logo || identity.icon} alt={identity.schoolName} />
@@ -1512,11 +1544,12 @@ export default function ClassMode({ data, updateData, navigate }) {
           </div>
         </div>
         <div className="classmode-header-tabs">
-          <button type="button" className={contentMode === 'pdf' ? 'active' : ''} onClick={() => switchContentMode('pdf')} title="PDF"><FileText size={24} /><span>PDF</span></button>
-          <button type="button" className={contentMode === 'board' ? 'active' : ''} onClick={() => switchContentMode('board')} title="السبورة"><PenTool size={24} /><span>السبورة</span></button>
-          <button type="button" className={contentMode === 'images' ? 'active' : ''} onClick={() => switchContentMode('images')} title="الصور"><FileImage size={24} /><span>الصور</span></button>
-          <button type="button" className={contentMode === 'videos' ? 'active' : ''} onClick={() => switchContentMode('videos')} title="الفيديوهات"><Video size={24} /><span>الفيديوهات</span></button>
-          <button type="button" className={contentMode === 'maps' ? 'active' : ''} onClick={() => switchContentMode('maps')} title="الخرائط"><Map size={24} /><span>الخرائط</span></button>
+          <button type="button" className={contentMode === 'pdf' ? 'active' : ''} onClick={() => switchContentMode('pdf')} title="كتاب الشرح PDF"><FileText size={22} /><span>PDF</span></button>
+          <button type="button" className={contentMode === 'board' ? 'active' : ''} onClick={() => switchContentMode('board')} title="السبورة"><PenTool size={22} /><span>السبورة</span></button>
+          <button type="button" className={contentMode === 'maps' ? 'active' : ''} onClick={() => switchContentMode('maps')} title="الخرائط"><Map size={22} /><span>الخرائط</span></button>
+          <button type="button" className={contentMode === 'images' ? 'active' : ''} onClick={() => switchContentMode('images')} title="الصور"><FileImage size={22} /><span>الصور</span></button>
+          <button type="button" className={contentMode === 'videos' ? 'active' : ''} onClick={() => switchContentMode('videos')} title="الفيديوهات"><Video size={22} /><span>الفيديو</span></button>
+          <button type="button" className={contentMode === 'slides' ? 'active' : ''} onClick={() => switchContentMode('slides')} title="PowerPoint"><Presentation size={22} /><span>PowerPoint</span></button>
         </div>
         <div className="classmode-header-meta">
           <div className="header-meta-item"><Clock size={18} /><div><b>{clockTime}</b><small>{formatDateAr(today)}</small></div></div>
@@ -1539,7 +1572,7 @@ export default function ClassMode({ data, updateData, navigate }) {
               <button className="icon-action" onClick={() => setRunning((value) => !value)} type="button">{running ? <CirclePause /> : <CirclePlay />}</button>
               <button className="icon-action" onClick={() => setSeconds(0)} type="button"><TimerReset /></button>
               <button className="icon-action" onClick={toggleFullscreen} type="button"><Maximize2 /></button>
-              <button className="secondary-btn" onClick={() => recordLesson({ copyLink: true })} type="button">رابط الطالب</button>
+              <button className="secondary-btn" onClick={() => setLiveStartRequest((value) => value + 1)} type="button">الحصة الأونلاين</button>
               <button className="danger-btn" onClick={endClass} type="button">إنهاء الحصة</button>
             </div>
           </div>
@@ -1561,7 +1594,7 @@ export default function ClassMode({ data, updateData, navigate }) {
             </div>
             <div className="classmode-resource-actions">
               <button className="secondary-btn" onClick={() => switchContentMode('board')} type="button"><Presentation size={16} /> فتح السبورة</button>
-              <button className="secondary-btn" onClick={() => recordLesson({ copyLink: true })} type="button"><ScanLine size={16} /> رابط الطالب</button>
+              <button className="secondary-btn" onClick={() => setLiveStartRequest((value) => value + 1)} type="button"><ScanLine size={16} /> رابط مباشر</button>
               <button className="primary-btn" onClick={saveLessonState} type="button"><Save size={16} /> حفظ الملخص</button>
             </div>
           </div>
@@ -1599,7 +1632,7 @@ export default function ClassMode({ data, updateData, navigate }) {
           />
 
           <div className="classmode-board-frame">
-            <div className="classmode-board-surface">
+            <div className={`classmode-board-surface ${boardToolsVisible ? 'with-tools' : ''}`}>
               {boardToolsVisible && <div className="classmode-board-sidebar-left">
                 {toolOptions.map(({ key, label, icon: Icon }) => (
                   <button key={key} type="button" className={tool === key ? 'active' : ''} onClick={() => setTool(key)} title={label}><Icon size={19} /><span>{label}</span></button>
@@ -1656,7 +1689,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                   <div className="classmode-empty-resource">
                     <File size={46} />
                     <h3>لا يوجد محتوى من هذا النوع في مكتبة المنصة</h3>
-                    <p>أضف {contentMode === 'videos' ? 'فيديو' : contentMode === 'images' ? 'صورة' : contentMode === 'audio' ? 'ملفًا صوتيًا' : contentMode === 'files' ? 'ملفًا أو عرضًا' : 'ملف PDF'} داخل الدرس في المكتبة ليظهر هنا تلقائيًا.</p>
+                    <p>أضف {contentMode === 'videos' ? 'فيديو' : contentMode === 'images' ? 'صورة' : contentMode === 'audio' ? 'ملفًا صوتيًا' : contentMode === 'slides' ? 'عرض PowerPoint' : contentMode === 'files' ? 'ملفًا' : 'ملف PDF'} داخل الدرس في المكتبة ليظهر هنا تلقائيًا.</p>
                     <button type="button" className="primary-btn" onClick={() => navigate('contentLibrary')}><BookOpen size={16} /> فتح المكتبة</button>
                   </div>
                 )}
@@ -1762,7 +1795,9 @@ export default function ClassMode({ data, updateData, navigate }) {
                       ? 'الفيديو'
                       : contentMode === 'maps'
                         ? 'الخرائط'
-                        : 'ملف الدرس',
+                        : contentMode === 'slides'
+                          ? 'PowerPoint'
+                          : 'ملف الدرس',
               resourceId: selectedResource?.id || '',
               resourceTitle: selectedResource?.title || activeLesson?.title || current.title,
               page: classPage || 1,
@@ -1772,6 +1807,8 @@ export default function ClassMode({ data, updateData, navigate }) {
             }}
             buildSnapshot={composeBoardImage}
             onNotice={setShareNotice}
+            onOpenSettings={() => navigate('settings')}
+            startRequest={liveStartRequest}
           />
           <article className="panel classmode-side-panel classmode-students-panel">
             <div className="panel-heading compact">
@@ -1810,6 +1847,78 @@ export default function ClassMode({ data, updateData, navigate }) {
               <button className="secondary-btn" onClick={() => navigate('attendance')} type="button"><Camera size={16} /> مسح QR</button>
               <button className="secondary-btn" onClick={() => navigate('games')} type="button"><Gamepad2 size={16} /> جولة سريعة</button>
               <button className="secondary-btn" onClick={() => selectedStudent && praise(selectedStudent, 'comic')} disabled={!selectedStudent} type="button"><Sparkles size={16} /> تشجيع</button>
+        {/* MOBDEA PHRASE ICONS V2 */}
+        <div className="classmode-phrase-icon-row">
+          {selectedStudent ? (
+            <>
+              <details className="classmode-phrase-menu classmode-phrase-menu-positive">
+                <summary
+                  title="الجمل التشجيعية"
+                  aria-label="فتح الجمل التشجيعية"
+                >
+                  <span aria-hidden="true">⭐</span>
+                  <small>تشجيع</small>
+                </summary>
+
+                <div className="classmode-phrase-popover">
+                  <strong>جمل تشجيعية</strong>
+
+                  <div className="classmode-phrase-choices">
+                    {phrases.map((phrase, index) => (
+                      <button
+                        type="button"
+                        key={`positive-${phrase}-${index}`}
+                        onClick={() => sayPhrase(phrase)}
+                      >
+                        {phrase}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+
+              <details className="classmode-phrase-menu classmode-phrase-menu-corrective">
+                <summary
+                  title="الجمل التنبيهية"
+                  aria-label="فتح الجمل التنبيهية"
+                >
+                  <span aria-hidden="true">⚠️</span>
+                  <small>تنبيه</small>
+                </summary>
+
+                <div className="classmode-phrase-popover">
+                  <strong>جمل تنبيهية</strong>
+
+                  <div className="classmode-phrase-choices">
+                    {[
+                      "ركز وحاول مرة أخرى",
+                      "انتبه إلى السؤال جيدًا",
+                      "اهدأ وفكر قبل الإجابة",
+                      "راجع إجابتك مرة أخرى",
+                      "أحتاج منك تركيزًا أكبر",
+                      "لا تتعجل في الإجابة",
+                      "حاول أن تشارك معنا",
+                      "انتبه للشرح من فضلك",
+                    ].map((phrase, index) => (
+                      <button
+                        type="button"
+                        key={`corrective-${phrase}-${index}`}
+                        onClick={() => sayPhrase(phrase)}
+                      >
+                        {phrase}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            </>
+          ) : (
+            <span className="classmode-select-student-notice">
+              اختر طالبًا أولًا
+            </span>
+          )}
+        </div>
+
             </div>
             {selectedStudent && (
               <div className="classmode-selected-student">
@@ -1948,12 +2057,13 @@ export default function ClassMode({ data, updateData, navigate }) {
       <div className="classmode-bottom-actions">
         <button type="button" className="secondary-btn" onClick={() => navigate('dashboard')}><X size={16} /> خروج من وضع الحصة</button>
         <div className="classmode-bottom-actions-mid">
-          <button type="button" className={`secondary-btn ${recordingActive ? 'recording-active' : ''}`} onClick={toggleClassRecording}><CircleDot size={16} /> {recordingActive ? `إيقاف التسجيل ${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}` : 'تسجيل الحصة'}</button>
+          <button type="button" className={`secondary-btn ${recordingActive ? 'recording-active' : ''}`} disabled={recordingBusy} onClick={toggleClassRecording}><CircleDot size={16} /> {recordingBusy ? 'جارٍ طلب إذن التسجيل…' : recordingActive ? `إيقاف التسجيل ${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}` : 'تسجيل الحصة'}</button>
           {recordingActive && recordingBackend && (
             <button type="button" className="secondary-btn" onClick={toggleRecordingPause}>{recordingPaused ? <CirclePlay size={16} /> : <CirclePause size={16} />} {recordingPaused ? 'استكمال' : 'إيقاف مؤقت'}</button>
           )}
           <button type="button" className="secondary-btn" onClick={saveBoard}><Camera size={16} /> لقطة شاشة</button>
           <button type="button" className="secondary-btn" onClick={() => setView('students')}><Users size={16} /> عرض الطلاب</button>
+          <button type="button" className="secondary-btn classmode-live-shortcut" onClick={() => setLiveStartRequest(Date.now())}><Radio size={16} /> رابط الحصة</button>
           <button type="button" className="secondary-btn" onClick={() => navigate('contentLibrary')}><BookOpen size={16} /> المكتبة</button>
           <button type="button" className="secondary-btn" onClick={() => navigate('settings')}><LayoutGrid size={16} /> الإعدادات</button>
         </div>

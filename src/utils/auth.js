@@ -9,8 +9,8 @@ export const ROLE_LABELS = {
 export const ROLE_HOME = {
   teacher: 'dashboard',
   admin: 'dashboard',
-  student: 'dashboard',
-  guardian: 'dashboard',
+  student: 'portalPreview',
+  guardian: 'portalPreview',
   visitor: 'dashboard',
 };
 

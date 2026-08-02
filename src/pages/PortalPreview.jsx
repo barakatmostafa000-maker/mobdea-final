@@ -6,6 +6,9 @@ import {
   MessageCircle,
   WalletCards,
   GraduationCap,
+  BookOpen,
+  MapPinned,
+  Gamepad2,
 } from 'lucide-react';
 
 const messageStatusLabel = { ready: 'جديدة', sent: 'تم الإرسال', postponed: 'مؤجلة', failed: 'فشل', cancelled: 'ألغيت' };
@@ -16,15 +19,15 @@ const normalizePhone = (value = '') => {
   return digits.length > 10 ? digits.slice(-10) : digits;
 };
 
-export default function PortalPreview({ data, auth }) {
+export default function PortalPreview({ data, auth, navigate }) {
   const isRealUser = auth?.role === 'student' || auth?.role === 'guardian';
   const [simRole, setSimRole] = useState('student');
-  const [simStudentId, setSimStudentId] = useState(data.students[0]?.id || '');
+  const students = Array.isArray(data.students) ? data.students : [];
+  const [simStudentId, setSimStudentId] = useState(students[0]?.id || '');
 
   const role = isRealUser ? (auth.role === 'guardian' ? 'parent' : 'student') : simRole;
 
   const linkedStudents = useMemo(() => {
-    const students = Array.isArray(data.students) ? data.students : [];
     if (!isRealUser || role !== 'parent') return students;
 
     const explicitIds = [
@@ -47,7 +50,7 @@ export default function PortalPreview({ data, auth }) {
     return linked.length
       ? linked
       : students.filter((item) => Number(item.id) === Number(auth?.studentId));
-  }, [auth, data.students, isRealUser, role]);
+  }, [auth, isRealUser, role, students]);
 
   useEffect(() => {
     if (role !== 'parent' || !linkedStudents.length) return;
@@ -61,7 +64,12 @@ export default function PortalPreview({ data, auth }) {
       : auth.studentId
     : simStudentId;
 
-  const student = data.students.find((item) => Number(item.id) === Number(studentId));
+  const student = students.find((item) => Number(item.id) === Number(studentId))
+    || students.find((item) => String(item.code) === String(auth?.studentCode || ''))
+    || (role === 'parent'
+      ? students.find((item) => normalizePhone(item.guardianPhone) === normalizePhone(auth?.guardianPhone))
+      : null)
+    || (!isRealUser ? students[0] : null);
 
   const stats = useMemo(() => {
     const attendance = (data.attendance || []).filter((item) => Number(item.studentId) === Number(student?.id));
@@ -99,13 +107,13 @@ export default function PortalPreview({ data, auth }) {
       .slice(0, 20);
   }, [data.notifications, role, student]);
 
-  if (!student) return <section className="page"><div className="panel empty-state">{isRealUser ? 'تعذر العثور على بيانات الحساب المرتبط، تواصل مع المعلم.' : 'أضف طالبًا أولًا.'}</div></section>;
+  if (!student) return <section className="page portal-page-v103"><div className="panel empty-state">{isRealUser ? 'تعذر العثور على بيانات الحساب المرتبط، تواصل مع المعلم.' : 'أضف طالبًا أولًا.'}</div></section>;
 
   const studentPermissions = student.permissions || {};
   const parentPermissions = student.parentPermissions || {};
   const canSee = (key) => role === 'student' ? studentPermissions[key] !== false : parentPermissions[key] !== false;
 
-  return <section className="page">
+  return <section className="page portal-page-v103">
     {!isRealUser && <div className="page-heading"><div><span className="eyebrow">معاينة الصلاحيات</span><h2>ما يراه الطالب وولي الأمر</h2><p>راجع الواجهة قبل إتاحتها للمستخدمين.</p></div></div>}
     {isRealUser && <div className="page-heading"><div><span className="eyebrow">{role === 'parent' ? 'بوابة ولي الأمر' : 'بوابة الطالب'}</span><h2>مرحبًا، {role === 'parent' ? 'ولي الأمر' : student.name}</h2><p>{role === 'parent' ? 'اختر أحد الأبناء المرتبطين بنفس رقم ولي الأمر لمراجعة حسابه.' : 'هذه بياناتك فقط، ولا تظهر لك بيانات أي طالب آخر.'}</p></div></div>}
 
@@ -114,7 +122,7 @@ export default function PortalPreview({ data, auth }) {
         <button className={simRole === 'student' ? 'active' : ''} onClick={() => setSimRole('student')}><UserRound size={18}/> الطالب</button>
         <button className={simRole === 'parent' ? 'active' : ''} onClick={() => setSimRole('parent')}><UsersRound size={18}/> ولي الأمر</button>
       </div>
-      <select value={simStudentId} onChange={(event) => setSimStudentId(event.target.value)}>{data.students.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+      <select value={simStudentId} onChange={(event) => setSimStudentId(event.target.value)}>{students.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
     </div>}
 
     {isRealUser && role === 'parent' && <div className="portal-toolbar panel portal-child-switcher">
@@ -131,6 +139,14 @@ export default function PortalPreview({ data, auth }) {
         <span><UserRound size={15}/> كود الطالب: <strong>{student.code || student.id}</strong></span>
         <span><GraduationCap size={15}/> {student.grade || 'الصف غير محدد'}</span>
       </div>}
+
+      {role === 'student' && (
+        <div className="portal-quick-actions">
+          <button type="button" onClick={() => navigate?.('contentLibrary')}><BookOpen size={19}/><span><strong>محتوى الدروس</strong><small>الكتب والصور والفيديوهات</small></span></button>
+          <button type="button" onClick={() => navigate?.('mapChallenge')}><MapPinned size={19}/><span><strong>تحدي الخرائط</strong><small>التدريب والألعاب الجغرافية</small></span></button>
+          <button type="button" onClick={() => navigate?.('games')}><Gamepad2 size={19}/><span><strong>الألعاب التعليمية</strong><small>الجولات والتحديات المتاحة</small></span></button>
+        </div>
+      )}
 
       <div className="portal-cards">
         {canSee('attendance') && <article><span>نسبة الحضور</span><strong>{stats.attendanceRate}%</strong><small>السجلات المسجلة</small></article>}

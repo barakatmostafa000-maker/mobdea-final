@@ -31,6 +31,21 @@ function inferTopic(resource = {}) {
   return normalize(resource.tags?.[0] || resource.lesson || resource.unit || 'عام');
 }
 
+function uniqueOptions(correct, candidates = []) {
+  const output = [normalize(correct), ...candidates.map(normalize)].filter(Boolean);
+  return [...new Set(output)].slice(0, 4);
+}
+
+function distractorsForLesson(resource = {}) {
+  const lesson = normalize(resource.lesson || resource.title || 'الدرس');
+  const unit = normalize(resource.unit || 'الوحدة');
+  return [
+    `مراجعة عامة قبل ${lesson}`,
+    `نشاط منفصل عن ${unit}`,
+    'موضوع غير مرتبط بالمحتوى المحفوظ',
+  ];
+}
+
 function buildQuestion(id, input, fallback) {
   return sanitizeQuestion({ id, ...input }, fallback);
 }
@@ -54,7 +69,57 @@ export function generateQuestionsFromResource(resource = {}) {
       : 'داخل محتوى الدرس المحفوظ في المكتبة';
   const base = `auto-${resource.id}`;
 
+  const lessonOptions = uniqueOptions(lesson, distractorsForLesson(resource));
+  const unitOptions = uniqueOptions(unit, ['الوحدة الأولى', 'الوحدة الثانية', 'مراجعة عامة']);
   const items = [
+    buildQuestion(`${base}-lesson-mcq`, {
+      gradeKey,
+      grade,
+      term: normalize(resource.term || 'الترم الأول'),
+      unit,
+      lesson,
+      topic,
+      type: 'mcq',
+      text: `أي عنوان يطابق المحتوى المحفوظ في هذا الدرس؟`,
+      options: lessonOptions,
+      answer: lesson,
+      answerIndex: lessonOptions.indexOf(lesson),
+      difficulty: 'سهل',
+      maxScore: 1,
+      source: 'auto',
+    }),
+    buildQuestion(`${base}-unit-mcq`, {
+      gradeKey,
+      grade,
+      term: normalize(resource.term || 'الترم الأول'),
+      unit,
+      lesson,
+      topic,
+      type: 'mcq',
+      text: `ينتمي درس «${lesson}» إلى أي وحدة؟`,
+      options: unitOptions,
+      answer: unit,
+      answerIndex: unitOptions.indexOf(unit),
+      difficulty: 'سهل',
+      maxScore: 1,
+      source: 'auto',
+    }),
+    buildQuestion(`${base}-content-tf`, {
+      gradeKey,
+      grade,
+      term: normalize(resource.term || 'الترم الأول'),
+      unit,
+      lesson,
+      topic,
+      type: 'tf',
+      text: `المحتوى الحالي جزء من درس «${lesson}».`,
+      options: ['صح', 'خطأ'],
+      answer: 'صح',
+      answerIndex: 0,
+      difficulty: 'سهل',
+      maxScore: 1,
+      source: 'auto',
+    }),
     buildQuestion(`${base}-main-idea`, {
       gradeKey,
       grade,
@@ -146,14 +211,40 @@ export function generateQuestionsFromResource(resource = {}) {
   }));
 }
 
+export function generateQuestionsForLessonBundle(lesson = {}, resources = []) {
+  const all = [lesson, ...(Array.isArray(resources) ? resources : [])].filter(Boolean);
+  const generated = all.flatMap((resource) => generateQuestionsFromResource({
+    ...resource,
+    grade: resource.grade || lesson.grade,
+    term: resource.term || lesson.term,
+    unit: resource.unit || lesson.unit,
+    lesson: resource.lesson || lesson.title || lesson.lesson,
+    notes: resource.notes || lesson.notes,
+    homework: resource.homework || lesson.homework,
+  }).map((question) => ({
+    ...question,
+    lessonId: lesson.id || resource.lessonId || resource.parentLessonId || '',
+  })));
+  const seen = new Set();
+  return generated.filter((question) => {
+    const key = `${question.type}|${question.text}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function upsertGeneratedQuestions(questionBank = [], resource = {}, generatedQuestions = []) {
   const resourceId = String(resource?.id ?? '');
   const prefix = `auto-${resourceId}`;
+  const incomingIds = new Set((generatedQuestions || []).map((question) => String(question?.id || '')).filter(Boolean));
   const cleaned = Array.isArray(questionBank)
     ? questionBank.filter((question) => {
         const sameResource = String(question?.resourceId ?? '') === resourceId;
+        const sameLesson = resourceId && String(question?.lessonId ?? '') === resourceId;
         const samePrefix = String(question?.id ?? '').startsWith(prefix);
-        return !(sameResource || samePrefix);
+        const replacedByIncoming = incomingIds.has(String(question?.id || ''));
+        return !(sameResource || sameLesson || samePrefix || replacedByIncoming);
       })
     : [];
   return [...cleaned, ...(generatedQuestions || [])];

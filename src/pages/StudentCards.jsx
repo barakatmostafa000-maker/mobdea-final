@@ -229,18 +229,77 @@ export default function StudentCards({ data, auth }) {
   const selectAllVisible = () => setSelectedIds(visibleIds);
   const clearSelection = () => setSelectedIds([]);
 
+  const waitForPrintableAssets = async () => {
+    if (document.fonts?.ready) await document.fonts.ready.catch(() => null);
+    const images = [...document.querySelectorAll('.print-only img')];
+    await Promise.all(images.map((image) => {
+      if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+      return new Promise((resolve) => {
+        const done = () => resolve();
+        image.addEventListener('load', done, { once: true });
+        image.addEventListener('error', done, { once: true });
+        window.setTimeout(done, 5000);
+      });
+    }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  };
+
+  const waitForPrintDialogToClose = () => new Promise((resolve) => {
+    let dialogOpened = false;
+    let settled = false;
+    let fallbackTimer = null;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('blur', markOpened);
+      window.removeEventListener('focus', handleReturn);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearTimeout(fallbackTimer);
+      resolve();
+    };
+
+    const markOpened = () => {
+      dialogOpened = true;
+    };
+
+    const handleReturn = () => {
+      if (dialogOpened) window.setTimeout(finish, 450);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') dialogOpened = true;
+      if (dialogOpened && document.visibilityState === 'visible') {
+        window.setTimeout(finish, 450);
+      }
+    };
+
+    window.addEventListener('blur', markOpened);
+    window.addEventListener('focus', handleReturn);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Some Android print services do not emit blur/visibility events. Keep the
+    // printable DOM alive long enough for their asynchronous snapshot instead
+    // of removing it after two seconds and producing a blank PDF.
+    fallbackTimer = window.setTimeout(finish, 30000);
+  });
+
   const startPrinting = async () => {
     if (!selectedVisibleStudents.length) {
       setPrintNotice('حدد طالبًا واحدًا على الأقل قبل الطباعة.');
       return;
     }
     setPrinting(true);
-    setPrintNotice('جارٍ تجهيز معاينة الطباعة…');
+    setPrintNotice('جارٍ تجهيز الكروت والصور والخطوط…');
     document.body.classList.add('mobdea-printing-cards');
     try {
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await waitForPrintableAssets();
+      // Give the WebView one complete paint before Android creates the print
+      // document adapter. This prevents a blank first snapshot.
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
       await printCurrentView('بطاقات طلاب المبدع');
-      setPrintNotice('تم فتح معاينة الطباعة. اختر الطابعة أو الحفظ بصيغة PDF.');
+      setPrintNotice('معاينة الطباعة مفتوحة. اختر الحفظ بصيغة PDF أو الطابعة.');
+      await waitForPrintDialogToClose();
     } catch (error) {
       setPrintNotice(error?.message || 'تعذر تشغيل الطباعة على هذا الجهاز.');
     } finally {
@@ -250,7 +309,7 @@ export default function StudentCards({ data, auth }) {
   };
 
   return (
-    <section className="page student-card-lab">
+    <section className="page student-card-lab cards-v103">
       <div className="page-heading no-print">
         <div>
           <span className="eyebrow">تصميم وطباعة كارت الطالب</span>

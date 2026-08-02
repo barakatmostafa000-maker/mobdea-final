@@ -1,21 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+/* MOBDEA_STUDENT_GAME_SERVER_V1 */
 import {
-  AlertTriangle,
-  Gamepad2,
-  LoaderCircle,
-  LogIn,
-  Radio,
-  Trophy,
-  Users,
-  WifiOff,
-} from 'lucide-react';
-import { identity } from '../../config/identity';
-import {
-  createLivePoller,
-  fetchLiveEvents,
-  joinLiveRoom,
-  postLiveEvent,
-} from '../../services/liveClass';
+  joinGameRoom as joinLiveRoom,
+  postGameEvent as postLiveEvent,
+  fetchGameEvents as fetchLiveEvents,
+  createGamePoller as createLivePoller,
+} from '../../services/gameRooms';
 
 function errorText(error) {
   return error?.message || 'تعذر الاتصال بغرفة اللعب.';
@@ -163,10 +152,15 @@ export default function StudentOnlineGameRoom({ payload, onGoHome }) {
     setNotice('');
     try {
       const joined = await joinLiveRoom(
-        { endpoint: payload.endpoint, workspaceId: payload.workspaceId },
-        payload.roomId,
+        {
+          endpoint: payload.endpoint,
+          workspaceId: payload.workspaceId,
+        },
         payload.joinCode,
-        { name, studentCode },
+        {
+          name,
+          studentCode,
+        },
       );
       const nextSession = { ...joined, roomId: payload.roomId };
       setSession(nextSession);

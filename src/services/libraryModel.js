@@ -12,6 +12,16 @@ export const LIBRARY_KINDS = Object.freeze({
 });
 
 const normalizeText = (value = '') => String(value ?? '').trim();
+const normalizeGrade = (value = '') => normalizeText(value)
+  .replace(/\s+/g, ' ')
+  .replace(/[–—-]/g, ' ')
+  .toLowerCase();
+const sameGrade = (left, right) => {
+  const a = normalizeGrade(left);
+  const b = normalizeGrade(right);
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+};
 
 function stableHash(value = '') {
   let hash = 2166136261;
@@ -212,18 +222,18 @@ export function getAllLibraryGrades(data = {}) {
 
 export function getGradeTextbook(dataOrItems, grade) {
   const items = Array.isArray(dataOrItems) ? dataOrItems : (dataOrItems?.contentLibrary || []);
-  return items.find((item) => isGradeTextbook(item) && item.grade === grade) || null;
+  return items.find((item) => isGradeTextbook(item) && sameGrade(item.grade, grade)) || null;
 }
 
 export function getGradeExams(dataOrItems, grade) {
   const items = Array.isArray(dataOrItems) ? dataOrItems : (dataOrItems?.contentLibrary || []);
-  return items.find((item) => isGradeExams(item) && item.grade === grade) || null;
+  return items.find((item) => isGradeExams(item) && sameGrade(item.grade, grade)) || null;
 }
 
 export function getLessonsForGrade(dataOrItems, grade) {
   const items = Array.isArray(dataOrItems) ? dataOrItems : (dataOrItems?.contentLibrary || []);
   return items
-    .filter((item) => isLesson(item) && (!grade || item.grade === grade))
+    .filter((item) => isLesson(item) && (!grade || sameGrade(item.grade, grade)))
     .sort((a, b) => {
       const dateCompare = String(a.lessonDate || a.date || '').localeCompare(String(b.lessonDate || b.date || ''));
       if (dateCompare) return dateCompare;
@@ -248,17 +258,27 @@ export function getLessonBundle(data = {}, lessonId) {
 }
 
 export function resolveDefaultLesson(data = {}, grade, preferredId = '') {
-  const lessons = getLessonsForGrade(data, grade);
-  return lessons.find((lesson) => String(lesson.id) === String(preferredId)) || lessons[0] || null;
+  const allLessons = getLessonsForGrade(data, '');
+  const preferred = allLessons.find((lesson) => String(lesson.id) === String(preferredId));
+  if (preferred) return preferred;
+  const lessonsForGrade = getLessonsForGrade(data, grade);
+  return lessonsForGrade[0] || allLessons[0] || null;
 }
 
 export function getLessonModeResources(data = {}, grade, lessonId = '') {
   const lesson = resolveDefaultLesson(data, grade, lessonId);
   if (!lesson) {
-    return (data.contentLibrary || []).filter((item) => !isLesson(item) && !isGradeExams(item) && (!item.grade || item.grade === grade) && hasResourceSource(item));
+    const resources = (data.contentLibrary || []).filter((item) => (
+      !isLesson(item)
+      && !isGradeExams(item)
+      && (!grade || !item.grade || sameGrade(item.grade, grade))
+      && hasResourceSource(item)
+    ));
+    return resources;
   }
-  const textbook = getGradeTextbook(data, grade);
-  const exams = getGradeExams(data, grade);
+  const effectiveGrade = lesson.grade || grade;
+  const textbook = getGradeTextbook(data, effectiveGrade);
+  const exams = getGradeExams(data, effectiveGrade);
   const resources = [];
   if (textbook && hasResourceSource(textbook)) {
     resources.push({

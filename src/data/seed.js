@@ -76,7 +76,7 @@ export const seedData = {
     voiceRate: 0.92,
     voiceGender: 'auto',
     welcomeVoice: true,
-    cloudSync: { endpoint: '', workspaceId: '', token: '', revision: '', lastPushAt: '', lastPullAt: '', autoBackup: false, autoBackupIntervalHours: 24, lastAutoBackupAt: '', autoBackupError: '' },
+    cloudSync: { endpoint: 'https://mobdea-platform-api.barakatmostafa000.workers.dev', workspaceId: 'school_online', token: '', revision: '', lastPushAt: '', lastPullAt: '', autoBackup: false, autoBackupIntervalHours: 24, lastAutoBackupAt: '', autoBackupError: '' },
     update: { manifestUrl: '', autoCheck: true, trustedSha256: '' },
     voiceClips: [],
     classLessonId: 'lesson-seed-arab-world',
