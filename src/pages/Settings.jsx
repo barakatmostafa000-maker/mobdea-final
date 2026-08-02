@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react';
 import { Play, Plus, Trash2 } from 'lucide-react';
 import { speakWelcome, playVoiceClip } from '../services/voice';
-import { createPinSecret, createRecoverySecret } from '../utils/security';
+import {
+  createRecoverySecret, createStaffPasswordSecret, hasStaffPasswordSecret,
+  verifyFactoryStaffPassword, verifyStaffPasswordSecret,
+} from '../utils/security';
 import { downloadBackup, readBackupFile, restoreBackupAssets } from '../services/backup';
 import { pullCloudData, pushCloudData, testCloudConnection } from '../services/cloudSync';
 import { checkForUpdate } from '../services/updater';
@@ -23,8 +26,9 @@ const clipTypes = [
 ];
 
 export default function Settings({ data, updateData, resetAppData }) {
-  const [pin, setPin] = useState('');
-  const [teacherPin, setTeacherPin] = useState('');
+  const [currentStaffPassword, setCurrentStaffPassword] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
+  const [confirmStaffPassword, setConfirmStaffPassword] = useState('');
   const [recoveryQuestion, setRecoveryQuestion] = useState(data.settings.staffRecoveryQuestion || '');
   const [recoveryAnswer, setRecoveryAnswer] = useState('');
   const [notice, setNotice] = useState('');
@@ -66,20 +70,30 @@ export default function Settings({ data, updateData, resetAppData }) {
     settings: { ...current.settings, cloudSync: { ...current.settings.cloudSync, ...patch } },
   }));
 
-  const savePin = async () => {
-    if (!/^\d{6,10}$/.test(pin)) { setNotice('PIN يجب أن يكون من 6 إلى 10 أرقام'); return; }
-    const secret = await createPinSecret(pin, 'admin');
-    await patchSettings({ adminPin: '', ...secret });
-    setPin('');
-    setNotice('تم حفظ رقم الإدارة السري بشكل آمن');
-  };
+  const saveStaffPassword = async () => {
+    const current = currentStaffPassword.normalize('NFKC').trim();
+    const next = newStaffPassword.normalize('NFKC').trim();
+    const confirm = confirmStaffPassword.normalize('NFKC').trim();
+    if (!current) { setNotice('اكتب كلمة المرور الحالية أولًا.'); return; }
+    if (next.length < 8) { setNotice('كلمة المرور الجديدة يجب ألا تقل عن 8 خانات.'); return; }
+    if (next !== confirm) { setNotice('تأكيد كلمة المرور غير مطابق.'); return; }
 
-  const saveTeacherPin = async () => {
-    if (!/^\d{6,10}$/.test(teacherPin)) { setNotice('PIN يجب أن يكون من 6 إلى 10 أرقام'); return; }
-    const secret = await createPinSecret(teacherPin, 'teacher');
-    await patchSettings({ teacherPin: '', ...secret });
-    setTeacherPin('');
-    setNotice('تم حفظ رقم المعلم السري بشكل آمن');
+    const teacherConfigured = hasStaffPasswordSecret(data.settings, 'teacher');
+    const adminConfigured = hasStaffPasswordSecret(data.settings, 'admin');
+    const checks = [];
+    if (teacherConfigured) checks.push(verifyStaffPasswordSecret(current, data.settings, 'teacher'));
+    if (adminConfigured) checks.push(verifyStaffPasswordSecret(current, data.settings, 'admin'));
+    if (data.settings?.staffFactoryPasswordDisabled !== true) checks.push(verifyFactoryStaffPassword(current));
+    const verified = (await Promise.all(checks)).some(Boolean);
+    if (!verified) { setNotice('كلمة المرور الحالية غير صحيحة.'); return; }
+
+    const teacherSecret = await createStaffPasswordSecret(next, 'teacher');
+    const adminSecret = await createStaffPasswordSecret(next, 'admin');
+    await patchSettings({ teacherPin: '', adminPin: '', staffFactoryPasswordDisabled: true, ...teacherSecret, ...adminSecret });
+    setCurrentStaffPassword('');
+    setNewStaffPassword('');
+    setConfirmStaffPassword('');
+    setNotice('تم تغيير كلمة المرور الموحدة للمعلم والإدارة وتعطيل كلمة المرور الأولية على هذا الجهاز.');
   };
 
   const saveRecovery = async () => {
@@ -197,12 +211,12 @@ export default function Settings({ data, updateData, resetAppData }) {
     <div className="settings-grid">
       <article className="panel"><h3>الحماية</h3>
         <label className="setting-row"><span>تفعيل قفل الإدارة</span><input type="checkbox" checked={data.settings.lockEnabled} onChange={(e) => patchSettings({ lockEnabled: e.target.checked })}/></label>
-        <label className="setting-row"><span>PIN الإدارة</span><input value={pin} inputMode="numeric" maxLength="10" placeholder={data.settings.adminPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا'} onChange={(e) => setPin(e.target.value.replace(/\D/g,''))}/></label>
+        <p className="settings-help">كلمة مرور واحدة للمعلم والإدارة. لتغييرها يجب كتابة كلمة المرور الحالية أولًا.</p>
+        <label className="setting-row"><span>كلمة المرور الحالية</span><input type="password" maxLength="128" value={currentStaffPassword} placeholder="كلمة المرور الحالية" autoComplete="current-password" onChange={(e) => setCurrentStaffPassword(e.target.value.slice(0, 128))}/></label>
+        <label className="setting-row"><span>كلمة المرور الجديدة</span><input type="password" maxLength="128" value={newStaffPassword} placeholder="8 خانات على الأقل" autoComplete="new-password" onChange={(e) => setNewStaffPassword(e.target.value.slice(0, 128))}/></label>
+        <label className="setting-row"><span>تأكيد كلمة المرور</span><input type="password" maxLength="128" value={confirmStaffPassword} placeholder="أعد كتابة كلمة المرور" autoComplete="new-password" onChange={(e) => setConfirmStaffPassword(e.target.value.slice(0, 128))}/></label>
         <label className="setting-row"><span>القفل بعد عدم الاستخدام</span><select value={data.settings.lockAfterMinutes || 10} onChange={(e)=>patchSettings({lockAfterMinutes:Number(e.target.value)})}><option value="5">5 دقائق</option><option value="10">10 دقائق</option><option value="20">20 دقيقة</option><option value="30">30 دقيقة</option></select></label>
-        <button className="primary-btn" onClick={savePin}>حفظ PIN الإدارة</button>
-
-        <label className="setting-row"><span>PIN المعلم</span><input value={teacherPin} inputMode="numeric" maxLength="10" placeholder={data.settings.teacherPinHash ? '•••••• (مفعّل)' : 'اختر رقمًا سريًا للمعلم'} onChange={(e) => setTeacherPin(e.target.value.replace(/\D/g,''))}/></label>
-        <button className="secondary-btn" onClick={saveTeacherPin}>حفظ PIN المعلم</button>
+        <button className="primary-btn" onClick={saveStaffPassword}>تغيير كلمة مرور المعلم والإدارة</button>
 
         <div className="settings-divider" />
         <p className="settings-help">استخدم عبارة استرجاع طويلة لا يعرفها غيرك. التلميح اختياري ولا تُكتب فيه العبارة نفسها.</p>
