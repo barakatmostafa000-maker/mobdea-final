@@ -1,0 +1,13 @@
+{
+  "name": "mobdea-platform-api",
+  "main": "worker.js",
+  "account_id": "72c8da275b03fb6bc77991bf9b1691af",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "kv_namespaces": [
+    {
+      "binding": "MOBDEA_DATA",
+      "id": "a687128891b2474080eedb76ebb017e7"
+    }
+  ]
+}

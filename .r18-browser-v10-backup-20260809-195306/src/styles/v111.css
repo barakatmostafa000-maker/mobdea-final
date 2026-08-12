@@ -1,0 +1,2274 @@
+/* P0-1: one viewport owner for Android safe areas and classroom geometry. */
+
+/* The legacy v103 skin remains available for visual styling, but it is no longer
+   allowed to own classroom geometry. display: contents keeps the five viewport
+   slots as grid participants while breaking every legacy selector that required
+   .classmode-v103.classmode-final-layout on the same element. */
+.classmode-viewport-skin {
+  display: contents !important;
+}
+
+
+.classmode-viewport.classmode-final-layout,
+.classmode-viewport.classmode-final-layout.fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  isolation: isolate !important;
+  width: var(--mobdea-app-width, 100vw) !important;
+  height: var(--mobdea-app-height, 100dvh) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: grid !important;
+  /* Keep the header's 48px touch targets completely inside their own row.
+     A 46px row clipped the hit box on a few short Android landscape viewports. */
+  grid-template-rows: clamp(54px, 9vh, 60px) minmax(0, 1fr) clamp(42px, 7.5vh, 50px) !important;
+  gap: clamp(2px, .55vw, 7px) !important;
+  padding:
+    max(3px, var(--mobdea-safe-top))
+    max(3px, var(--mobdea-safe-right))
+    max(3px, var(--mobdea-safe-bottom))
+    max(3px, var(--mobdea-safe-left)) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-header,
+.classmode-viewport-body,
+.classmode-viewport-stage,
+.classmode-viewport-students,
+.classmode-viewport-footer {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport-header {
+  position: relative !important;
+  z-index: 20 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-header > .classmode-top-header {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  grid-template-columns: clamp(96px, 14vw, 190px) minmax(0, 1fr) clamp(80px, 13vw, 170px) !important;
+  padding: 3px 6px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-header .classmode-header-brand,
+.classmode-viewport-header .classmode-header-meta {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-header .classmode-header-brand img {
+  width: 38px !important;
+  height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  object-fit: contain !important;
+}
+
+.classmode-viewport-header .classmode-header-tabs {
+  min-width: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: minmax(54px, 1fr) !important;
+  grid-template-columns: none !important;
+  align-items: center !important;
+  gap: 3px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain !important;
+  scrollbar-width: thin !important;
+}
+
+.classmode-viewport-header .classmode-header-tabs button,
+.classmode-viewport-header .classmode-header-tabs button:nth-child(n) {
+  width: auto !important;
+  min-width: 54px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-body.classmode-layout {
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(158px, 18vw, 224px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: clamp(3px, .65vw, 9px) !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage,
+.classmode-viewport-students {
+  position: relative !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage > .classmode-board-panel,
+.classmode-viewport-students > .classmode-side-column {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-stage > .classmode-board-panel {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage .classmode-board-frame {
+  position: relative !important;
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  height: 0 !important;
+  min-height: 150px !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage .classmode-board-surface,
+.classmode-viewport-stage .classmode-board-surface.with-tools {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage .classmode-board-stage,
+.classmode-viewport-stage .classmode-board-surface.with-tools .classmode-board-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport-stage .classmode-board-sidebar-left {
+  position: absolute !important;
+  z-index: 42 !important;
+  inset: 48px auto 7px 7px !important;
+  width: 52px !important;
+  max-height: calc(100% - 55px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .38) !important;
+}
+
+.classmode-viewport-stage .classmode-toolbar {
+  position: absolute !important;
+  z-index: 44 !important;
+  right: 8px !important;
+  bottom: 8px !important;
+  left: 68px !important;
+  width: auto !important;
+  min-height: 0 !important;
+  max-height: min(33%, 116px) !important;
+  overflow: auto !important;
+  border-radius: 12px !important;
+  background: rgba(7, 10, 15, .94) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .42) !important;
+}
+
+.classmode-viewport-stage .classmode-resource-preview,
+.classmode-viewport-stage .classmode-map-embed,
+.classmode-viewport-stage .classmode-games-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport-stage .unified-media-renderer {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  background: #070a0f !important;
+}
+
+.classmode-viewport-stage .unified-media-renderer > .unified-media-image,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-video,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-pdf,
+.classmode-viewport-stage .unified-media-renderer > iframe,
+.classmode-viewport-stage .unified-media-renderer > .pptx-preview {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  object-fit: contain !important;
+}
+
+.classmode-viewport-stage .unified-media-renderer > .unified-media-audio {
+  width: min(720px, calc(100% - 32px)) !important;
+}
+
+.classmode-viewport-students > .classmode-side-column {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.classmode-viewport-footer {
+  position: relative !important;
+  z-index: 24 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-footer > .classmode-bottom-actions {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-overlays {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+.classmode-viewport-overlays > * {
+  pointer-events: auto !important;
+}
+
+.classmode-viewport-overlays > .spoken-banner {
+  position: absolute !important;
+  z-index: 1002 !important;
+  top: calc(max(3px, var(--mobdea-safe-top)) + clamp(50px, 9vh, 62px)) !important;
+  right: 50% !important;
+  width: min(560px, calc(100% - 24px)) !important;
+  margin: 0 !important;
+  transform: translateX(50%) !important;
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .classmode-viewport.classmode-final-layout,
+  .classmode-viewport.classmode-final-layout.fullscreen {
+    grid-template-rows: 54px minmax(0, 1fr) 42px !important;
+    gap: 2px !important;
+  }
+
+  .classmode-viewport-header > .classmode-top-header {
+    grid-template-columns: 74px minmax(0, 1fr) 64px !important;
+    padding: 3px 4px !important;
+  }
+
+  .classmode-viewport-header .classmode-header-brand img {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .classmode-viewport-header .classmode-header-brand div,
+  .classmode-viewport-header .classmode-header-meta .header-meta-item:not(.book-icon),
+  .classmode-viewport-header .classmode-header-tabs span {
+    display: none !important;
+  }
+
+  .classmode-viewport-header .classmode-header-tabs button,
+  .classmode-viewport-header .classmode-header-tabs button:nth-child(n) {
+    min-width: 48px !important;
+    min-height: 48px !important;
+    padding: 4px !important;
+  }
+
+  .classmode-viewport-stage .classmode-board-topbar,
+  .classmode-viewport-stage .classmode-resource-card {
+    display: none !important;
+  }
+}
+
+/* Short landscape phones use the student drawer. A 10-inch 1024px tablet
+   keeps its live student rail even when its CSS height is only 600px. */
+@media (orientation: landscape) and (max-height: 620px) and (max-width: 960px) {
+  .classmode-viewport-body.classmode-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .classmode-viewport-students {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .classmode-viewport-body.classmode-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .classmode-viewport-students {
+    display: none !important;
+  }
+}
+
+.map-name-answer {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.map-name-answer input {
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid rgba(215, 173, 53, .38);
+  border-radius: 10px;
+  padding: 8px 11px;
+  background: #070a0f;
+  color: #fff4d2;
+}
+
+.ocr-review-panel {
+  border: 1px solid rgba(28, 111, 82, .24);
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(145deg, #f5fbf8, #fffdf7);
+}
+
+.ocr-review-panel > header,
+.ocr-review-panel > header > div,
+.ocr-review-panel article footer,
+.ocr-review-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ocr-review-panel header strong,
+.ocr-review-panel header small { display: block; }
+.ocr-review-panel header small,
+.ocr-review-panel > p { color: var(--muted); }
+.ocr-review-list { display: grid; gap: 10px; max-height: 540px; overflow: auto; padding: 4px; }
+.ocr-review-list article { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 9px; border: 1px solid var(--line); border-radius: 13px; padding: 11px; background: #fff; }
+.ocr-review-list article.approved { border-color: #53a57e; box-shadow: inset 4px 0 #53a57e; }
+.ocr-review-list article > .ocr-review-meta,
+.ocr-review-list article > footer { grid-column: 1 / -1; }
+.ocr-review-list label { display: grid; gap: 5px; font-size: 12px; }
+.ocr-review-list input,
+.ocr-review-list textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px; resize: vertical; }
+.ocr-review-meta span { border-radius: 999px; padding: 4px 8px; background: #eef3f0; color: #486056; font-size: 11px; }
+.ocr-approve-check { display: inline-flex !important; grid-auto-flow: column; align-items: center; }
+.ocr-approve-check input { width: 19px; height: 19px; }
+
+@media (max-width: 780px) {
+  .ocr-review-list article { grid-template-columns: 1fr; }
+  .ocr-review-list article > .ocr-review-meta,
+  .ocr-review-list article > footer { grid-column: auto; }
+}
+
+/* P0-2: PDF navigation stays touchable independently from whiteboard tools. */
+.classmode-viewport-stage .classmode-page-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  flex-wrap: wrap !important;
+}
+
+.classmode-viewport-stage .classmode-page-nav > button,
+.classmode-viewport-stage .classmode-pdf-zoom-controls > button {
+  min-width: 40px !important;
+  min-height: 40px !important;
+  touch-action: manipulation !important;
+}
+
+.classmode-viewport-stage .classmode-pdf-zoom-controls {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding-inline-start: 4px !important;
+}
+
+.classmode-viewport-stage .classmode-pdf-zoom-controls b {
+  min-width: 44px !important;
+  text-align: center !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* R18 P0-4: make administrative borders a real selectable layer. */
+.map-pro-country.borders-only {
+  fill: rgba(17, 31, 42, 0.18) !important;
+  stroke: #f0d478 !important;
+  stroke-width: 2.2 !important;
+  vector-effect: non-scaling-stroke;
+}
+.map-pro-country.borders-only.highlighted,
+.map-pro-country.borders-only:hover {
+  fill: rgba(240, 212, 120, 0.22) !important;
+  stroke: #fff4bd !important;
+  stroke-width: 3 !important;
+}
+
+/* ========================================================================== */
+/* R18 browser acceptance hotfix: classroom + visible SVG map challenge.       */
+/* ========================================================================== */
+
+/* ClassModeViewport now carries both classes on the same real root. Keep the
+   obsolete wrapper rule inert so it can never flatten a future classroom DOM. */
+.classmode-viewport-skin { display: block !important; }
+
+.classmode-viewport.classmode-v103.classmode-final-layout {
+  display: grid !important;
+  grid-template-rows: clamp(54px, 9vh, 62px) minmax(0, 1fr) clamp(44px, 8vh, 52px) !important;
+  width: var(--mobdea-app-width, 100vw) !important;
+  height: var(--mobdea-app-height, 100dvh) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-header,
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-body,
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-footer {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-body {
+  grid-template-columns: minmax(0, 1fr) clamp(160px, 19vw, 230px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-frame,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-surface,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-stage {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+/* The GeoJSON already contains real country polygons. Draw those polygons
+   directly. The previous feTurbulence/diffuse-lighting filter could blank or
+   severely stall the country layer on mobile Chromium/WebView. */
+.map-pro-country-layer {
+  filter: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.map-pro-country-layer .map-pro-country {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  fill: #52784f !important;
+  stroke: #f0dc9b !important;
+  stroke-width: 1.35 !important;
+  vector-effect: non-scaling-stroke !important;
+}
+
+.map-pro-country-layer .map-pro-country.highlighted {
+  fill: #d49a38 !important;
+  stroke: #fff4be !important;
+  stroke-width: 2.8 !important;
+}
+
+.map-challenge-pro.map-game-v103 {
+  height: 100dvh !important;
+  min-height: 620px !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-game-layout {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-game-main {
+  display: grid !important;
+  grid-template-rows: auto minmax(360px, 1fr) auto !important;
+  min-height: 0 !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell {
+  display: block !important;
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: 360px !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  background: #08253a !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-pro-stage,
+.map-challenge-pro.map-game-v103 .map-pro-transform,
+.map-challenge-pro.map-game-v103 .map-pro-svg {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 360px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-pro-stage {
+  position: relative !important;
+  contain: layout paint !important;
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .map-challenge-pro.map-game-v103 {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow-y: auto !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-layout {
+    height: auto !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(480px, 66vh) auto !important;
+    overflow: visible !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-main {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    min-height: 480px !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-question-panel {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-canvas-shell,
+  .map-challenge-pro.map-game-v103 .map-pro-stage,
+  .map-challenge-pro.map-game-v103 .map-pro-svg {
+    min-height: 400px !important;
+  }
+}
+
+
+/* ===== R18 browser P0 acceptance fixes ===== */
+/* Board-only focus: keep the teaching canvas as the whole viewport. */
+.classmode-viewport.stage-focus-mode {
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  padding: max(2px, var(--mobdea-safe-top)) max(2px, var(--mobdea-safe-right)) max(2px, var(--mobdea-safe-bottom)) max(2px, var(--mobdea-safe-left)) !important;
+}
+.classmode-viewport.stage-focus-mode > .classmode-viewport-header,
+.classmode-viewport.stage-focus-mode > .classmode-viewport-footer,
+.classmode-viewport.stage-focus-mode .classmode-viewport-students,
+.classmode-viewport.stage-focus-mode .classmode-board-topbar,
+.classmode-viewport.stage-focus-mode .classmode-resource-card,
+.classmode-viewport.stage-focus-mode .classmode-session-plan {
+  display: none !important;
+}
+.classmode-viewport.stage-focus-mode > .classmode-viewport-body,
+.classmode-viewport.stage-focus-mode > .classmode-viewport-body.classmode-layout {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-viewport-stage,
+.classmode-viewport.stage-focus-mode .classmode-board-panel,
+.classmode-viewport.stage-focus-mode .classmode-board-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.classmode-board-focus-toggle {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 46 !important;
+  min-height: 38px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 7px 12px !important;
+  border: 1px solid rgba(231,191,98,.78) !important;
+  border-radius: 12px !important;
+  color: #fff0be !important;
+  background: rgba(7,10,15,.94) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.36) !important;
+}
+.classmode-board-focus-toggle.active { background: linear-gradient(145deg,#8b5817,#2c1a08) !important; }
+
+/* Historical board: parchment canvas with visible, non-obstructive historical identity. */
+.classmode-v103 .class-board-canvas-shell.board-theme-history {
+  background:
+    linear-gradient(90deg, rgba(112,70,24,.09), transparent 11% 89%, rgba(112,70,24,.09)),
+    radial-gradient(circle at 50% 44%, rgba(190,137,53,.12), transparent 36%),
+    repeating-linear-gradient(0deg, rgba(92,58,24,.025) 0 1px, transparent 1px 7px),
+    linear-gradient(145deg,#f0dfb9 0%,#fff6df 48%,#ead4a7 100%) !important;
+  box-shadow: inset 0 0 0 4px rgba(112,70,24,.32), inset 0 0 46px rgba(90,52,17,.18) !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-theme-art { opacity: .48 !important; }
+.classmode-v103 .board-theme-history .classmode-board-watermark { opacity: .055 !important; }
+.classmode-v103 .board-theme-history .class-board-canvas { background: transparent !important; }
+
+/* Media surface: the actual asset must own all remaining height. */
+.classmode-viewport-stage .classmode-resource-preview {
+  display: grid !important;
+  grid-template-rows: minmax(38px, auto) minmax(0, 1fr) !important;
+}
+.classmode-viewport-stage .classmode-resource-preview .resource-preview-body,
+.classmode-viewport-stage .classmode-resource-preview .unified-media-renderer {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.classmode-viewport-stage .unified-media-renderer > .unified-media-pdf,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-image,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-video {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #05080d !important;
+}
+
+/* Lesson maps: when the drawer is closed the canvas is the ONLY grid row. */
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-main {
+  grid-template-rows: minmax(0, 1fr) !important;
+  padding: 0 !important;
+}
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-canvas-shell {
+  grid-row: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.classmode-v103 .lesson-map-studio.tools-closed .map-pro-stage,
+.classmode-v103 .lesson-map-studio.tools-closed .map-pro-transform,
+.classmode-v103 .lesson-map-studio.tools-closed .map-pro-svg {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Map challenge: hard reset the three-column landscape geometry and guarantee a real map viewport. */
+.map-challenge-pro.map-game-v103 {
+  display: grid !important;
+  grid-template-rows: 52px minmax(0, 1fr) !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  min-height: 560px !important;
+  overflow: hidden !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-layout {
+  grid-row: 2 !important;
+  display: grid !important;
+  grid-template-columns: clamp(145px,15vw,210px) minmax(0,1fr) clamp(215px,22vw,300px) !important;
+  grid-template-rows: minmax(0,1fr) !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-main {
+  display: grid !important;
+  grid-template-rows: auto minmax(0,1fr) auto !important;
+  min-height: 0 !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 280px !important;
+  overflow: hidden !important;
+}
+.map-challenge-pro.map-game-v103 .map-pro-stage,
+.map-challenge-pro.map-game-v103 .map-pro-transform,
+.map-challenge-pro.map-game-v103 .map-pro-svg {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* ===== R18 browser P0 V4: real media, dominant maps, professional historical board ===== */
+
+/* Full-board mode must keep the SAME interactive board, not reveal an empty stage. */
+.classmode-viewport.stage-focus-mode .classmode-board-lesson-ribbon {
+  display: none !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-viewport-body {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 250 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  padding: max(3px, var(--mobdea-safe-top)) max(3px, var(--mobdea-safe-right)) max(3px, var(--mobdea-safe-bottom)) max(3px, var(--mobdea-safe-left)) !important;
+  background: #1d1308 !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-viewport-stage,
+.classmode-viewport.stage-focus-mode .classmode-board-panel,
+.classmode-viewport.stage-focus-mode .classmode-board-frame,
+.classmode-viewport.stage-focus-mode .classmode-board-surface,
+.classmode-viewport.stage-focus-mode .classmode-board-stage,
+.classmode-viewport.stage-focus-mode .class-board-canvas-shell,
+.classmode-viewport.stage-focus-mode .class-board-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-board-panel,
+.classmode-viewport.stage-focus-mode .classmode-board-frame,
+.classmode-viewport.stage-focus-mode .classmode-board-surface,
+.classmode-viewport.stage-focus-mode .classmode-board-stage {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+.classmode-viewport.stage-focus-mode .class-board-canvas-shell.board-theme-history {
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255,250,221,.98) 0 43%, rgba(235,207,151,.96) 78%, rgba(151,99,39,.92) 100%),
+    repeating-linear-gradient(0deg, rgba(83,48,17,.045) 0 1px, transparent 1px 8px),
+    #ead3a4 !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-board-focus-toggle {
+  position: fixed !important;
+  top: max(8px, var(--mobdea-safe-top)) !important;
+  right: max(8px, var(--mobdea-safe-right)) !important;
+  z-index: 290 !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-board-tools-toggle {
+  position: fixed !important;
+  top: max(8px, var(--mobdea-safe-top)) !important;
+  left: max(8px, var(--mobdea-safe-left)) !important;
+  z-index: 290 !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-board-sidebar-left {
+  z-index: 285 !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-toolbar {
+  position: fixed !important;
+  z-index: 286 !important;
+  right: max(64px, calc(var(--mobdea-safe-right) + 8px)) !important;
+  left: max(64px, calc(var(--mobdea-safe-left) + 8px)) !important;
+  bottom: max(8px, var(--mobdea-safe-bottom)) !important;
+}
+
+/* A genuine historical teaching surface: papyrus, framed manuscript edges and subtle antiquity motifs. */
+.classmode-v103 .class-board-canvas-shell.board-theme-history {
+  background:
+    linear-gradient(90deg, rgba(92,52,18,.16), transparent 7% 93%, rgba(92,52,18,.16)),
+    radial-gradient(ellipse at 50% 46%, rgba(255,250,225,.98) 0 48%, rgba(238,216,171,.97) 76%, rgba(190,143,77,.92) 100%),
+    repeating-linear-gradient(0deg, rgba(95,59,24,.035) 0 1px, transparent 1px 7px),
+    #ead4a7 !important;
+  border: 5px double rgba(111,66,25,.62) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(236,194,103,.48),
+    inset 0 0 70px rgba(91,51,16,.22),
+    0 10px 30px rgba(0,0,0,.24) !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-theme-art {
+  opacity: .72 !important;
+  mix-blend-mode: multiply !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-watermark {
+  opacity: .035 !important;
+  filter: sepia(1) saturate(.75) contrast(.95) !important;
+}
+.classmode-v103 .board-theme-history .class-board-canvas {
+  background: transparent !important;
+  cursor: crosshair;
+}
+
+/* Media owns the whole teaching stage. */
+.classmode-resource-preview,
+.classmode-resource-preview .resource-preview-body,
+.classmode-resource-preview .unified-media-renderer {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.classmode-resource-preview .unified-media-pdf,
+.classmode-resource-preview .unified-media-image,
+.classmode-resource-preview .unified-media-video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  background: #070b10 !important;
+}
+.classmode-resource-preview .unified-media-video {
+  object-position: center !important;
+}
+
+/* Lesson maps: the map NEVER shrinks when the symbol drawer opens. The drawer overlays it. */
+.classmode-map-embed,
+.classmode-map-embed .lesson-map-studio,
+.classmode-map-embed .lesson-map-main,
+.classmode-map-embed .lesson-map-canvas-shell {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+.classmode-map-embed .lesson-map-studio {
+  position: relative !important;
+  display: block !important;
+  overflow: hidden !important;
+  background: #06131d !important;
+}
+.classmode-map-embed .lesson-map-main {
+  display: grid !important;
+  grid-template-rows: auto auto auto minmax(0,1fr) auto !important;
+  position: absolute !important;
+  inset: 0 !important;
+}
+.classmode-map-embed .lesson-map-symbol-sidebar {
+  position: absolute !important;
+  z-index: 80 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: clamp(245px, 31vw, 330px) !important;
+  max-width: 82% !important;
+  height: 100% !important;
+  border: 1px solid rgba(231,191,98,.5) !important;
+  border-radius: 0 16px 16px 0 !important;
+  box-shadow: 16px 0 45px rgba(0,0,0,.62) !important;
+  backdrop-filter: blur(10px) !important;
+  background: linear-gradient(180deg, rgba(8,15,20,.98), rgba(4,9,13,.96)) !important;
+}
+.classmode-map-embed .lesson-map-canvas-shell,
+.classmode-map-embed .lesson-map-canvas-shell .map-pro-stage,
+.classmode-map-embed .lesson-map-canvas-shell .map-pro-transform,
+.classmode-map-embed .lesson-map-canvas-shell .map-pro-svg {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+/* Professional cartography: clearer ocean, coast halo, readable boundaries. */
+.map-pro-stage {
+  background:
+    radial-gradient(circle at 48% 45%, rgba(31,126,154,.36), transparent 38%),
+    linear-gradient(145deg,#082f45,#0b5a73 46%,#062638) !important;
+  box-shadow: inset 0 0 55px rgba(0,0,0,.42) !important;
+}
+.map-pro-coastline-halo path {
+  fill: none !important;
+  stroke: rgba(205,235,225,.22) !important;
+  stroke-width: 7 !important;
+  vector-effect: non-scaling-stroke !important;
+}
+.map-pro-country-layer .map-pro-country {
+  fill: var(--country-fill, #718957) !important;
+  stroke: #f1e3b0 !important;
+  stroke-width: 1.35 !important;
+  vector-effect: non-scaling-stroke !important;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)) !important;
+}
+.map-pro-country-layer .map-pro-country.highlighted {
+  fill: #d69a34 !important;
+  stroke: #fff7c9 !important;
+  stroke-width: 2.6 !important;
+}
+.map-pro-reference-grid line {
+  stroke: rgba(182,225,236,.16) !important;
+}
+.map-pro-reference-grid text {
+  fill: rgba(225,244,247,.58) !important;
+}
+
+/* Map symbols placed on the map are actual cartographic shapes, not text cards. */
+.map-pro-placement.geography-placement.shape-only {
+  width: clamp(34px, 4.8vw, 52px) !important;
+  height: clamp(34px, 4.8vw, 52px) !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  pointer-events: auto !important;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.72)) !important;
+}
+.map-pro-placement.geography-placement.shape-only > .geography-placement-glyph {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--placement-color) !important;
+}
+.map-pro-placement.geography-placement.shape-only > .geography-placement-glyph svg,
+.map-pro-placement.geography-placement.shape-only > .geography-placement-glyph span {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+.map-pro-placement.geography-placement.with-label {
+  pointer-events: auto !important;
+}
+.lesson-map-symbol-list button,
+.map-build-palette button {
+  touch-action: none !important;
+}
+
+/* Dedicated Map Challenge: keep a real, large map viewport in landscape and portrait. */
+.map-challenge-pro.map-game-v103 {
+  background: linear-gradient(145deg,#050b10,#0a171e) !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-main {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: clamp(320px, 54dvh, 620px) !important;
+  background: #07334a !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell > .map-pro-stage,
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell .map-pro-transform,
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell .map-pro-svg {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+@media (orientation: landscape) and (max-height: 760px) {
+  .map-challenge-pro.map-game-v103 {
+    grid-template-rows: 38px minmax(0,1fr) !important;
+    min-height: 0 !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-layout {
+    grid-template-columns: 104px minmax(0,1fr) 188px !important;
+    gap: 3px !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-main {
+    grid-template-rows: 31px minmax(0,1fr) 38px !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-canvas-shell {
+    min-height: 0 !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-nav button,
+  .map-challenge-pro.map-game-v103 .map-game-question-panel {
+    font-size: .62rem !important;
+  }
+  .classmode-map-embed .lesson-map-topbar,
+  .classmode-map-embed .lesson-map-controlbar,
+  .classmode-map-embed .lesson-map-search-row,
+  .classmode-map-embed .lesson-map-footer-info {
+    max-height: 32px !important;
+    overflow: hidden !important;
+  }
+  .classmode-map-embed .lesson-map-main {
+    grid-template-rows: 32px 31px 30px minmax(0,1fr) 22px !important;
+  }
+}
+
+/* ===== R18 browser P0 V5: reliable media + full-map drawers + relief visual language ===== */
+
+/* Media overlays must never paint parchment over PDF/image content. */
+.classmode-v103 .class-board-canvas-shell.has-resource-head,
+.classmode-v103 .class-board-canvas-shell.board-theme-history.has-resource-head,
+.classmode-v103 .class-board-canvas-shell.board-theme-geography.has-resource-head,
+.classmode-v103 .class-board-canvas-shell.board-theme-manuscript.has-resource-head {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.classmode-v103 .class-board-canvas-shell.has-resource-head .classmode-board-identity,
+.classmode-v103 .class-board-canvas-shell.has-resource-head::before,
+.classmode-v103 .class-board-canvas-shell.has-resource-head::after {
+  display: none !important;
+}
+.classmode-v103 .class-board-canvas-shell.has-resource-head .class-board-canvas {
+  background: transparent !important;
+  background-image: none !important;
+}
+.classmode-v103 .class-board-canvas-shell.has-resource-head {
+  pointer-events: none !important;
+}
+.classmode-v103 .classmode-board-surface.with-tools .class-board-canvas-shell.has-resource-head {
+  pointer-events: auto !important;
+}
+
+/* Direct pdf.js canvas renderer: the page itself, not the browser PDF toolbar, owns the stage. */
+.classmode-pdf-canvas-host {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(31, 42, 55, .35), transparent 55%),
+    #05080d !important;
+}
+.classmode-pdf-live-canvas {
+  display: block !important;
+  max-width: none !important;
+  max-height: none !important;
+  background: #fff !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .48) !important;
+}
+
+/* Explicit media switching for multiple videos / presentations / images / PDFs. */
+.classmode-inline-media-switcher {
+  margin-inline-start: auto !important;
+  min-width: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 2px 4px !important;
+  border: 1px solid rgba(215, 173, 53, .42) !important;
+  border-radius: 10px !important;
+  background: rgba(5, 8, 13, .94) !important;
+  color: #f6df9d !important;
+}
+.classmode-inline-media-switcher button {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(231, 191, 98, .42) !important;
+  border-radius: 8px !important;
+  background: linear-gradient(145deg, #6d4214, #241407) !important;
+  color: #fff4cf !important;
+  font-size: 1.25rem !important;
+  line-height: 1 !important;
+}
+.classmode-inline-media-switcher select {
+  width: min(260px, 30vw) !important;
+  min-width: 85px !important;
+  height: 28px !important;
+  padding: 0 7px !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: #0d1219 !important;
+  color: #fff7dc !important;
+  font-size: .72rem !important;
+}
+.classmode-inline-media-switcher span {
+  white-space: nowrap !important;
+  font-size: .68rem !important;
+  font-weight: 800 !important;
+}
+
+/* Robust image renderer should own the full remaining viewport. */
+.classmode-resource-preview .unified-media-renderer[data-media-type="image"] {
+  background: #05080d !important;
+}
+.classmode-resource-preview .unified-media-image {
+  position: relative !important;
+  z-index: 3 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+/* Full map surface with two independent overlay drawers. */
+.classmode-map-embed .lesson-map-studio-v5 {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  background: #06131d !important;
+}
+.classmode-map-embed .lesson-map-main-v5 {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.classmode-map-embed .lesson-map-canvas-shell-v5,
+.classmode-map-embed .lesson-map-canvas-shell-v5 > .map-pro-stage,
+.classmode-map-embed .lesson-map-canvas-shell-v5 .map-pro-transform,
+.classmode-map-embed .lesson-map-canvas-shell-v5 .map-pro-svg {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+.lesson-map-floating-drawers {
+  position: absolute !important;
+  z-index: 96 !important;
+  top: 9px !important;
+  right: 10px !important;
+  left: 10px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  pointer-events: none !important;
+}
+.lesson-map-drawer-toggle {
+  pointer-events: auto !important;
+  min-height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 7px 12px !important;
+  border: 1px solid rgba(232, 194, 105, .72) !important;
+  border-radius: 13px !important;
+  background: linear-gradient(145deg, rgba(11, 17, 22, .97), rgba(43, 29, 10, .95)) !important;
+  color: #f8e4a9 !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(255,255,255,.04) !important;
+  backdrop-filter: blur(9px) !important;
+  font-weight: 800 !important;
+}
+.lesson-map-drawer-toggle.active {
+  color: #171006 !important;
+  background: linear-gradient(145deg, #ffe390, #c88720) !important;
+}
+.lesson-map-drawer {
+  position: absolute !important;
+  z-index: 102 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: clamp(260px, 32vw, 360px) !important;
+  max-width: 84% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: auto auto minmax(0, 1fr) !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(231, 191, 98, .54) !important;
+  background: linear-gradient(180deg, rgba(7, 14, 19, .985), rgba(3, 8, 12, .97)) !important;
+  box-shadow: 0 0 46px rgba(0,0,0,.68) !important;
+  backdrop-filter: blur(12px) !important;
+}
+.lesson-map-drawer-symbols {
+  left: 0 !important;
+  border-radius: 0 18px 18px 0 !important;
+}
+.lesson-map-drawer-controls {
+  right: 0 !important;
+  left: auto !important;
+  grid-template-rows: auto minmax(0,1fr) !important;
+  border-radius: 18px 0 0 18px !important;
+}
+.lesson-map-drawer-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 10px !important;
+  border-bottom: 1px solid rgba(231,191,98,.25) !important;
+}
+.lesson-map-drawer-head .icon-action {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  font-size: 1.35rem !important;
+  color: #f8df9a !important;
+}
+.lesson-map-symbol-scroll,
+.lesson-map-controls-scroll {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #b27a22 #0a1117 !important;
+  padding: 8px !important;
+}
+.lesson-map-symbol-list {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  padding: 0 !important;
+}
+.lesson-map-symbol-list button {
+  min-height: 82px !important;
+  display: grid !important;
+  grid-template-columns: 58px minmax(0,1fr) !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 7px !important;
+  border: 1px solid rgba(231,191,98,.22) !important;
+  border-radius: 13px !important;
+  background: linear-gradient(145deg, rgba(17,26,31,.98), rgba(6,10,14,.98)) !important;
+  color: #f7e5b6 !important;
+  text-align: right !important;
+  touch-action: none !important;
+}
+.lesson-map-symbol-list button.active {
+  border-color: #f2cb71 !important;
+  box-shadow: 0 0 0 2px rgba(232,194,105,.16), 0 10px 20px rgba(0,0,0,.35) !important;
+}
+.lesson-map-symbol-preview {
+  width: 58px !important;
+  height: 54px !important;
+  display: grid !important;
+  place-items: center !important;
+  color: var(--symbol-color, #d2a155) !important;
+  filter: saturate(1.15) contrast(1.05) !important;
+}
+.lesson-map-symbol-preview .geography-glyph-svg {
+  width: 58px !important;
+  height: 52px !important;
+}
+.lesson-map-symbol-list button span strong,
+.lesson-map-symbol-list button span small {
+  display: block !important;
+}
+.lesson-map-symbol-list button span small {
+  margin-top: 2px !important;
+  color: #9fb1ba !important;
+  font-size: .63rem !important;
+  line-height: 1.25 !important;
+}
+.lesson-map-group-tabs {
+  display: flex !important;
+  gap: 5px !important;
+  padding: 6px 8px !important;
+  overflow-x: auto !important;
+  border-bottom: 1px solid rgba(231,191,98,.18) !important;
+}
+.lesson-map-group-tabs button { flex: 0 0 auto !important; }
+.lesson-map-placed-list { margin-top: 10px !important; }
+.lesson-map-placed-list button span svg { width: 26px !important; height: 22px !important; vertical-align: middle !important; }
+.lesson-map-control-section {
+  display: grid !important;
+  gap: 6px !important;
+  padding: 9px 0 !important;
+  border-bottom: 1px solid rgba(231,191,98,.14) !important;
+}
+.lesson-map-control-section > label {
+  color: #f0ca74 !important;
+  font-size: .72rem !important;
+  font-weight: 900 !important;
+}
+.lesson-map-drawer-controls .lesson-map-region-tabs,
+.lesson-map-drawer-controls .lesson-map-layer-tabs,
+.lesson-map-drawer-controls .lesson-map-draw-tools,
+.lesson-map-compact-tools {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+.lesson-map-drawer-controls button {
+  min-height: 34px !important;
+}
+.lesson-map-drawer-controls .lesson-map-draw-tools button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+.lesson-map-compact-tools input[type="range"] {
+  flex: 1 1 100px !important;
+  min-width: 80px !important;
+}
+.lesson-map-control-summary {
+  display: grid !important;
+  gap: 3px !important;
+  padding: 10px !important;
+  border: 1px solid rgba(231,191,98,.24) !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,.025) !important;
+}
+.lesson-map-control-summary strong { color: #ffe4a0 !important; }
+.lesson-map-control-summary small { color: #a8bbc4 !important; }
+.lesson-map-control-summary em { color: #8ee2aa !important; font-style: normal !important; }
+.lesson-map-selected-chip {
+  position: absolute !important;
+  z-index: 88 !important;
+  right: 50% !important;
+  bottom: 12px !important;
+  transform: translateX(50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 6px 11px !important;
+  border: 1px solid rgba(231,191,98,.5) !important;
+  border-radius: 999px !important;
+  background: rgba(5,11,16,.9) !important;
+  color: #ffe4a0 !important;
+  pointer-events: none !important;
+}
+
+/* More dimensional relief glyphs in palette and on the map. */
+.geography-glyph-svg {
+  overflow: visible !important;
+  filter: saturate(1.12) contrast(1.04) !important;
+}
+.relief-glyph {
+  transform: perspective(180px) rotateX(4deg) !important;
+  transform-origin: 50% 75% !important;
+}
+.map-pro-placement.geography-placement.shape-only {
+  width: clamp(48px, 6vw, 76px) !important;
+  height: clamp(42px, 5.4vw, 68px) !important;
+  transform: translate(-50%, -55%) !important;
+  filter: drop-shadow(0 7px 5px rgba(0,0,0,.55)) !important;
+}
+.map-pro-placement.geography-placement.shape-only .geography-placement-glyph,
+.map-pro-placement.geography-placement.shape-only .geography-glyph-svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Cartographic polish without heavyweight SVG filters that can disappear on mobile GPUs. */
+.map-pro-stage {
+  background:
+    radial-gradient(ellipse at 55% 42%, rgba(49, 142, 165, .38), transparent 42%),
+    linear-gradient(145deg, #042333, #0c5870 48%, #031a27) !important;
+}
+.map-pro-svg { shape-rendering: geometricPrecision !important; }
+.map-pro-country-layer .map-pro-country {
+  stroke: #f4e4ae !important;
+  stroke-width: 1.45 !important;
+  paint-order: stroke fill !important;
+}
+.map-pro-country-layer .map-pro-country:hover,
+.map-pro-country-layer .map-pro-country.highlighted {
+  stroke-width: 2.8 !important;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.55)) !important;
+}
+.map-pro-furniture { filter: drop-shadow(0 3px 4px rgba(0,0,0,.42)) !important; }
+
+/* Historical board and premium semantic cards use the teacher's black/gold identity with relief depth. */
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
+  background:
+    linear-gradient(90deg, rgba(61,35,13,.20), transparent 7% 93%, rgba(61,35,13,.20)),
+    radial-gradient(ellipse at 50% 42%, rgba(255,251,229,.99) 0 45%, rgba(240,214,164,.98) 75%, rgba(164,108,44,.95) 100%),
+    repeating-linear-gradient(5deg, rgba(94,55,21,.035) 0 1px, transparent 1px 9px),
+    #ead0a0 !important;
+  border: 6px ridge rgba(155,101,31,.76) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255,229,158,.55),
+    inset 0 0 90px rgba(87,45,12,.28),
+    0 14px 34px rgba(0,0,0,.36) !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-theme-art {
+  opacity: .78 !important;
+  filter: sepia(.45) saturate(1.05) drop-shadow(0 4px 4px rgba(79,45,13,.22)) !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-watermark {
+  opacity: .055 !important;
+  filter: sepia(1) drop-shadow(0 8px 14px rgba(74,41,12,.18)) !important;
+}
+
+/* Rebuild the map challenge as a map-first viewport so the actual map cannot collapse to zero height. */
+.map-challenge-pro.map-game-v103 {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 120 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: 56px minmax(0, 1fr) !important;
+  overflow: hidden !important;
+  background: linear-gradient(145deg, #03080c, #0b151c) !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-layout {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: clamp(112px, 13vw, 165px) minmax(0, 1fr) clamp(205px, 23vw, 286px) !important;
+  gap: 5px !important;
+  overflow: hidden !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-main {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-rows: 40px minmax(0, 1fr) 46px !important;
+  overflow: hidden !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  background: #062b3e !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell > .map-pro-stage,
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell .map-pro-transform,
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell .map-pro-svg {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-nav,
+.map-challenge-pro.map-game-v103 .map-game-question-panel {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+@media (orientation: landscape) and (max-height: 720px) {
+  .classmode-inline-media-switcher select { width: min(190px, 24vw) !important; }
+  .lesson-map-drawer { width: clamp(245px, 29vw, 330px) !important; }
+  .lesson-map-symbol-list button { min-height: 68px !important; grid-template-columns: 48px minmax(0,1fr) !important; }
+  .lesson-map-symbol-preview,
+  .lesson-map-symbol-preview .geography-glyph-svg { width: 48px !important; height: 44px !important; }
+  .map-challenge-pro.map-game-v103 { grid-template-rows: 42px minmax(0,1fr) !important; }
+  .map-challenge-pro.map-game-v103 .map-game-layout { grid-template-columns: 104px minmax(0,1fr) 205px !important; gap: 3px !important; }
+  .map-challenge-pro.map-game-v103 .map-game-main { grid-template-rows: 34px minmax(0,1fr) 38px !important; }
+}
+
+/* ================================================================
+   R18 Browser P0 V6 — reliable media + full map workspace + premium
+   historical board. Loaded last on purpose.
+   ================================================================ */
+
+/* Media gets the entire teaching surface. Header/controls float over it. */
+.classmode-viewport-stage .classmode-resource-preview {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: #04070b !important;
+}
+.classmode-resource-preview > .resource-preview-head {
+  position: absolute !important;
+  z-index: 60 !important;
+  top: 8px !important;
+  right: 10px !important;
+  left: 10px !important;
+  min-height: 40px !important;
+  max-height: 54px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 5px 9px !important;
+  border: 1px solid rgba(232,193,102,.38) !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, rgba(8,12,17,.88), rgba(4,7,10,.78)) !important;
+  color: #fff4cf !important;
+  box-shadow: 0 7px 22px rgba(0,0,0,.35) !important;
+  backdrop-filter: blur(8px) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+}
+.classmode-resource-preview > .resource-preview-head::-webkit-scrollbar { display: none !important; }
+.classmode-resource-preview > .resource-preview-head > strong,
+.classmode-resource-preview > .resource-preview-head > small { white-space: nowrap !important; }
+.classmode-resource-preview > .resource-preview-head > small { opacity: .72 !important; }
+.classmode-resource-preview > .resource-preview-body,
+.classmode-resource-preview > .unified-media-renderer,
+.classmode-resource-preview .unified-media-renderer {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  background: #04070b !important;
+}
+
+/* PDF: pdf.js renders to a PNG blob and this image is the visible surface. */
+.classmode-pdf-canvas-host {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: auto !important;
+  padding: 58px 10px 10px !important;
+  box-sizing: border-box !important;
+  overscroll-behavior: contain !important;
+  touch-action: pan-x pan-y !important;
+  background: radial-gradient(circle at 50% 45%, rgba(30,43,56,.36), transparent 58%), #04070b !important;
+}
+.classmode-pdf-rendered-image {
+  display: block !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  background: #fff !important;
+  box-shadow: 0 18px 55px rgba(0,0,0,.58), 0 0 0 1px rgba(255,255,255,.22) !important;
+}
+.classmode-pdf-render-status,
+.classmode-pdf-render-error {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%,-50%) !important;
+  z-index: 4 !important;
+  min-width: min(520px, 80%) !important;
+  padding: 14px 18px !important;
+  border: 1px solid rgba(226,189,99,.42) !important;
+  border-radius: 14px !important;
+  background: rgba(7,12,17,.92) !important;
+  color: #f7e2ac !important;
+  text-align: center !important;
+  box-shadow: 0 15px 36px rgba(0,0,0,.45) !important;
+}
+.classmode-pdf-render-error { border-color: rgba(232,111,83,.55) !important; color: #ffd8cf !important; }
+.classmode-pdf-render-error strong,
+.classmode-pdf-render-error small { display:block !important; }
+.classmode-pdf-render-error small { margin-top:6px !important; opacity:.82 !important; }
+
+/* Images: keep contain as the safe default but give the teacher explicit fit modes. */
+.classmode-image-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: auto !important;
+  padding: 54px 8px 8px !important;
+  box-sizing: border-box !important;
+  background: #04070b !important;
+}
+.classmode-image-stage .unified-media-image {
+  display: block !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  background: transparent !important;
+  box-shadow: 0 14px 45px rgba(0,0,0,.35) !important;
+}
+.classmode-image-stage.fit-contain .unified-media-image { width: 100% !important; height: 100% !important; object-fit: contain !important; }
+.classmode-image-stage.fit-width .unified-media-image { width: 100% !important; height: auto !important; object-fit: contain !important; }
+.classmode-image-stage.fit-cover .unified-media-image { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+.classmode-image-fit-controls {
+  position: absolute !important;
+  z-index: 65 !important;
+  left: 10px !important;
+  bottom: 10px !important;
+  display: flex !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  border: 1px solid rgba(231,191,98,.35) !important;
+  border-radius: 11px !important;
+  background: rgba(4,8,12,.84) !important;
+  backdrop-filter: blur(7px) !important;
+}
+.classmode-image-fit-controls button {
+  min-height: 32px !important;
+  padding: 0 9px !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #f4dfaa !important;
+  font-weight: 800 !important;
+}
+.classmode-image-fit-controls button.active { border-color:#e0b95f !important; background:linear-gradient(145deg,#724616,#241508) !important; color:#fff8df !important; }
+
+/* Full map surface. Drawers overlay the map; the map never gives away layout width. */
+.classmode-map-embed .lesson-map-studio-v5,
+.classmode-map-embed .lesson-map-main-v5,
+.classmode-map-embed .lesson-map-canvas-shell-v5,
+.classmode-map-embed .lesson-map-canvas-shell-v5 > .map-pro-stage,
+.classmode-map-embed .lesson-map-canvas-shell-v5 .map-pro-transform,
+.classmode-map-embed .lesson-map-canvas-shell-v5 .map-pro-svg {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+.classmode-map-embed .lesson-map-canvas-shell-v5 > .map-pro-stage { overflow:hidden !important; }
+.classmode-map-embed .map-pro-transform { transform-origin:center center !important; }
+.classmode-map-embed .map-pro-svg { display:block !important; }
+
+/* Both map drawers are true scrollable overlays. */
+.lesson-map-drawer {
+  position: absolute !important;
+  z-index: 120 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: clamp(280px, 34vw, 390px) !important;
+  max-width: 86% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0,1fr) !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(235,198,111,.55) !important;
+  background: linear-gradient(180deg, rgba(7,13,18,.985), rgba(2,7,11,.98)) !important;
+  box-shadow: 18px 0 50px rgba(0,0,0,.62) !important;
+  backdrop-filter: blur(12px) !important;
+}
+.lesson-map-drawer-symbols {
+  left: 0 !important;
+  right: auto !important;
+  grid-template-rows: auto auto minmax(0,1fr) !important;
+  border-radius: 0 18px 18px 0 !important;
+}
+.lesson-map-drawer-controls {
+  right: 0 !important;
+  left: auto !important;
+  border-radius: 18px 0 0 18px !important;
+}
+.lesson-map-group-tabs {
+  display:flex !important;
+  gap:5px !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  padding:6px 8px !important;
+  min-height:42px !important;
+  touch-action:pan-x !important;
+  scrollbar-width:thin !important;
+}
+.lesson-map-group-tabs > button { flex:0 0 auto !important; }
+.lesson-map-symbol-scroll,
+.lesson-map-controls-scroll {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 8px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #c69336 #081017 !important;
+}
+.lesson-map-symbol-list { padding-bottom: 8px !important; }
+.lesson-map-symbol-list button {
+  touch-action: pan-y !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+.lesson-map-placed-list { padding-bottom: 70px !important; }
+
+/* Six required maps are unmistakable and always reachable from one drawer. */
+.lesson-map-region-grid {
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:7px !important;
+}
+.lesson-map-region-grid > button {
+  position:relative !important;
+  min-height:88px !important;
+  display:grid !important;
+  grid-template-columns:52px minmax(0,1fr) !important;
+  grid-template-rows:auto auto !important;
+  align-items:center !important;
+  column-gap:8px !important;
+  padding:8px !important;
+  border:1px solid rgba(230,192,102,.27) !important;
+  border-radius:13px !important;
+  background:linear-gradient(145deg,#101b22,#060c11) !important;
+  color:#f7e4b1 !important;
+  text-align:right !important;
+}
+.lesson-map-region-grid > button.active { border-color:#f0ca6d !important; box-shadow:0 0 0 2px rgba(228,184,83,.16),0 9px 22px rgba(0,0,0,.35) !important; background:linear-gradient(145deg,#4a2e0d,#121015) !important; }
+.lesson-map-region-grid > button .region-mini-map { grid-row:1 / span 2 !important; width:48px !important; height:48px !important; }
+.lesson-map-region-grid > button strong { font-size:.82rem !important; }
+.lesson-map-region-grid > button small { display:block !important; max-height:2.5em !important; overflow:hidden !important; opacity:.65 !important; font-size:.61rem !important; line-height:1.25 !important; }
+.lesson-map-extra-regions { margin-top:8px !important; border-top:1px solid rgba(231,191,98,.16) !important; padding-top:7px !important; }
+.lesson-map-extra-regions summary { color:#e8ca81 !important; cursor:pointer !important; }
+.lesson-map-extra-regions > div { display:flex !important; flex-wrap:wrap !important; gap:5px !important; margin-top:6px !important; }
+.lesson-map-extra-regions button { min-height:34px !important; border:1px solid rgba(231,191,98,.24) !important; border-radius:9px !important; background:#0d171e !important; color:#ecd99e !important; }
+
+.region-mini-map {
+  display:inline-block !important;
+  position:relative !important;
+  border-radius:50% !important;
+  background:radial-gradient(circle at 35% 30%,#4d9ab0,#0b526b 48%,#052432 72%) !important;
+  border:2px solid #d9b968 !important;
+  box-shadow:inset 0 0 12px rgba(0,0,0,.45),0 5px 12px rgba(0,0,0,.4) !important;
+}
+.region-mini-map::before { content:"" !important; position:absolute !important; inset:9px 8px !important; background:linear-gradient(145deg,#a6b877,#527551) !important; filter:drop-shadow(0 2px 2px rgba(0,0,0,.4)) !important; }
+.region-egypt::before { clip-path:polygon(45% 0,68% 9%,60% 28%,75% 52%,63% 100%,35% 92%,30% 62%,38% 35%,26% 16%) !important; }
+.region-arab::before { clip-path:polygon(0 42%,19% 18%,43% 21%,56% 4%,69% 24%,100% 28%,84% 56%,90% 86%,61% 78%,48% 100%,29% 71%,6% 68%) !important; }
+.region-africa::before { clip-path:polygon(48% 0,80% 18%,95% 44%,75% 68%,57% 100%,37% 79%,22% 61%,4% 36%,22% 10%) !important; }
+.region-asia::before { clip-path:polygon(5% 36%,20% 13%,53% 0,91% 17%,100% 48%,77% 55%,70% 86%,48% 72%,32% 100%,16% 66%) !important; }
+.region-europe::before { clip-path:polygon(8% 41%,17% 17%,37% 29%,46% 0,61% 27%,88% 20%,96% 45%,74% 54%,66% 82%,48% 65%,30% 91%,21% 58%) !important; }
+.region-world::before { clip-path:polygon(2% 22%,22% 13%,36% 30%,47% 14%,68% 10%,96% 28%,90% 51%,72% 45%,61% 66%,44% 58%,34% 82%,15% 70%,3% 45%) !important; }
+
+/* More convincing relief symbols: bigger, deeper shadows, no text on placed symbols. */
+.lesson-map-symbol-preview .geography-glyph-svg,
+.map-pro-placement.shape-only .geography-glyph-svg { overflow:visible !important; }
+.terrain-3d { filter:drop-shadow(0 7px 5px rgba(0,0,0,.58)) saturate(1.13) contrast(1.06) !important; }
+.map-pro-placement.geography-placement.shape-only {
+  width: clamp(70px,7.3vw,104px) !important;
+  height: clamp(54px,6.2vw,88px) !important;
+  transform:translate(-50%,-58%) !important;
+  filter:drop-shadow(0 10px 7px rgba(0,0,0,.62)) !important;
+}
+.map-pro-placement.geography-placement.shape-only .geography-placement-glyph,
+.map-pro-placement.geography-placement.shape-only .geography-glyph-svg { width:100% !important; height:100% !important; }
+
+/* Historical board: premium framed papyrus, dimensional edge artifacts, clear writing center. */
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
+  border: 7px ridge rgba(151,96,28,.92) !important;
+  border-radius: 18px !important;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(255,250,226,.99) 0 48%, rgba(239,208,153,.98) 78%, rgba(143,88,30,.96) 100%),
+    repeating-linear-gradient(7deg, rgba(89,48,16,.035) 0 1px, transparent 1px 8px),
+    #e8c98e !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255,230,161,.8),
+    inset 0 0 0 10px rgba(86,48,14,.12),
+    inset 0 0 100px rgba(73,37,8,.33),
+    0 18px 44px rgba(0,0,0,.48) !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-theme-art { opacity:.9 !important; filter:saturate(1.08) contrast(1.03) !important; }
+.classmode-v103 .board-theme-history .classmode-board-watermark {
+  width: clamp(90px, 12vw, 160px) !important;
+  height: auto !important;
+  opacity: .085 !important;
+  filter: sepia(1) saturate(.7) drop-shadow(0 10px 13px rgba(70,37,9,.28)) !important;
+}
+.classmode-v103 .board-theme-history .class-board-canvas { position:relative !important; z-index:4 !important; background:transparent !important; }
+
+/* Map Challenge: the six required maps fit in the toolbar and remain visible. */
+.map-challenge-pro .map-game-toolbar { min-width:0 !important; overflow:hidden !important; }
+.map-challenge-pro .map-region-tabs-core {
+  min-width:0 !important;
+  display:grid !important;
+  grid-template-columns:repeat(6,minmax(80px,1fr)) !important;
+  gap:4px !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  padding:2px !important;
+  scrollbar-width:thin !important;
+  touch-action:pan-x !important;
+}
+.map-challenge-pro .map-region-tabs-core > button {
+  min-width:80px !important;
+  min-height:34px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  white-space:nowrap !important;
+}
+.map-challenge-pro .map-region-tabs-core .region-mini-map { width:24px !important; height:24px !important; flex:0 0 24px !important; border-width:1px !important; }
+.map-challenge-pro .map-region-tabs-core .region-mini-map::before { inset:5px 4px !important; }
+.map-challenge-pro .map-region-tabs-core b { font-size:.65rem !important; }
+
+@media (orientation: landscape) and (max-height: 720px) {
+  .classmode-resource-preview > .resource-preview-head { top:5px !important; min-height:34px !important; max-height:42px !important; }
+  .classmode-pdf-canvas-host,
+  .classmode-image-stage { padding-top:46px !important; }
+  .lesson-map-drawer { width:clamp(275px,32vw,360px) !important; }
+  .lesson-map-region-grid > button { min-height:72px !important; grid-template-columns:42px minmax(0,1fr) !important; }
+  .lesson-map-region-grid > button .region-mini-map { width:39px !important; height:39px !important; }
+  .lesson-map-symbol-list button { min-height:72px !important; }
+  .map-challenge-pro .map-region-tabs-core { grid-template-columns:repeat(6,minmax(72px,1fr)) !important; }
+}
+
+/* ================================================================
+   R18 Browser P0 V7 — touch zoom, annotation overlays, map atlas.
+   Loaded last intentionally.
+   ================================================================ */
+
+/* Never let the old --board-zoom transform resize the media container. */
+.classmode-v103 .classmode-resource-preview .resource-preview-body,
+.classmode-v103 .classmode-resource-preview .unified-media-renderer {
+  transform: none !important;
+  transform-origin: center center !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Shared finger pan + pinch-zoom surface for PDF and images. */
+.classmode-panzoom-viewport {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: grab !important;
+}
+.classmode-panzoom-viewport:active { cursor: grabbing !important; }
+.classmode-panzoom-content {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  place-items: center !important;
+  transform-origin: center center !important;
+  will-change: transform !important;
+}
+.classmode-pdf-panzoom { padding: 54px 8px 8px !important; box-sizing: border-box !important; }
+.classmode-pdf-panzoom .classmode-panzoom-content { inset: 54px 8px 8px !important; width: auto !important; height: auto !important; }
+.classmode-image-panzoom { inset: 48px 0 0 !important; height: calc(100% - 48px) !important; }
+.classmode-pdf-rendered-image,
+.classmode-image-panzoom .unified-media-image {
+  pointer-events: none !important;
+  -webkit-user-drag: none !important;
+}
+.classmode-pdf-rendered-image {
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+/* The annotation canvas is always the same visible viewport as the media. */
+.classmode-v103 .class-board-canvas-shell.has-resource-head,
+.classmode-v103 .classmode-board-stage > .class-board-canvas-shell.has-resource-head {
+  position: absolute !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 72 !important;
+  transform: none !important;
+}
+.classmode-v103 .class-board-canvas-shell.has-resource-head .class-board-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none !important;
+}
+
+/* On PDF/images, annotation tools are compact overlays, never a replacement screen. */
+.classmode-viewport-stage .classmode-board-sidebar-left.media-annotation-tools {
+  top: 58px !important;
+  right: 8px !important;
+  bottom: auto !important;
+  left: 8px !important;
+  width: auto !important;
+  height: 46px !important;
+  max-height: 46px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  background: rgba(5,9,13,.9) !important;
+  border: 1px solid rgba(231,191,98,.34) !important;
+  backdrop-filter: blur(10px) !important;
+  scrollbar-width: none !important;
+}
+.classmode-viewport-stage .classmode-board-sidebar-left.media-annotation-tools::-webkit-scrollbar { display:none !important; }
+.classmode-viewport-stage .classmode-board-sidebar-left.media-annotation-tools button {
+  flex: 0 0 42px !important;
+  width: 42px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+}
+.classmode-viewport-stage .classmode-toolbar.media-annotation-toolbar {
+  right: 8px !important;
+  bottom: 8px !important;
+  left: 8px !important;
+  width: auto !important;
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: 50px !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 6px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  background: rgba(5,9,13,.92) !important;
+  scrollbar-width: none !important;
+}
+.classmode-viewport-stage .classmode-toolbar.media-annotation-toolbar::-webkit-scrollbar { display:none !important; }
+.classmode-toolbar.media-annotation-toolbar .classmode-tool-group {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin: 0 !important;
+}
+.classmode-toolbar.media-annotation-toolbar .classmode-historical-symbol-row { display:none !important; }
+
+/* One focus button now works for every class-mode surface. */
+.classmode-stage-focus-toggle { z-index: 180 !important; }
+.classmode-viewport.stage-focus-mode .classmode-resource-preview,
+.classmode-viewport.stage-focus-mode .classmode-map-embed,
+.classmode-viewport.stage-focus-mode .classmode-games-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-resource-preview > .resource-preview-head { top: 8px !important; }
+
+/* Map atlas presentation — shape-preserving, cleaner and closer to a modern atlas. */
+.map-pro-stage {
+  isolation: isolate !important;
+  overflow: hidden !important;
+  background: #7bcddd !important;
+}
+.map-pro-svg {
+  object-fit: contain !important;
+  background: transparent !important;
+}
+.map-pro-stage.map-style-relief {
+  background:
+    radial-gradient(circle at 70% 22%, rgba(255,255,255,.24), transparent 26%),
+    linear-gradient(180deg,#79d2e2 0%,#4db8d2 58%,#2b8eb2 100%) !important;
+}
+.map-pro-stage.map-style-relief .map-pro-country-layer {
+  filter: url(#mapTerrain) !important;
+}
+.map-pro-stage.map-style-relief .map-pro-country {
+  fill: url(#mapLand) !important;
+  stroke: rgba(247,244,215,.82) !important;
+  stroke-width: 1.15 !important;
+}
+.map-pro-stage.map-style-atlas .map-pro-ocean { fill:#67c9dc !important; }
+.map-pro-stage.map-style-atlas .map-pro-country {
+  stroke:#48625b !important;
+  stroke-width:1.05 !important;
+  filter:none !important;
+}
+.map-pro-stage.silent-map {
+  background: linear-gradient(180deg,#9bd8e3,#6ec5d6) !important;
+}
+.map-pro-stage.silent-map .map-pro-ocean { fill:#8bd1df !important; }
+.map-pro-stage.silent-map .map-pro-country {
+  fill:#f3ead2 !important;
+  stroke:transparent !important;
+  filter:none !important;
+  cursor:default !important;
+}
+.map-pro-stage.silent-map .map-pro-coastline-halo.hidden-in-silent { display:none !important; }
+.map-pro-stage.silent-map .map-pro-reference-grid,
+.map-pro-stage.silent-map .map-pro-furniture,
+.map-pro-stage.silent-map .map-pro-label,
+.map-pro-stage.silent-map .map-pro-feature-label,
+.map-pro-stage.silent-map .map-pro-marker { display:none !important; }
+
+/* Region selector: all nine maps are first-class, not hidden under "more". */
+.lesson-map-region-grid {
+  grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+}
+.lesson-map-presentation-tabs {
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:5px !important;
+}
+.lesson-map-presentation-tabs button {
+  min-height:38px !important;
+  border:1px solid rgba(232,193,102,.26) !important;
+  border-radius:9px !important;
+  background:#0d171e !important;
+  color:#e9d8a6 !important;
+  font-weight:800 !important;
+}
+.lesson-map-presentation-tabs button.active {
+  border-color:#e7be5f !important;
+  background:linear-gradient(145deg,#704511,#231509) !important;
+  color:#fff5cf !important;
+}
+.lesson-map-silent-help { display:block !important; margin-top:5px !important; color:#9db0b9 !important; line-height:1.45 !important; }
+
+/* Symbol drawer: native HTML drag is disabled; touch is reserved for vertical scroll or our pointer drag. */
+.lesson-map-symbol-scroll { scroll-behavior:smooth !important; }
+.lesson-map-symbol-list button { -webkit-user-drag:none !important; }
+
+/* More natural relief symbols when placed on a map. */
+.geography-placement-glyph,
+.lesson-map-symbol-preview,
+.map-palette-glyph {
+  overflow: visible !important;
+  filter: drop-shadow(0 7px 6px rgba(0,0,0,.45)) !important;
+}
+.geography-placement-glyph .geography-glyph-svg {
+  width: clamp(56px,6vw,92px) !important;
+  height: clamp(44px,5vw,74px) !important;
+  overflow: visible !important;
+}
+.map-pro-placement.geography-placement {
+  min-width: 0 !important;
+  width: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  perspective: 500px !important;
+}
+.map-pro-placement.geography-placement > b {
+  width:auto !important;
+  height:auto !important;
+  min-width:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  transform: rotateX(8deg) translateZ(8px) !important;
+}
+.terrain-3d { filter: drop-shadow(0 5px 4px rgba(0,0,0,.52)) saturate(1.12) contrast(1.05) !important; }
+.mountain-3d { transform:scale(1.12) !important; }
+.plateau-3d { transform:scale(1.08) !important; }
+.desert-3d { transform:scale(1.1) !important; }
+
+/* Map Challenge: deterministic three-area landscape layout + nine scrollable maps. */
+.map-challenge-pro.map-game-v103 .map-game-layout {
+  direction:ltr !important;
+  grid-template-columns: clamp(118px,12vw,170px) minmax(0,1fr) clamp(220px,22vw,300px) !important;
+  grid-template-areas: "nav map question" !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-nav { grid-area:nav !important; direction:rtl !important; }
+.map-challenge-pro.map-game-v103 .map-game-main { grid-area:map !important; direction:rtl !important; }
+.map-challenge-pro.map-game-v103 .map-game-question-panel { grid-area:question !important; direction:rtl !important; }
+.map-challenge-pro .map-region-tabs-core {
+  display:flex !important;
+  grid-template-columns:none !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  scroll-snap-type:x proximity !important;
+}
+.map-challenge-pro .map-region-tabs-core > button {
+  flex:0 0 108px !important;
+  min-width:108px !important;
+  scroll-snap-align:start !important;
+}
+.map-challenge-pro .map-view-tools {
+  display:flex !important;
+  align-items:center !important;
+  gap:3px !important;
+  overflow-x:auto !important;
+  scrollbar-width:none !important;
+}
+.map-challenge-pro .map-view-tools button.active {
+  border-color:#e5bb57 !important;
+  background:linear-gradient(145deg,#704511,#25170a) !important;
+  color:#fff2bd !important;
+}
+
+@media (orientation: landscape) and (max-height: 720px) {
+  .classmode-pdf-panzoom { padding-top:44px !important; }
+  .classmode-pdf-panzoom .classmode-panzoom-content { inset:44px 5px 5px !important; }
+  .classmode-image-panzoom { inset:42px 0 0 !important; height:calc(100% - 42px) !important; }
+  .lesson-map-region-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  .map-challenge-pro.map-game-v103 .map-game-layout { grid-template-columns: 112px minmax(0,1fr) 218px !important; }
+}
+
+/* ===== R18 browser V8: premium historical/geography whiteboard ===== */
+.classmode-v103 .class-board-canvas-shell:not(.has-resource-head) {
+  isolation:isolate !important;
+  overflow:hidden !important;
+}
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255,252,233,.995) 0 44%, rgba(238,208,151,.985) 76%, rgba(121,70,24,.97) 100%),
+    repeating-linear-gradient(4deg, rgba(95,53,18,.04) 0 1px, transparent 1px 8px),
+    #e7c889 !important;
+  border:0 !important;
+  border-radius:20px !important;
+  box-shadow:
+    inset 0 0 0 3px #3a210d,
+    inset 0 0 0 7px #c89035,
+    inset 0 0 0 10px #5e3512,
+    inset 0 0 0 14px #edcb78,
+    inset 0 0 0 18px #4b2a10,
+    inset 0 0 115px rgba(62,29,5,.32),
+    0 16px 42px rgba(0,0,0,.52) !important;
+}
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head)::before,
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head)::after {
+  content:"" !important;
+  position:absolute !important;
+  top:25px !important;
+  bottom:25px !important;
+  width:18px !important;
+  z-index:2 !important;
+  pointer-events:none !important;
+  background:
+    linear-gradient(90deg,rgba(255,233,161,.72),rgba(114,64,20,.9) 32%,rgba(225,184,96,.95) 52%,rgba(74,40,13,.9)) !important;
+  border-radius:9px !important;
+  box-shadow:0 7px 14px rgba(35,16,4,.38), inset 0 0 7px rgba(255,244,191,.6) !important;
+}
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head)::before { left:13px !important; }
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head)::after { right:13px !important; }
+.classmode-v103 .board-theme-history .classmode-board-theme-art {
+  opacity:.78 !important;
+  filter:saturate(1.12) contrast(1.05) drop-shadow(0 5px 6px rgba(62,29,7,.18)) !important;
+  mix-blend-mode:multiply !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-watermark {
+  width:clamp(96px,13vw,168px) !important;
+  opacity:.065 !important;
+  filter:sepia(1) saturate(.78) contrast(.95) drop-shadow(0 12px 16px rgba(63,34,8,.3)) !important;
+}
+.classmode-v103 .class-board-canvas-shell.board-theme-geography:not(.has-resource-head) {
+  background:
+    radial-gradient(circle at 76% 25%,rgba(181,225,207,.42),transparent 28%),
+    radial-gradient(circle at 23% 72%,rgba(170,213,224,.34),transparent 31%),
+    repeating-radial-gradient(ellipse at 52% 50%,rgba(37,104,84,.085) 0 1px,transparent 1px 28px),
+    linear-gradient(145deg,#eef4dc,#f8fbec 48%,#dce9d1) !important;
+  border:5px solid #315e52 !important;
+  border-radius:18px !important;
+  box-shadow:inset 0 0 0 3px #d4b65b,inset 0 0 0 7px #173f38,inset 0 0 78px rgba(24,82,68,.18),0 14px 36px rgba(0,0,0,.4) !important;
+}
+.classmode-v103 .board-theme-geography .classmode-board-theme-art {
+  opacity:.66 !important;
+  filter:drop-shadow(0 7px 8px rgba(25,79,65,.16)) !important;
+}
+.classmode-v103 .class-board-canvas-shell.board-theme-manuscript:not(.has-resource-head) {
+  background:
+    radial-gradient(ellipse at 50% 48%,rgba(255,247,221,.98) 0 53%,rgba(224,187,126,.96) 84%,rgba(117,70,31,.93) 100%),
+    repeating-linear-gradient(0deg,rgba(104,63,28,.035) 0 1px,transparent 1px 6px),#e8cca0 !important;
+  border:7px double #6f4320 !important;
+  border-radius:16px !important;
+  box-shadow:inset 0 0 85px rgba(83,44,14,.23),0 14px 35px rgba(0,0,0,.38) !important;
+}
+
+/* Tool trays are compact scrollable carousels; they never steal the writing surface. */
+.classmode-v103 .classmode-toolbar:not(.media-annotation-toolbar) {
+  max-height:clamp(80px,18dvh,136px) !important;
+  overflow:auto !important;
+  overscroll-behavior:contain !important;
+  scrollbar-width:thin !important;
+  touch-action:pan-x pan-y !important;
+}
+.classmode-v103 .classmode-historical-symbol-row,
+.classmode-v103 .classmode-geographical-symbol-row,
+.classmode-v103 .classmode-text-style-row {
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  min-width:max-content !important;
+  gap:5px !important;
+}
+.classmode-v103 .classmode-historical-symbol-row button,
+.classmode-v103 .classmode-geographical-symbol-row button,
+.classmode-v103 .classmode-text-style-row button {
+  min-height:34px !important;
+  border:1px solid rgba(215,173,53,.5) !important;
+  background:linear-gradient(180deg,rgba(23,18,10,.94),rgba(5,8,12,.96)) !important;
+  box-shadow:inset 0 1px rgba(255,239,179,.08),0 3px 7px rgba(0,0,0,.22) !important;
+}
+.classmode-v103 .classmode-historical-symbol-row button.active,
+.classmode-v103 .classmode-geographical-symbol-row button.active,
+.classmode-v103 .classmode-text-style-row button.active {
+  background:linear-gradient(145deg,#b67b23,#5b350f) !important;
+  box-shadow:inset 0 1px rgba(255,246,201,.34),0 0 0 1px #efd37c,0 5px 12px rgba(75,40,6,.35) !important;
+}
+
+/* Full-screen remains the SAME board and keeps both tool launchers reachable. */
+.classmode-viewport.stage-focus-mode .class-board-canvas-shell:not(.has-resource-head) {
+  border-radius:0 !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-toolbar:not(.media-annotation-toolbar) {
+  left:max(76px,calc(var(--mobdea-safe-left) + 12px)) !important;
+  right:max(76px,calc(var(--mobdea-safe-right) + 12px)) !important;
+  bottom:max(8px,var(--mobdea-safe-bottom)) !important;
+  max-height:128px !important;
+  border-radius:16px !important;
+  backdrop-filter:blur(14px) !important;
+}

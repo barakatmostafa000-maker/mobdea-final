@@ -5,17 +5,19 @@ import {
 } from 'lucide-react';
 import { identity } from '../config/identity';
 import {
-  assertLoginAllowed, clearLoginFailures, createPinSecret, hasCredentialSecret,
-  normalizePin, recordLoginFailure, verifyCredentialSecret, verifyPinSecret, verifyRecoverySecret,
+  assertLoginAllowed, clearLoginFailures, createStaffPasswordSecret, hasCredentialSecret,
+  hasStaffPasswordSecret, normalizePin, normalizeStaffPassword, recordLoginFailure,
+  verifyCredentialSecret, verifyFactoryStaffPassword, verifyRecoverySecret, verifyStaffPasswordSecret,
 } from '../utils/security';
 import {
   defaultAuthState, normalizeDigits, resolveGuardianByPhone, resolveStudentByCode,
   resolveStudentFromQrPayload, ROLE_LABELS,
 } from '../utils/auth';
+import { loginStudentFromCloud, mergeStudentLoginSnapshot } from '../services/studentPortalCloud';
 
 const roles = [
-  { key: 'teacher', title: 'المعلم', hint: 'PIN آمن', icon: GraduationCap, pinPrefix: 'teacher' },
-  { key: 'admin', title: 'الإدارة', hint: 'PIN آمن', icon: ShieldCheck, pinPrefix: 'admin' },
+  { key: 'teacher', title: 'المعلم', hint: 'كلمة مرور موحدة', icon: GraduationCap, pinPrefix: 'teacher' },
+  { key: 'admin', title: 'الإدارة', hint: 'كلمة مرور موحدة', icon: ShieldCheck, pinPrefix: 'admin' },
   { key: 'student', title: 'الطالب', hint: 'الكود + PIN', icon: UserRound, pinPrefix: 'student' },
   { key: 'guardian', title: 'ولي الأمر', hint: 'الهاتف + PIN', icon: UsersRound, pinPrefix: 'guardian' },
   { key: 'visitor', title: 'الزائر', hint: 'دخول محدود', icon: PersonStanding },
@@ -31,7 +33,6 @@ function cleanQrPayload(payload) {
 export default function LockScreen({ data, onUnlock, updateData }) {
   const [role, setRole] = useState('teacher');
   const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [visitorName, setVisitorName] = useState('');
@@ -56,11 +57,10 @@ export default function LockScreen({ data, onUnlock, updateData }) {
 
   const roleInfo = useMemo(() => roles.find((item) => item.key === role) || roles[0], [role]);
   const selectedLabel = ROLE_LABELS[role] || 'المستخدم';
-  const staffConfigured = STAFF_ROLES.has(role) && hasCredentialSecret(data?.settings, roleInfo.pinPrefix);
+  const staffConfigured = STAFF_ROLES.has(role) && hasStaffPasswordSecret(data?.settings, roleInfo.pinPrefix);
 
   useEffect(() => {
     setPin('');
-    setConfirmPin('');
     setShowPin(false);
     setIdentifier('');
     setVisitorName('');
@@ -147,21 +147,17 @@ export default function LockScreen({ data, onUnlock, updateData }) {
         const prefix = roleInfo.pinPrefix;
         const scope = `staff:${role}`;
         assertLoginAllowed(scope);
-        if (!staffConfigured) {
-          const normalized = normalizePin(pin);
-          if (!/^\d{6,10}$/.test(normalized)) throw new Error('أنشئ PIN من 6 إلى 10 أرقام أولًا.');
-          if (normalized !== normalizePin(confirmPin)) throw new Error('تأكيد PIN غير مطابق.');
-          const secret = await createPinSecret(normalized, prefix);
-          await updateData({ ...data, settings: { ...data.settings, ...secret, [`${prefix}Pin`]: '' } });
-          clearLoginFailures(scope);
-          onUnlock(defaultAuthState(role), { remember });
-          return;
-        }
-        const ok = await verifyPinSecret(pin, data.settings, prefix);
-        if (!ok) failLogin(scope, 'الرقم السري غير صحيح.');
+        const normalized = normalizeStaffPassword(pin);
+        if (!normalized) throw new Error('اكتب كلمة مرور المعلم والإدارة.');
+        const configuredOk = staffConfigured
+          ? await verifyStaffPasswordSecret(normalized, data.settings, prefix)
+          : false;
+        const factoryAllowed = data.settings?.staffFactoryPasswordDisabled !== true;
+        const factoryOk = factoryAllowed ? await verifyFactoryStaffPassword(normalized) : false;
+        if (!configuredOk && !factoryOk) failLogin(scope, 'كلمة المرور غير صحيحة.');
         clearLoginFailures(scope);
-        if (data.settings[`${prefix}PinAlgorithm`] !== 'PBKDF2-SHA256') {
-          const upgraded = await createPinSecret(pin, prefix);
+        if (factoryOk || !staffConfigured || data.settings[`${prefix}PinAlgorithm`] !== 'PBKDF2-SHA256') {
+          const upgraded = await createStaffPasswordSecret(normalized, prefix);
           await updateData({ ...data, settings: { ...data.settings, ...upgraded, [`${prefix}Pin`]: '' } });
         }
         onUnlock(defaultAuthState(role), { remember });
@@ -169,15 +165,32 @@ export default function LockScreen({ data, onUnlock, updateData }) {
       }
 
       if (role === 'student') {
-        const student = resolveStudentByCode(data, identifier) || resolveStudentFromQrPayload(data, identifier);
         const scope = `student:${normalizeDigits(identifier) || 'unknown'}`;
         assertLoginAllowed(scope);
-        if (!student) failLogin(scope, 'كود الطالب أو PIN غير صحيح.');
-        if (!hasCredentialSecret(student, 'student')) throw new Error('حساب الطالب غير مفعّل. اطلب من المعلم إنشاء PIN للطالب.');
-        if (!(await verifyCredentialSecret(pin, student, 'student'))) failLogin(scope, 'كود الطالب أو PIN غير صحيح.');
-        clearLoginFailures(scope);
-        onUnlock(defaultAuthState('student', student), { remember });
-        return;
+        const localStudent = resolveStudentByCode(data, identifier) || resolveStudentFromQrPayload(data, identifier);
+        if (localStudent && hasCredentialSecret(localStudent, 'student')) {
+          const localOk = await verifyCredentialSecret(pin, localStudent, 'student');
+          if (localOk) {
+            clearLoginFailures(scope);
+            onUnlock(defaultAuthState('student', localStudent), { remember });
+            return;
+          }
+        }
+
+        try {
+          const payload = await loginStudentFromCloud(data.settings, identifier, pin);
+          const merged = await mergeStudentLoginSnapshot(data, payload, pin);
+          await updateData(merged, { skipCloudDirty: true });
+          const cloudStudent = payload.student || merged.students.find((item) => String(item.code) === String(identifier));
+          clearLoginFailures(scope);
+          onUnlock(defaultAuthState('student', cloudStudent), { remember });
+          return;
+        } catch (cloudError) {
+          if (localStudent && !hasCredentialSecret(localStudent, 'student')) {
+            throw new Error('حساب الطالب غير مفعّل. اطلب من المعلم إنشاء PIN للطالب ثم مزامنة البيانات.');
+          }
+          failLogin(scope, cloudError?.message || 'كود الطالب أو PIN غير صحيح.');
+        }
       }
 
       if (role === 'guardian') {
@@ -206,14 +219,14 @@ export default function LockScreen({ data, onUnlock, updateData }) {
     const scope = `recovery:${role}`;
     try {
       assertLoginAllowed(scope);
-      const normalized = normalizePin(recoveryNewPin);
-      if (!/^\d{6,10}$/.test(normalized)) throw new Error('اكتب PIN جديدًا من 6 إلى 10 أرقام.');
-      if (normalized !== normalizePin(recoveryConfirmPin)) throw new Error('الرقمان غير متطابقين.');
+      const normalized = normalizeStaffPassword(recoveryNewPin);
+      if (normalized.length < 8) throw new Error('اكتب كلمة مرور جديدة لا تقل عن 8 خانات.');
+      if (normalized !== normalizeStaffPassword(recoveryConfirmPin)) throw new Error('كلمتا المرور غير متطابقتين.');
       setRecoveryLoading(true);
       if (!(await verifyRecoverySecret(recoveryAnswer, data.settings))) failLogin(scope, 'عبارة الاسترجاع غير صحيحة.');
-      const prefix = role === 'teacher' ? 'teacher' : 'admin';
-      const secret = await createPinSecret(normalized, prefix);
-      await updateData({ ...data, settings: { ...data.settings, ...secret, [`${prefix}Pin`]: '' } });
+      const teacherSecret = await createStaffPasswordSecret(normalized, 'teacher');
+      const adminSecret = await createStaffPasswordSecret(normalized, 'admin');
+      await updateData({ ...data, settings: { ...data.settings, ...teacherSecret, ...adminSecret, teacherPin: '', adminPin: '', staffFactoryPasswordDisabled: true } });
       clearLoginFailures(scope);
       setRecoverySuccess(true);
     } catch (error) {
@@ -232,12 +245,21 @@ export default function LockScreen({ data, onUnlock, updateData }) {
     setRecoverySuccess(false);
   };
 
-  const pinField = (label = 'PIN') => (
+  const pinField = (label = 'PIN', staffPassword = false) => (
     <label className="auth-field">
       <span>{label}</span>
       <div className="auth-pin-wrap">
-        <input type={showPin ? 'text' : 'password'} inputMode="numeric" maxLength={10} value={pin} onChange={(event) => setPin(normalizePin(event.target.value))} onKeyDown={(event) => event.key === 'Enter' && handleUnlock()} placeholder="6 إلى 10 أرقام" />
-        <button type="button" className="auth-pin-eye" onClick={() => setShowPin((value) => !value)} aria-label={showPin ? 'إخفاء الرقم السري' : 'إظهار الرقم السري'}>{showPin ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+        <input
+          type={showPin ? 'text' : 'password'}
+          inputMode={staffPassword ? 'text' : 'numeric'}
+          maxLength={staffPassword ? 128 : 10}
+          value={pin}
+          onChange={(event) => setPin(staffPassword ? event.target.value.slice(0, 128) : normalizePin(event.target.value))}
+          onKeyDown={(event) => event.key === 'Enter' && handleUnlock()}
+          placeholder={staffPassword ? 'اكتب كلمة المرور الموحدة' : '6 إلى 10 أرقام'}
+          autoComplete={staffPassword ? 'current-password' : 'one-time-code'}
+        />
+        <button type="button" className="auth-pin-eye" onClick={() => setShowPin((value) => !value)} aria-label={showPin ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}>{showPin ? <EyeOff size={17} /> : <Eye size={17} />}</button>
       </div>
     </label>
   );
@@ -267,28 +289,27 @@ export default function LockScreen({ data, onUnlock, updateData }) {
           <div className="auth-fields-area">
             {STAFF_ROLES.has(role) && !forgotOpen && (
               <>
-                {!staffConfigured && <div className="auth-notice success">هذه أول مرة لهذا الدور. أنشئ PIN قويًا الآن، ولن تُحفظ الأرقام الافتراضية داخل الكود.</div>}
-                {pinField(staffConfigured ? `PIN ${roleInfo.title}` : 'إنشاء PIN جديد')}
-                {!staffConfigured && <label className="auth-field"><span>تأكيد PIN</span><input type="password" inputMode="numeric" maxLength={10} value={confirmPin} onChange={(event) => setConfirmPin(normalizePin(event.target.value))} placeholder="أعد كتابة PIN" /></label>}
+                {!staffConfigured && <div className="auth-notice success">استخدم كلمة المرور الموحدة المعتمدة للمعلم والإدارة. لا يمكن إنشاء كلمة مرور جديدة من شاشة الدخول.</div>}
+                {pinField(`كلمة مرور ${roleInfo.title}`, true)}
                 <div className="auth-remember-row">
                   <label className="auth-remember"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>تذكرني لمدة 7 أيام</span></label>
-                  {staffConfigured && data.settings.staffRecoveryAnswerHash && <button type="button" className="auth-link-btn" onClick={() => setForgotOpen(true)}>نسيت PIN؟</button>}
+                  {staffConfigured && data.settings.staffRecoveryAnswerHash && <button type="button" className="auth-link-btn" onClick={() => setForgotOpen(true)}>نسيت كلمة المرور؟</button>}
                 </div>
-                <button className="auth-submit" onClick={handleUnlock} disabled={loading} type="button"><ArrowRight size={17} /> {staffConfigured ? `دخول ${roleInfo.title}` : 'تفعيل الحساب والدخول'}</button>
+                <button className="auth-submit" onClick={handleUnlock} disabled={loading} type="button"><ArrowRight size={17} /> {`دخول ${roleInfo.title}`}</button>
               </>
             )}
 
             {STAFF_ROLES.has(role) && forgotOpen && (
               <div className="auth-recovery">
-                <div className="auth-recovery-head"><span><HelpCircle size={16} /> استرجاع PIN</span><button type="button" className="auth-icon-btn" onClick={closeRecovery} aria-label="إغلاق"><X size={16} /></button></div>
+                <div className="auth-recovery-head"><span><HelpCircle size={16} /> استرجاع كلمة المرور</span><button type="button" className="auth-icon-btn" onClick={closeRecovery} aria-label="إغلاق"><X size={16} /></button></div>
                 {recoverySuccess ? (
-                  <><div className="auth-notice success"><Check size={16} /> تم تحديث PIN بنجاح.</div><button className="auth-submit" type="button" onClick={closeRecovery}><ArrowRight size={17} /> العودة للدخول</button></>
+                  <><div className="auth-notice success"><Check size={16} /> تم تحديث كلمة المرور الموحدة بنجاح.</div><button className="auth-submit" type="button" onClick={closeRecovery}><ArrowRight size={17} /> العودة للدخول</button></>
                 ) : (
                   <>
                     <p className="auth-recovery-question">أدخل عبارة الاسترجاع الخاصة التي تم ضبطها من الإعدادات.</p>
                     <label className="auth-field"><span>عبارة الاسترجاع</span><input type="password" value={recoveryAnswer} onChange={(event) => setRecoveryAnswer(event.target.value)} autoComplete="off" /></label>
-                    <label className="auth-field"><span>PIN جديد</span><input type="password" inputMode="numeric" maxLength={10} value={recoveryNewPin} onChange={(event) => setRecoveryNewPin(normalizePin(event.target.value))} placeholder="6 إلى 10 أرقام" /></label>
-                    <label className="auth-field"><span>تأكيد PIN</span><input type="password" inputMode="numeric" maxLength={10} value={recoveryConfirmPin} onChange={(event) => setRecoveryConfirmPin(normalizePin(event.target.value))} /></label>
+                    <label className="auth-field"><span>كلمة مرور جديدة</span><input type="password" maxLength={128} value={recoveryNewPin} onChange={(event) => setRecoveryNewPin(event.target.value.slice(0, 128))} placeholder="8 خانات على الأقل" autoComplete="new-password" /></label>
+                    <label className="auth-field"><span>تأكيد كلمة المرور</span><input type="password" maxLength={128} value={recoveryConfirmPin} onChange={(event) => setRecoveryConfirmPin(event.target.value.slice(0, 128))} autoComplete="new-password" /></label>
                     {recoveryNotice && <div className="auth-notice error">{recoveryNotice}</div>}
                     <button className="auth-submit" type="button" onClick={submitRecovery} disabled={recoveryLoading}><ArrowRight size={17} /> تحديث PIN</button>
                   </>

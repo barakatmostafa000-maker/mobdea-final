@@ -3,6 +3,12 @@ const PBKDF2_ITERATIONS = 310_000;
 const HASH_BYTES = 32;
 const THROTTLE_KEY = 'mobdea_auth_throttle_v2';
 const MAX_PIN_LENGTH = 10;
+const MAX_STAFF_PASSWORD_LENGTH = 128;
+const FACTORY_STAFF_SECRET = Object.freeze({
+  hash: 'XiLJBLcZ4PQY1N8IgGlL703n9LD7JSVKABh+kMbnVFI=',
+  salt: 'OnEVCcUhS4ZsBUNDBwrgwQ==',
+  iterations: 310_000,
+});
 
 function bytesToBase64(bytes) {
   let binary = '';
@@ -55,6 +61,10 @@ export function normalizePin(pin) {
   return String(pin ?? '').replace(/\D/g, '').slice(0, MAX_PIN_LENGTH);
 }
 
+export function normalizeStaffPassword(password) {
+  return String(password ?? '').normalize('NFKC').trim().slice(0, MAX_STAFF_PASSWORD_LENGTH);
+}
+
 function normalizeRecovery(answer) {
   return String(answer ?? '').normalize('NFKC').trim().toLocaleLowerCase('ar-EG');
 }
@@ -96,6 +106,41 @@ export async function createPinSecret(pin, prefix = 'admin') {
     [`${prefix}PinIterations`]: secret.iterations,
     [`${prefix}PinAlgorithm`]: secret.algorithm,
   };
+}
+
+export async function createStaffPasswordSecret(password, prefix = 'admin') {
+  const normalized = normalizeStaffPassword(password);
+  if (normalized.length < 8) throw new Error('كلمة المرور يجب ألا تقل عن 8 خانات.');
+  const secret = await createSecret(normalized, { minLength: 8 });
+  return {
+    [`${prefix}PinHash`]: secret.hash,
+    [`${prefix}PinSalt`]: secret.salt,
+    [`${prefix}PinIterations`]: secret.iterations,
+    [`${prefix}PinAlgorithm`]: secret.algorithm,
+  };
+}
+
+export async function verifyStaffPasswordSecret(password, settings = {}, prefix = 'admin') {
+  const normalized = normalizeStaffPassword(password);
+  if (!normalized) return false;
+  const modern = await verifySecret(normalized, {
+    hash: settings[`${prefix}PinHash`],
+    salt: settings[`${prefix}PinSalt`],
+    iterations: settings[`${prefix}PinIterations`],
+  });
+  if (modern) return true;
+  if (/^\d{6,10}$/.test(normalized)) return verifyPinSecret(normalized, settings, prefix);
+  return false;
+}
+
+export async function verifyFactoryStaffPassword(password) {
+  const normalized = normalizeStaffPassword(password);
+  if (!normalized) return false;
+  return verifySecret(normalized, FACTORY_STAFF_SECRET);
+}
+
+export function hasStaffPasswordSecret(settings = {}, prefix = 'admin') {
+  return Boolean(settings?.[`${prefix}PinHash`] && settings?.[`${prefix}PinSalt`]);
 }
 
 export async function verifyPinSecret(pin, settings = {}, prefix = 'admin') {

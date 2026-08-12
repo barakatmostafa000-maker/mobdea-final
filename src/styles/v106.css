@@ -1,0 +1,313 @@
+/* Mobdea 10.6 — tablet viewport, resilient scrolling, sync and map battle polish */
+
+:root {
+  --mobdea-app-width: 100vw;
+  --mobdea-app-height: 100dvh;
+  --mobdea-page-gap: clamp(4px, .7vw, 8px);
+}
+
+html,
+body,
+#root {
+  width: 100% !important;
+  height: var(--mobdea-app-height, 100dvh) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: var(--mobdea-app-height, 100dvh) !important;
+}
+
+/* Android's WebView occasionally restores a stale half-height viewport on
+   tablets. Fixed positioning anchors the actual app to the native window. */
+html.mobdea-native body,
+html.mobdea-native #root {
+  position: fixed !important;
+  inset: 0 !important;
+  overflow: hidden !important;
+}
+
+html.mobdea-native .app-shell,
+html.mobdea-native .lesson-mode-shell,
+html.mobdea-native .classmode-v103.classmode-final-layout,
+html.mobdea-native .classmode-v103.classmode-final-layout.fullscreen {
+  width: var(--mobdea-app-width, 100vw) !important;
+  height: var(--mobdea-app-height, 100dvh) !important;
+  max-width: var(--mobdea-app-width, 100vw) !important;
+  max-height: var(--mobdea-app-height, 100dvh) !important;
+}
+
+/* Normal pages use the whole tablet and scroll inside the content pane. */
+.app-shell-v103:not(.lesson-mode-shell) {
+  height: var(--mobdea-app-height, 100dvh) !important;
+  max-height: var(--mobdea-app-height, 100dvh) !important;
+}
+
+.app-shell-v103:not(.lesson-mode-shell) > .app-content {
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  touch-action: pan-y !important;
+  overscroll-behavior-y: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.app-shell-v103:not(.lesson-mode-shell) > .app-content > .page:not(.classmode-scene):not(.whiteboard-page) {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  overflow: visible !important;
+  contain: layout style !important;
+}
+
+/* Tables and forms remain reachable instead of clipping the lower half. */
+.app-shell-v103 .responsive-table {
+  max-width: 100% !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+.app-shell-v103 .modal-backdrop {
+  padding: max(10px, var(--mobdea-safe-top)) max(10px, var(--mobdea-safe-right)) max(10px, var(--mobdea-safe-bottom)) max(10px, var(--mobdea-safe-left)) !important;
+  overflow-y: auto !important;
+  align-items: flex-start !important;
+}
+.app-shell-v103 .modal-card {
+  max-height: calc(var(--mobdea-app-height, 100dvh) - 24px) !important;
+  overflow-y: auto !important;
+}
+
+/* Class mode always consumes the native window. */
+.lesson-mode-shell {
+  height: var(--mobdea-app-height, 100dvh) !important;
+  max-height: var(--mobdea-app-height, 100dvh) !important;
+}
+
+.classmode-v103.classmode-final-layout,
+.classmode-v103.classmode-final-layout.fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: var(--mobdea-app-width, 100vw) !important;
+  height: var(--mobdea-app-height, 100dvh) !important;
+  max-width: none !important;
+  max-height: none !important;
+  grid-template-rows: clamp(44px, 8.5vh, 58px) minmax(0, 1fr) clamp(38px, 7vh, 48px) !important;
+  gap: var(--mobdea-page-gap) !important;
+  padding:
+    max(3px, var(--mobdea-safe-top))
+    max(3px, var(--mobdea-safe-right))
+    max(3px, var(--mobdea-safe-bottom))
+    max(3px, var(--mobdea-safe-left)) !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-layout {
+  height: 100% !important;
+  min-height: 0 !important;
+  grid-template-columns: minmax(0, 1fr) clamp(150px, 18vw, 220px) !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-board-panel,
+.classmode-v103.classmode-final-layout .classmode-board-frame,
+.classmode-v103.classmode-final-layout .classmode-board-surface,
+.classmode-v103.classmode-final-layout .classmode-board-stage,
+.classmode-v103.classmode-final-layout .classmode-side-column {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+/* The board/display is the dominant part; auxiliary rows are compressed. */
+.classmode-v103.classmode-final-layout .classmode-board-panel {
+  gap: 3px !important;
+  padding: 4px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-board-topbar {
+  min-height: 28px !important;
+  max-height: 34px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-resource-card {
+  min-height: 34px !important;
+  max-height: 40px !important;
+  padding: 3px 6px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-media-navigator {
+  min-height: 34px !important;
+  max-height: 40px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-board-frame {
+  flex: 1 1 0 !important;
+  height: 0 !important;
+  min-height: 160px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-toolbar {
+  flex: 0 0 auto !important;
+  max-height: 42px !important;
+}
+
+.classmode-v103 .classmode-resource-preview,
+.classmode-v103 .classmode-map-embed,
+.classmode-v103 .class-board-canvas-shell,
+.classmode-v103 .resource-preview-body,
+.classmode-v103 .pptx-preview,
+.classmode-v103 .lesson-map-studio,
+.classmode-v103 .lesson-map-main,
+.classmode-v103 .lesson-map-canvas-shell,
+.classmode-v103 .map-pro-stage {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.classmode-v103 .resource-preview-body > img,
+.classmode-v103 .resource-preview-body > video,
+.classmode-v103 .resource-preview-body > iframe,
+.classmode-v103 .resource-preview-body > object,
+.classmode-v103 .resource-preview-body .react-pdf__Page,
+.classmode-v103 .resource-preview-body .react-pdf__Page__canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+}
+
+/* All students remain reachable on a tablet, even with live controls open. */
+.classmode-v103.classmode-final-layout .classmode-side-column {
+  overflow: hidden !important;
+}
+.classmode-v103.classmode-final-layout .classmode-students-panel {
+  flex: 1 1 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.classmode-v103.classmode-final-layout .classmode-students-list {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Map challenge: maximize the map and reduce work on slower tablets. */
+.map-game-v103 {
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  contain: layout style paint !important;
+}
+.map-game-v103 .map-game-layout {
+  height: 100% !important;
+  min-height: 0 !important;
+  grid-template-columns: clamp(102px, 12vw, 155px) minmax(0, 1fr) clamp(190px, 21vw, 275px) !important;
+}
+.map-game-v103 .map-game-main {
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+}
+.map-game-v103 .map-game-canvas-shell,
+.map-game-v103 .map-game-canvas-shell .map-pro-stage {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+.map-game-v103 .map-pro-stage {
+  contain: strict !important;
+}
+.map-game-v103 .map-pro-svg {
+  shape-rendering: geometricPrecision !important;
+}
+.map-game-v103 .map-game-nav,
+.map-game-v103 .map-game-question-panel {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Coarse-pointer devices get lighter effects without losing the premium look. */
+@media (pointer: coarse) {
+  .classmode-v103 *,
+  .map-game-v103 * {
+    scroll-behavior: auto !important;
+  }
+  .classmode-v103 .classmode-board-lesson-ribbon,
+  .classmode-v103 .classmode-media-navigator,
+  .map-game-v103 .map-pro-stage,
+  .app-shell-v103 .sidebar {
+    backdrop-filter: none !important;
+  }
+  .map-game-v103 .map-pro-stage,
+  .classmode-v103 .classmode-board-stage {
+    box-shadow: inset 0 0 22px rgba(0,0,0,.34) !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 700px) {
+  .classmode-v103.classmode-final-layout,
+  .classmode-v103.classmode-final-layout.fullscreen {
+    grid-template-rows: 42px minmax(0, 1fr) 36px !important;
+    gap: 2px !important;
+    padding: 2px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-layout {
+    grid-template-columns: minmax(0, 1fr) clamp(138px, 17vw, 195px) !important;
+    gap: 3px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-board-topbar,
+  .classmode-v103.classmode-final-layout .classmode-resource-card {
+    display: none !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-media-navigator {
+    min-height: 30px !important;
+    max-height: 32px !important;
+  }
+  .classmode-v103 .classmode-board-lesson-ribbon {
+    height: 48px !important;
+    min-height: 48px !important;
+  }
+  .classmode-v103 .classmode-board-stage.has-lesson-ribbon > .class-board-canvas-shell {
+    top: 51px !important;
+  }
+  .classmode-v103 .classmode-toolbar {
+    max-height: 34px !important;
+  }
+  .map-game-v103 .map-game-layout {
+    grid-template-columns: 92px minmax(0, 1fr) 180px !important;
+  }
+}
+
+@media (pointer: coarse) {
+  .map-game-v103 .map-pro-coast-glow,
+  .classmode-v103 .map-pro-coast-glow {
+    filter: none !important;
+  }
+  .map-game-v103 .map-pro-country,
+  .classmode-v103 .map-pro-country {
+    transition: none !important;
+  }
+}
+
+
+/* Device setup helpers remain compact on tablet settings pages. */
+.sync-device-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+}
+.sync-device-actions > button {
+  flex: 1 1 170px !important;
+}
+
+@media (pointer: coarse) {
+  .map-game-v103 .map-pro-svg,
+  .classmode-v103 .map-pro-svg {
+    shape-rendering: optimizeSpeed !important;
+  }
+  .map-game-v103 .map-pro-marker circle,
+  .classmode-v103 .map-pro-marker circle {
+    filter: none !important;
+  }
+}

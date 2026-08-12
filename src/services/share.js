@@ -2,6 +2,7 @@ import { assetToDataUrl } from './assetStore';
 import { buildCloudUrl, cloudHeaders, timeoutFetch, validateCloudConfig } from './cloudSync';
 import { normalizeHttpUrl, safeTrim, byteLength } from '../utils/safety';
 import { decodeSharePayload, encodeSharePayload, sanitizePayloadForSharing } from '../utils/shareCodec';
+import { buildPublicAppUrl } from './publicAppUrl';
 const STORAGE_PREFIX = 'mobdea_share_payload_v1:';
 const INLINE_LIMIT = 6000;
 const MAX_INLINE_BYTES = 12_000;
@@ -26,11 +27,7 @@ export function readSharePayload(kind, token) {
 }
 
 function baseShareUrl(path = globalThis.location?.pathname || '/') {
-  const base = new URL(globalThis.location?.href || 'https://localhost/');
-  base.pathname = path;
-  base.search = '';
-  base.hash = '';
-  return base;
+  return buildPublicAppUrl(path);
 }
 
 async function hydrateResourceAsset(resource) {
@@ -136,4 +133,28 @@ export async function copyToClipboard(text) {
   } catch {
     return false;
   }
+}
+
+export async function shareLink(url, title = 'منصة المُبدع', text = '') {
+  if (!url) return false;
+  const payload = {
+    title: safeTrim(title, 120) || 'منصة المُبدع',
+    text: safeTrim(text || title, 240),
+    url: String(url),
+  };
+  try {
+    const { Share } = await import('@capacitor/share');
+    await Share.share({ ...payload, dialogTitle: payload.title });
+    return true;
+  } catch {
+    try {
+      if (navigator.share) {
+        await navigator.share(payload);
+        return true;
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError') return false;
+    }
+  }
+  return copyToClipboard(url);
 }

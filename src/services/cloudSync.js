@@ -3,23 +3,14 @@ import { isHttpsUrl, normalizeHttpUrl, safeTrim, byteLength } from '../utils/saf
 import { prepareDataForTransfer } from './storage';
 import { getAssetBlob, getAssetMetadata, importAssetBlob } from './assetStore';
 import { collectLibraryAssetIds } from './libraryModel';
+import { sha256Blob } from './incrementalSha256';
+import { buildCloudUrl, timeoutFetch } from './cloudTransport.js';
+
+export { buildCloudUrl, timeoutFetch } from './cloudTransport.js';
 
 const MAX_SYNC_BYTES = 8_000_000;
 const MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const MAX_SYNC_ASSETS = 500;
-
-export const timeoutFetch = async (url, options = {}, timeoutMs = 15000) => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal, credentials: 'omit', cache: 'no-store' });
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error('انتهت مهلة الاتصال بالخادم.');
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-};
 
 export const validateCloudConfig = (settings = {}) => {
   const config = settings.cloudSync || settings || {};
@@ -40,8 +31,6 @@ export const cloudHeaders = (config, extra = {}) => ({
   Authorization: `Bearer ${config.token}`,
   ...extra,
 });
-
-export const buildCloudUrl = (endpoint, path) => `${endpoint.replace(/\/$/, '')}${path}`;
 
 function collectReferencedAssetIds(data = {}) {
   const ids = new Set(collectLibraryAssetIds(data));
@@ -112,8 +101,7 @@ async function pullCloudAssets(manifest, config) {
     if (!response.ok) throw new Error(await readError(response, `تعذر تنزيل الملف ${item.name || id} (${response.status})`));
     const blob = await response.blob();
     if (blob.size !== size) throw new Error(`حجم الملف ${item.name || id} لا يطابق القائمة السحابية.`);
-    const digest = await globalThis.crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
-    const actualHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const actualHash = await sha256Blob(blob);
     if (actualHash !== sha256) throw new Error(`فشل التحقق من سلامة الملف ${item.name || id}.`);
     await importAssetBlob(blob, { ...item, id, sha256, size });
   }
@@ -175,10 +163,29 @@ export async function pushCloudData(data) {
 export async function pullCloudData(settings = {}) {
   const config = validateCloudConfig(settings);
   const response = await timeoutFetch(buildCloudUrl(config.endpoint, '/sync'), { method: 'GET', headers: cloudHeaders(config) }, 25000);
-  if (response.status === 404) throw new Error('لا توجد نسخة سحابية محفوظة لهذه المساحة.');
+  if (response.status === 404) {
+    const error = new Error('لا توجد نسخة سحابية محفوظة لهذه المساحة.');
+    error.status = 404;
+    throw error;
+  }
   if (!response.ok) throw new Error(await readError(response, `فشل تنزيل البيانات (${response.status})`));
   const payload = await response.json();
   if (!payload?.data || !payload.revision || Number(payload.schemaVersion || 0) > DATA_SCHEMA_VERSION) throw new Error('النسخة السحابية غير صالحة أو أحدث من إصدار التطبيق.');
   await pullCloudAssets(payload.assetManifest || [], config);
   return payload;
+}
+
+
+/**
+ * Pull the workspace snapshot only when it already exists.
+ * A first-time workspace has no snapshot yet, which is a normal state.
+ * Authentication, network and server errors remain visible to the caller.
+ */
+export async function pullCloudDataIfExists(settings = {}) {
+  try {
+    return await pullCloudData(settings);
+  } catch (error) {
+    if (Number(error?.status) === 404) return null;
+    throw error;
+  }
 }

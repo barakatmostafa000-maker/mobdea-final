@@ -28,8 +28,10 @@ assert(!read('package.json').includes('cap add android'), 'Android prepare scrip
 assert(exists('android/app/src/main/java/com/mobdea/education/security/MobdeaSecureStorePlugin.java'), 'Secure store native plugin is missing.');
 assert(exists('android/app/src/main/java/com/mobdea/education/update/MobdeaUpdaterPlugin.java'), 'Verified updater native plugin is missing.');
 assert(exists('android/app/src/main/java/com/mobdea/education/pdf/MobdeaPdfRendererPlugin.java'), 'Native PDF renderer plugin is missing.');
+assert(exists('android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java'), 'Native Arabic PDF OCR plugin is missing.');
 const mainActivity = read('android/app/src/main/java/com/mobdea/education/MainActivity.java');
 assert(mainActivity.includes('registerPlugin(MobdeaPdfRendererPlugin.class)'), 'Native PDF renderer is not registered.');
+assert(mainActivity.includes('registerPlugin(MobdeaPdfOcrPlugin.class)'), 'Native Arabic PDF OCR plugin is not registered.');
 assert(read('src/App.jsx').includes("whiteboard: Whiteboard"), 'Whiteboard route is missing.');
 assert(read('src/pages/Whiteboard.jsx').includes('usePdfPage'), 'Whiteboard PDF annotation support is missing.');
 assert(read('src/pages/ClassMode.jsx').includes('boardLayers'), 'Class mode board layer persistence is missing.');
@@ -47,6 +49,8 @@ assert(libraryModel.includes('getLessonModeResources') && libraryModel.includes(
 const contentLibraryPage = read('src/pages/ContentLibrary.jsx');
 assert(contentLibraryPage.includes('كتاب المنهج الرئيسي') && contentLibraryPage.includes('ملف الامتحانات الرئيسي'), 'Permanent grade source cards are missing.');
 assert(contentLibraryPage.includes('pageStart') && contentLibraryPage.includes('recordingAssetId') && contentLibraryPage.includes('thumbnailAssetId'), 'Lesson editor fields are incomplete.');
+assert(contentLibraryPage.includes('extractQuestionsFromPdfAsset') && contentLibraryPage.includes('autoDetectQuestionsFromPdfAsset') && contentLibraryPage.includes('استخراج الأسئلة من PDF') && contentLibraryPage.includes('اكتشاف صفحات الأسئلة تلقائيًا'), 'Arabic textbook OCR controls are missing.');
+assert(read('src/data/questionBank.js').includes('الصف الثالث الثانوي'), 'Secondary grades are missing from the library and question-bank selectors.');
 const classMode = read('src/pages/ClassMode.jsx');
 assert(classMode.includes('LessonMapStudio') && classMode.includes('getLessonModeResources'), 'Lesson mode is not connected to the unified library and map studio.');
 assert(!classMode.includes('<MapChallenge'), 'Lesson mode must use the shared teaching map instead of embedding the challenge page.');

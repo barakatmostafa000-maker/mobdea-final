@@ -3,7 +3,8 @@ export const MODE_TYPES = Object.freeze({
   images: ['image'],
   videos: ['video'],
   audio: ['audio'],
-  files: ['slides', 'document', 'file', 'link'],
+  slides: ['slides'],
+  files: ['document', 'file', 'link'],
   maps: ['map'],
 });
 

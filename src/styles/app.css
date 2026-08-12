@@ -1,3 +1,5 @@
+@import "./whiteboard-reference.css";
+@import "./maps-reference.css";
 
 :root{
   font-family:Tahoma,Arial,sans-serif;
@@ -3089,7 +3091,7 @@ video{
 /* Mobdea 9.3 — Unified educational library and lesson map studio */
 .library-system-page{display:grid;gap:14px}.library-heading{align-items:flex-end}.library-heading-actions{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.library-heading-actions label{display:grid;gap:5px;color:var(--muted);font-size:12px}.library-heading-actions select,.classmode-lesson-select{min-width:230px;border:1px solid var(--line);background:#fff;border-radius:11px;padding:10px 12px;font:inherit;color:var(--ink)}.library-summary-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.library-summary-strip article{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:13px 15px;border:1px solid rgba(215,173,53,.24);border-radius:16px;background:linear-gradient(145deg,#111827,#1f2937);color:#fff;box-shadow:0 10px 24px #0002}.library-summary-strip svg{color:#f0d478}.library-summary-strip span{font-size:12px;color:#d1d5db}.library-summary-strip strong{font-size:23px;color:#f0d478}.library-permanent-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.library-permanent-card{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:18px;border-radius:20px;border:1px solid var(--line);background:#fff;position:relative;overflow:hidden}.library-permanent-card:before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:5px;background:#b8bec9}.library-permanent-card.ready:before{background:#d7ad35}.library-permanent-card.ready{box-shadow:0 12px 30px rgba(17,24,39,.08)}.library-permanent-icon{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;background:#111827;color:#f0d478;box-shadow:inset 0 0 0 1px #ffffff14}.library-permanent-copy{min-width:0}.library-permanent-copy h3{margin:4px 0 6px}.library-permanent-copy p{margin:0 0 6px;color:var(--muted);font-size:12px;line-height:1.7}.library-permanent-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#8a6510}.library-permanent-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}.library-permanent-actions a{display:inline-flex;align-items:center;gap:6px;text-decoration:none}.library-notice{margin:0}.library-search-bar{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:15px}.library-search-bar input{border:0;outline:0;font:inherit;min-width:0;background:transparent}.library-search-bar>span{color:var(--muted);font-size:12px}.library-grade-accordions{display:grid;gap:10px}.library-grade-section{border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}.library-grade-section.open{border-color:rgba(215,173,53,.5);box-shadow:0 8px 25px #0000000d}.library-grade-header{width:100%;background:linear-gradient(145deg,#fff,#f8fafc);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:right}.library-grade-toggle{flex:1;min-width:0;border:0;background:transparent;padding:7px 5px;text-align:right;color:inherit}.library-grade-title{display:flex;align-items:center;gap:11px}.library-grade-title>span{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:#111827;color:#f0d478}.library-grade-title strong{display:block;font-size:17px}.library-grade-title small{display:block;margin-top:4px;color:var(--muted)}.library-grade-add{display:inline-flex;align-items:center;gap:6px;border:1px solid #e6c665;color:#7a5700;border-radius:999px;padding:8px 11px;background:#fff8dd;font-weight:700;font-size:12px}.library-lessons-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;padding:0 14px 14px;background:#fbfcfe}.library-lesson-card{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;padding:12px;border:1px solid #e6e9ef;border-radius:16px;background:#fff;align-items:start}.library-lesson-thumbnail{width:92px;height:92px;border-radius:14px;overflow:hidden;background:linear-gradient(145deg,#111827,#334155);color:#f0d478;display:grid;place-items:center}.library-lesson-thumbnail img{width:100%;height:100%;object-fit:cover}.library-lesson-main{min-width:0}.library-lesson-main h3{margin:4px 0 6px}.library-lesson-main p{margin:0 0 8px;color:var(--muted);font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.library-lesson-meta,.library-media-chips{display:flex;gap:6px;flex-wrap:wrap}.library-lesson-meta span,.library-media-chips span{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:5px 7px;background:#f4f6f8;color:#4b5563;font-size:10px}.library-media-chips{margin-top:7px}.library-media-chips span{background:#fff7dc;color:#7a5700;border:1px solid #f0d47866}.library-lesson-actions{grid-column:1/-1;display:flex;gap:7px;align-items:center;justify-content:flex-end;padding-top:8px;border-top:1px solid #eef0f3}.library-empty-grade{grid-column:1/-1;min-height:150px}.library-editor-backdrop{position:fixed;inset:0;z-index:120;background:#02050bcc;backdrop-filter:blur(5px);display:grid;place-items:center;padding:16px}.library-lesson-editor{width:min(980px,96vw);max-height:94vh;overflow:auto;border-radius:24px;background:#f8fafc;border:1px solid rgba(215,173,53,.5);box-shadow:0 30px 100px #000a;padding:18px;display:grid;gap:14px}.library-lesson-editor>header{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;padding:4px 4px 13px;border-bottom:1px solid var(--line)}.library-lesson-editor>header h2{margin:5px 0}.library-lesson-editor>header p{margin:0;color:var(--muted)}.library-editor-textbook-state{display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:center;padding:13px;border:1px solid #e8cd75;border-radius:15px;background:#fff8df;color:#6c4d00}.library-editor-textbook-state small{display:block;margin-top:4px}.library-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.library-editor-grid label{display:grid;gap:5px;color:#374151;font-size:12px;font-weight:700}.library-editor-grid input,.library-editor-grid select,.library-editor-grid textarea{width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px 11px;font:inherit;resize:vertical}.library-editor-grid .span-2{grid-column:1/-1}.library-editor-section{display:grid;gap:10px;padding:13px;border:1px solid var(--line);border-radius:16px;background:#fff}.library-editor-section-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.library-editor-section-head strong{display:block}.library-editor-section-head small{display:block;color:var(--muted);margin-top:3px}.library-sequence-row{display:flex;gap:8px;flex-wrap:wrap}.library-sequence-row button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px}.library-sequence-row button.active{background:#111827;color:#f0d478;border-color:#111827}.library-editor-media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.library-editor-media-grid article{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:9px;border:1px solid #e8ebef;border-radius:13px;background:#fafbfc}.library-editor-media-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#111827;color:#f0d478}.library-editor-media-grid strong,.library-editor-media-grid small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.library-editor-media-grid small{color:var(--muted);margin-top:3px}.library-editor-empty-media{grid-column:1/-1;min-height:90px;display:grid;place-items:center;text-align:center;color:var(--muted)}.library-special-assets{grid-template-columns:1fr 1fr}.library-special-assets>div{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:9px;border:1px dashed #d8dde5;border-radius:13px}.library-special-assets small{display:block;color:var(--muted);margin-top:3px}.library-lesson-editor>footer{display:flex;justify-content:flex-end;gap:9px;position:sticky;bottom:-18px;margin:0 -18px -18px;padding:13px 18px;background:#fff;border-top:1px solid var(--line);z-index:2}
 
-.lesson-map-studio{height:100%;min-height:720px;display:grid;grid-template-columns:270px minmax(0,1fr);background:#07090b;color:#f4e9cf;border-radius:16px;overflow:hidden}.lesson-map-symbol-sidebar{min-width:0;border-left:1px solid rgba(215,173,53,.22);background:linear-gradient(180deg,#0f1214,#090b0d);padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto}.lesson-map-sidebar-title{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;padding:8px;border-radius:12px;background:#ffffff08}.lesson-map-sidebar-title svg{color:#f0b84b}.lesson-map-sidebar-title strong,.lesson-map-sidebar-title small{display:block}.lesson-map-sidebar-title small{color:#b7aa91;margin-top:3px;font-size:10px}.lesson-map-group-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px}.lesson-map-group-tabs button,.lesson-map-region-tabs button,.lesson-map-layer-tabs button,.lesson-map-draw-tools button{border:1px solid rgba(215,173,53,.2);background:#101417;color:#d8c9ab;border-radius:9px;padding:7px 8px}.lesson-map-group-tabs button.active,.lesson-map-region-tabs button.active,.lesson-map-layer-tabs button.active,.lesson-map-draw-tools button.active{background:linear-gradient(145deg,#d7ad35,#a97116);color:#111;border-color:#f0d478}.lesson-map-symbol-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}.lesson-map-symbol-list button{display:grid;grid-template-columns:34px 1fr;gap:7px;align-items:center;text-align:right;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:#ffffff05;color:#f4e9cf;padding:7px}.lesson-map-symbol-list button>b{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#111;border:1px solid var(--symbol-color);color:var(--symbol-color);font-size:16px}.lesson-map-symbol-list strong,.lesson-map-symbol-list small{display:block}.lesson-map-symbol-list strong{font-size:11px}.lesson-map-symbol-list small{color:#988d79;font-size:8px;margin-top:2px}.lesson-map-symbol-list button.active{outline:2px solid var(--symbol-color);background:#ffffff0e}.lesson-map-custom-label{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center}.lesson-map-custom-label input,.lesson-map-search input{min-width:0;border:1px solid rgba(215,173,53,.22);background:#0d1114;color:#fff;border-radius:9px;padding:8px}.lesson-map-custom-label button{border:0;border-radius:9px;background:#d7ad35;color:#111;padding:8px}.lesson-map-placed-list{display:grid;gap:5px}.lesson-map-placed-list>strong{font-size:11px;color:#f0d478}.lesson-map-placed-list button{border:1px solid rgba(255,255,255,.08);background:#ffffff05;color:#ddd1bc;border-radius:8px;padding:6px 8px;display:flex;justify-content:space-between;gap:6px}.lesson-map-main{min-width:0;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto;background:#07101a}.lesson-map-topbar{padding:9px 11px;border-bottom:1px solid rgba(215,173,53,.18);background:#0b0f13;display:grid;gap:7px}.lesson-map-recommendation{display:flex;gap:7px;align-items:center;font-size:11px;color:#d9c79f}.lesson-map-recommendation svg{color:#4ecb86}.lesson-map-region-tabs,.lesson-map-layer-tabs,.lesson-map-draw-tools{display:flex;gap:5px;flex-wrap:wrap}.lesson-map-region-tabs button{font-size:9px;padding:6px 8px}.lesson-map-region-tabs button.recommended:not(.active){border-color:#d7ad35;color:#f0d478;box-shadow:inset 0 0 0 1px #d7ad3530}.lesson-map-controlbar{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;background:#101419;border-bottom:1px solid rgba(215,173,53,.14)}.lesson-map-layer-tabs button{font-size:9px}.lesson-map-draw-tools{justify-content:flex-end;align-items:center}.lesson-map-draw-tools button{display:inline-flex;align-items:center;gap:4px;padding:7px}.lesson-map-draw-tools button.save-needed{box-shadow:0 0 0 2px #efb53888}.lesson-map-draw-tools input[type=color]{width:30px;height:30px;border:0;background:transparent}.lesson-map-draw-tools input[type=range]{width:75px}.lesson-map-search-row{display:grid;grid-template-columns:minmax(260px,.8fr) 1fr;gap:8px;padding:8px 10px;background:#0c1116}.lesson-map-search{display:grid;grid-template-columns:auto 1fr;gap:7px;align-items:center;position:relative}.lesson-map-search-results{position:absolute;top:calc(100% + 4px);right:24px;left:0;z-index:10;display:grid;background:#11171d;border:1px solid #d7ad3555;border-radius:10px;padding:5px;box-shadow:0 15px 35px #000a}.lesson-map-search-results button{border:0;background:transparent;color:#fff;text-align:right;padding:7px;border-radius:7px;display:flex;justify-content:space-between}.lesson-map-search-results button:hover{background:#ffffff0d}.lesson-map-search-results small{color:#b6a98e}.lesson-map-selected-location{display:flex;gap:7px;align-items:center;color:#d5c6aa;font-size:11px}.lesson-map-canvas-shell{min-height:0;position:relative;overflow:hidden}.lesson-map-canvas-shell .map-pro-stage{height:100%;min-height:560px;border-radius:0}.lesson-map-footer-info{display:flex;justify-content:space-between;gap:9px;align-items:center;padding:7px 10px;background:#0b0f13;border-top:1px solid rgba(215,173,53,.18);font-size:10px;color:#b7aa91}.lesson-map-footer-info strong{color:#f0d478}.map-pro-placement.geography-placement{transform:translate(-50%,-50%);min-width:62px;pointer-events:none;text-align:center;color:#fff;text-shadow:0 2px 4px #000}.map-pro-placement.geography-placement>b{display:grid;place-items:center;margin:auto;width:30px;height:30px;border-radius:50%;background:var(--placement-color);border:2px solid #fff9;color:#fff}.map-pro-placement.geography-placement>strong,.map-pro-placement.geography-placement>small{display:block;font-size:9px;margin-top:2px}.map-pro-draw-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none}.map-pro-draw-canvas.active{pointer-events:auto;cursor:crosshair}.map-pro-placement-layer{position:absolute;inset:0;pointer-events:none}.map-pro-transform{position:relative;transform-origin:center center}.classmode-map-embed{height:100%;min-height:720px}.classmode-lesson-select{font-weight:800;max-width:380px}.resource-placeholder{display:grid;place-items:center;gap:10px;text-align:center}.resource-placeholder a{display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.lesson-map-studio{height:100%;min-height:720px;display:grid;grid-template-columns:270px minmax(0,1fr);background:#07090b;color:#f4e9cf;border-radius:16px;overflow:hidden}.lesson-map-symbol-sidebar{min-width:0;border-left:1px solid rgba(215,173,53,.22);background:linear-gradient(180deg,#0f1214,#090b0d);padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto}.lesson-map-sidebar-title{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;padding:8px;border-radius:12px;background:#ffffff08}.lesson-map-sidebar-title svg{color:#f0b84b}.lesson-map-sidebar-title strong,.lesson-map-sidebar-title small{display:block}.lesson-map-sidebar-title small{color:#b7aa91;margin-top:3px;font-size:10px}.lesson-map-group-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px}.lesson-map-group-tabs button,.lesson-map-region-tabs button,.lesson-map-layer-tabs button,.lesson-map-draw-tools button{border:1px solid rgba(215,173,53,.2);background:#101417;color:#d8c9ab;border-radius:9px;padding:7px 8px}.lesson-map-group-tabs button.active,.lesson-map-region-tabs button.active,.lesson-map-layer-tabs button.active,.lesson-map-draw-tools button.active{background:linear-gradient(145deg,#d7ad35,#a97116);color:#111;border-color:#f0d478}.lesson-map-symbol-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}.lesson-map-symbol-list button{display:grid;grid-template-columns:34px 1fr;gap:7px;align-items:center;text-align:right;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:#ffffff05;color:#f4e9cf;padding:7px}.lesson-map-symbol-list button>b{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#111;border:1px solid var(--symbol-color);color:var(--symbol-color);font-size:16px}.lesson-map-symbol-list strong,.lesson-map-symbol-list small{display:block}.lesson-map-symbol-list strong{font-size:11px}.lesson-map-symbol-list small{color:#988d79;font-size:8px;margin-top:2px}.lesson-map-symbol-list button.active{outline:2px solid var(--symbol-color);background:#ffffff0e}.lesson-map-custom-label{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center}.lesson-map-custom-label input,.lesson-map-search input{min-width:0;border:1px solid rgba(215,173,53,.22);background:#0d1114;color:#fff;border-radius:9px;padding:8px}.lesson-map-custom-label button{border:0;border-radius:9px;background:#d7ad35;color:#111;padding:8px}.lesson-map-placed-list{display:grid;gap:5px}.lesson-map-placed-list>strong{font-size:11px;color:#f0d478}.lesson-map-placed-list button{border:1px solid rgba(255,255,255,.08);background:#ffffff05;color:#ddd1bc;border-radius:8px;padding:6px 8px;display:flex;justify-content:space-between;gap:6px}.lesson-map-main{min-width:0;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto;background:#07101a}.lesson-map-topbar{padding:9px 11px;border-bottom:1px solid rgba(215,173,53,.18);background:#0b0f13;display:grid;gap:7px}.lesson-map-recommendation{display:flex;gap:7px;align-items:center;font-size:11px;color:#d9c79f}.lesson-map-recommendation svg{color:#4ecb86}.lesson-map-region-tabs,.lesson-map-layer-tabs,.lesson-map-draw-tools{display:flex;gap:5px;flex-wrap:wrap}.lesson-map-region-tabs button{font-size:9px;padding:6px 8px}.lesson-map-region-tabs button.recommended:not(.active){border-color:#d7ad35;color:#f0d478;box-shadow:inset 0 0 0 1px #d7ad3530}.lesson-map-controlbar{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;background:#101419;border-bottom:1px solid rgba(215,173,53,.14)}.lesson-map-layer-tabs button{font-size:9px}.lesson-map-draw-tools{justify-content:flex-end;align-items:center}.lesson-map-draw-tools button{display:inline-flex;align-items:center;gap:4px;padding:7px}.lesson-map-draw-tools button.save-needed{box-shadow:0 0 0 2px #efb53888}.lesson-map-draw-tools input[type=color]{width:30px;height:30px;border:0;background:transparent}.lesson-map-draw-tools input[type=range]{width:75px}.lesson-map-search-row{display:grid;grid-template-columns:minmax(260px,.8fr) 1fr;gap:8px;padding:8px 10px;background:#0c1116}.lesson-map-search{display:grid;grid-template-columns:auto 1fr;gap:7px;align-items:center;position:relative}.lesson-map-search-results{position:absolute;top:calc(100% + 4px);right:24px;left:0;z-index:10;display:grid;background:#11171d;border:1px solid #d7ad3555;border-radius:10px;padding:5px;box-shadow:0 15px 35px #000a}.lesson-map-search-results button{border:0;background:transparent;color:#fff;text-align:right;padding:7px;border-radius:7px;display:flex;justify-content:space-between}.lesson-map-search-results button:hover{background:#ffffff0d}.lesson-map-search-results small{color:#b6a98e}.lesson-map-selected-location{display:flex;gap:7px;align-items:center;color:#d5c6aa;font-size:11px}.lesson-map-canvas-shell{min-height:0;position:relative;overflow:hidden}.lesson-map-canvas-shell .map-pro-stage{height:100%;min-height:560px;border-radius:0}.lesson-map-footer-info{display:flex;justify-content:space-between;gap:9px;align-items:center;padding:7px 10px;background:#0b0f13;border-top:1px solid rgba(215,173,53,.18);font-size:10px;color:#b7aa91}.lesson-map-footer-info strong{color:#f0d478}.map-pro-placement.geography-placement{transform:translate(-50%,-50%);min-width:62px;pointer-events:none;text-align:center;color:#fff;text-shadow:0 2px 4px #000}.map-pro-placement.geography-placement>b{display:grid;place-items:center;margin:auto;width:30px;height:30px;border-radius:50%;background:var(--placement-color);border:2px solid #fff9;color:#fff}.map-pro-placement.geography-placement>strong,.map-pro-placement.geography-placement>small{display:block;font-size:9px;margin-top:2px}.map-pro-draw-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none}.map-pro-draw-canvas.active{pointer-events:auto;cursor:crosshair}.map-pro-placement-layer{position:absolute;inset:0;pointer-events:none}.map-pro-transform{position:absolute;inset:0;width:100%;height:100%;transform-origin:center center}.classmode-map-embed{height:100%;min-height:720px}.classmode-lesson-select{font-weight:800;max-width:380px}.resource-placeholder{display:grid;place-items:center;gap:10px;text-align:center}.resource-placeholder a{display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 
 @media(max-width:1150px){.library-lessons-grid{grid-template-columns:1fr}.lesson-map-studio{grid-template-columns:220px minmax(0,1fr)}.lesson-map-symbol-list{grid-template-columns:1fr}.lesson-map-controlbar{align-items:flex-start;flex-direction:column}.lesson-map-draw-tools{justify-content:flex-start}}
 @media(max-width:800px){.library-summary-strip,.library-permanent-grid,.library-editor-grid,.library-editor-media-grid,.library-special-assets{grid-template-columns:1fr}.library-permanent-card{grid-template-columns:auto 1fr}.library-permanent-actions{grid-column:1/-1;justify-content:flex-start}.library-lessons-grid{padding:0 8px 8px}.library-lesson-card{grid-template-columns:70px 1fr}.library-lesson-thumbnail{width:70px;height:70px}.library-heading-actions,.library-heading-actions label,.library-heading-actions select{width:100%}.lesson-map-studio{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}.lesson-map-symbol-sidebar{border-left:0;border-bottom:1px solid rgba(215,173,53,.22);max-height:270px}.lesson-map-symbol-list{grid-template-columns:repeat(3,minmax(0,1fr))}.lesson-map-search-row{grid-template-columns:1fr}.lesson-map-region-tabs,.lesson-map-layer-tabs,.lesson-map-draw-tools{flex-wrap:nowrap;overflow:auto;padding-bottom:2px}.lesson-map-region-tabs button,.lesson-map-layer-tabs button{white-space:nowrap}.lesson-map-canvas-shell .map-pro-stage{min-height:480px}.classmode-map-embed{min-height:750px}}
@@ -5730,3 +5732,2868 @@ body {
     flex-direction: column;
   }
 }
+
+/* =========================================================
+   MOBDEA 10.2 — STABLE LANDSCAPE WORKSPACE OVERRIDES
+   This block intentionally wins over legacy layered patches.
+   ========================================================= */
+:root{
+  --mobdea-gold:#d7ad35;
+  --mobdea-gold-soft:#f0d478;
+  --mobdea-ink:#090b10;
+  --mobdea-panel:#111723;
+  --mobdea-panel-2:#172131;
+  --mobdea-line:rgba(215,173,53,.24);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body,#root{width:100%;min-height:100%;margin:0}
+body{overflow-x:hidden;background:#080a0f}
+button,input,select,textarea{font:inherit}
+img,video,canvas,svg,iframe{max-width:100%}
+
+/* ---------- Application shell and navigation ---------- */
+.app-shell:not(.lesson-mode-shell){
+  min-height:100dvh;
+  display:grid;
+  grid-template-columns:clamp(230px,20vw,285px) minmax(0,1fr);
+  direction:rtl;
+  background:#0a0d13;
+}
+.app-shell:not(.lesson-mode-shell)>.sidebar{
+  position:sticky!important;
+  inset-block-start:0;
+  width:auto!important;
+  height:100dvh!important;
+  transform:none!important;
+  overflow:hidden;
+  border-left:1px solid rgba(215,173,53,.18);
+  background:linear-gradient(180deg,#090b0f,#111927 66%,#0b0e14)!important;
+}
+.app-shell:not(.lesson-mode-shell)>.app-content{
+  min-width:0;
+  padding:clamp(10px,1.3vw,22px)!important;
+  background:
+    radial-gradient(circle at 8% 0%,rgba(215,173,53,.09),transparent 28%),
+    linear-gradient(145deg,#0b0e14,#111722 58%,#0b0d12);
+}
+.sidebar .brand-panel,.sidebar .sidebar-search-button,.sidebar .sidebar-footer,.sidebar .sidebar-nav button{min-width:0}
+.sidebar .brand-panel{display:grid!important;grid-template-columns:58px minmax(0,1fr)!important;align-items:center!important;gap:10px!important}
+.sidebar .brand-panel>div{min-width:0}
+.sidebar .brand-panel h1,.sidebar .brand-panel p,.sidebar .brand-panel small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar .brand-avatar-photo{width:58px!important;height:58px!important;border-radius:16px!important;padding:5px!important;background:#fff!important}
+.sidebar .brand-avatar-photo img{width:100%;height:100%;object-fit:contain!important;border-radius:12px!important}
+.sidebar .sidebar-nav{display:grid!important;gap:4px!important;overflow-y:auto!important;min-height:0!important}
+.sidebar .sidebar-nav button{display:grid!important;grid-template-columns:36px minmax(0,1fr) 16px!important;align-items:center!important;gap:8px!important;width:100%!important;min-height:48px!important;padding:7px 9px!important;text-align:right!important}
+.sidebar .nav-copy{min-width:0!important;display:grid!important;gap:2px!important}
+.sidebar .nav-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.86rem!important}
+.sidebar .nav-copy small{display:block!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.64rem!important;color:#9ca9ba!important}
+.sidebar nav button.active .nav-copy small,.sidebar nav button:hover .nav-copy small{color:#4e3a12!important}
+.sidebar .nav-arrow{display:block!important}
+.mobile-header{display:none!important}
+
+@media(max-width:900px){
+  .app-shell:not(.lesson-mode-shell){display:block!important}
+  .mobile-header{
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center;
+    gap:8px;
+    position:sticky;
+    top:0;
+    z-index:80;
+    min-height:54px;
+    padding:max(6px,var(--safe-top)) 8px 6px;
+    background:rgba(9,12,18,.97);
+    border-bottom:1px solid rgba(215,173,53,.22);
+    backdrop-filter:blur(14px)
+  }
+  .mobile-brand-copy{min-width:0}
+  .mobile-brand-copy>div{min-width:0}
+  .mobile-brand-copy strong,.mobile-brand-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-shell:not(.lesson-mode-shell)>.sidebar{
+    position:fixed!important;
+    z-index:120!important;
+    top:0!important;
+    right:0!important;
+    width:min(84vw,330px)!important;
+    height:100dvh!important;
+    transform:translateX(105%)!important;
+    transition:transform .22s ease!important;
+    box-shadow:-20px 0 50px #000a!important;
+  }
+  .app-shell:not(.lesson-mode-shell)>.sidebar.open{transform:translateX(0)!important}
+  .drawer-overlay{position:fixed!important;inset:0!important;z-index:110!important;background:#0009!important}
+  .app-shell:not(.lesson-mode-shell)>.app-content{padding:8px!important}
+}
+
+/* ---------- Dashboard: premium, stable and no empty backdrop ---------- */
+.dashboard-reference-layout{
+  width:100%;
+  max-width:1700px;
+  margin:0 auto;
+  display:grid;
+  gap:12px;
+  min-width:0;
+  color:#f7edd7;
+  background:transparent!important;
+}
+.dashboard-desktop-topbar{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;min-width:0!important;padding:7px 10px!important;border:1px solid var(--mobdea-line)!important;border-radius:14px!important;background:rgba(11,14,20,.9)!important}
+.dashboard-search-wrap{min-width:0!important;flex:1!important;max-width:620px!important}
+.dashboard-reference-hero{
+  display:grid!important;
+  grid-template-columns:minmax(280px,1.1fr) minmax(250px,.85fr) minmax(220px,.72fr)!important;
+  min-width:0!important;
+  min-height:300px!important;
+  overflow:hidden!important;
+  border:1px solid var(--mobdea-line)!important;
+  border-radius:22px!important;
+  background:
+    radial-gradient(circle at 42% 30%,rgba(215,173,53,.14),transparent 30%),
+    linear-gradient(135deg,#0b0d12,#17150f 55%,#0d1119)!important;
+  box-shadow:0 24px 55px #0007!important;
+}
+.dashboard-reference-copy{min-width:0!important;padding:clamp(20px,3vw,42px)!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
+.dashboard-reference-copy h2{margin:2px 0!important;font-size:clamp(3rem,6vw,6.3rem)!important;line-height:.92!important;color:#fff4d4!important}
+.dashboard-reference-copy h3{margin:9px 0 14px!important;color:#d9a746!important}
+.dashboard-reference-copy p{max-width:620px!important;color:#d8d0c3!important}
+.dashboard-reference-portrait{position:relative!important;min-width:0!important;min-height:300px!important;overflow:hidden!important}
+.dashboard-reference-portrait>img{position:absolute!important;right:8%!important;bottom:0!important;width:min(88%,430px)!important;height:94%!important;object-fit:cover!important;object-position:center top!important}
+.dashboard-map-paper{right:0!important;left:8%!important;top:4%!important;height:70%!important;overflow:hidden!important}
+.dashboard-today-panel{min-width:0!important;margin:12px!important;padding:14px!important;overflow:hidden!important}
+.dashboard-today-list{min-width:0!important}
+.dashboard-today-list>button{min-width:0!important}
+.dashboard-today-list strong,.dashboard-today-list small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dashboard-feature-grid{display:grid!important;grid-template-columns:repeat(6,minmax(135px,1fr))!important;gap:10px!important;min-width:0!important;padding:0!important;overflow-x:auto!important}
+.dashboard-feature-card{min-width:135px!important;min-height:175px!important;padding:14px 10px!important}
+.dashboard-reference-bottom{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;padding:0!important;min-width:0!important}
+.dashboard-current-class-card,.dashboard-lower-panel{min-width:0!important;overflow:hidden!important}
+@media(max-width:1100px){
+  .dashboard-reference-hero{grid-template-columns:minmax(260px,1.05fr) minmax(230px,.8fr)!important}
+  .dashboard-today-panel{grid-column:1/-1!important;display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;align-items:center!important;gap:10px!important}
+  .dashboard-today-list{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+  .dashboard-reference-bottom{grid-template-columns:1fr 1fr!important}
+  .dashboard-current-class-card{grid-column:1/-1!important}
+}
+@media(max-width:700px){
+  .dashboard-desktop-topbar{display:none!important}
+  .dashboard-reference-hero{grid-template-columns:1fr!important;min-height:0!important}
+  .dashboard-reference-copy{padding:22px!important}
+  .dashboard-reference-portrait{min-height:250px!important}
+  .dashboard-today-panel{grid-template-columns:1fr!important;margin:8px!important}
+  .dashboard-today-list{grid-template-columns:1fr!important}
+  .dashboard-feature-grid{grid-template-columns:repeat(2,minmax(150px,1fr))!important}
+  .dashboard-reference-bottom{grid-template-columns:1fr!important}
+}
+
+/* ---------- Classroom: one clean landscape workspace ---------- */
+.lesson-mode-shell{width:100%;height:100dvh;min-height:0!important;overflow:hidden!important;background:#06080c}
+.classmode-scene,.classmode-scene.fullscreen{
+  width:100%;height:100dvh;min-height:0!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr) auto!important;
+  gap:6px!important;
+  padding:max(5px,var(--safe-top)) max(6px,var(--safe-right)) max(5px,var(--safe-bottom)) max(6px,var(--safe-left))!important;
+  overflow:hidden!important;
+  border-radius:0!important;
+  background:
+    radial-gradient(circle at 50% -10%,rgba(215,173,53,.12),transparent 32%),
+    linear-gradient(145deg,#07090d,#0d1118)!important;
+}
+.classmode-scene>.spoken-banner{position:fixed!important;z-index:300!important;left:50%!important;bottom:62px!important;transform:translateX(-50%)!important;width:min(650px,82vw)!important;margin:0!important;box-shadow:0 15px 45px #000a!important}
+.classmode-top-header{
+  position:relative!important;z-index:40!important;
+  display:grid!important;
+  grid-template-columns:minmax(135px,.55fr) minmax(420px,2.4fr) minmax(150px,.75fr)!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-height:54px!important;
+  margin:0!important;
+  padding:5px 8px!important;
+  border:1px solid var(--mobdea-line)!important;
+  border-radius:14px!important;
+  background:linear-gradient(135deg,#0d1119,#181711)!important;
+}
+.classmode-header-brand{min-width:0!important}
+.classmode-header-brand img{width:39px!important;height:39px!important;object-fit:contain!important;background:#fff!important;border-radius:10px!important;padding:3px!important}
+.classmode-header-brand>div{min-width:0!important}
+.classmode-header-brand strong,.classmode-header-brand small{display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+.classmode-header-tabs{
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(62px,1fr))!important;
+  gap:5px!important;
+  padding:3px!important;
+  overflow:hidden!important;
+}
+.classmode-header-tabs button{
+  min-width:0!important;min-height:43px!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;
+  gap:2px!important;padding:4px 5px!important;
+  border:1px solid rgba(255,255,255,.09)!important;
+  border-radius:10px!important;
+  color:#d4dbe6!important;background:#ffffff05!important;
+  font-size:.69rem!important;font-weight:800!important;
+}
+.classmode-header-tabs button.active{color:#161109!important;background:linear-gradient(145deg,#f0d478,#b87d16)!important;border-color:#ffe59b!important;box-shadow:0 8px 20px #0005!important}
+.classmode-header-tabs button svg{width:20px!important;height:20px!important}
+.classmode-header-meta{min-width:0!important;display:flex!important;justify-content:flex-end!important;gap:5px!important}
+.header-meta-item{min-width:0!important}
+.header-meta-item b,.header-meta-item small{display:block!important;max-width:110px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+.classmode-layout,.classmode-scene.fullscreen .classmode-layout{
+  min-width:0!important;min-height:0!important;height:100%!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) clamp(220px,24vw,310px)!important;
+  gap:7px!important;
+  overflow:hidden!important;
+}
+.classmode-board-panel{
+  min-width:0!important;min-height:0!important;height:100%!important;
+  display:flex!important;flex-direction:column!important;gap:5px!important;
+  padding:6px!important;
+  overflow:hidden!important;
+  border:1px solid var(--mobdea-line)!important;
+  border-radius:15px!important;
+  background:linear-gradient(145deg,#0e131c,#121925)!important;
+}
+.classmode-board-topbar{flex:0 0 auto!important;display:flex!important;align-items:center!important;gap:6px!important;min-width:0!important;padding:0!important}
+.classmode-current-badge{flex:0 0 auto!important}
+.classmode-metrics{min-width:0!important;flex:1!important;display:flex!important;gap:4px!important;overflow:hidden!important}
+.classmode-metrics>div{min-width:64px!important;padding:4px 6px!important}
+.classmode-top-actions{flex:0 0 auto!important;display:flex!important;gap:3px!important;flex-wrap:nowrap!important}
+.classmode-top-actions button{min-height:31px!important;padding:5px 7px!important;font-size:.69rem!important;white-space:nowrap!important}
+.classmode-resource-card{
+  flex:0 0 auto!important;
+  display:grid!important;
+  grid-template-columns:minmax(180px,1fr) auto!important;
+  align-items:center!important;
+  gap:7px!important;
+  min-height:42px!important;
+  margin:0!important;padding:5px 8px!important;
+  border-radius:10px!important;
+}
+.classmode-resource-card>.classmode-flow-row{display:none!important}
+.classmode-resource-card>.classmode-resource-actions{display:flex!important;gap:4px!important;flex-wrap:nowrap!important}
+.classmode-resource-card>.classmode-resource-actions button:first-child{display:none!important}
+.classmode-resource-card .eyebrow{display:none!important}
+.classmode-resource-card p{display:none!important}
+.classmode-lesson-select{width:100%!important;max-width:none!important;min-height:31px!important;padding:4px 8px!important}
+.classmode-session-plan{display:none!important}
+.classmode-media-navigator{flex:0 0 auto!important;margin:0!important;min-height:38px!important;padding:4px 7px!important}
+.classmode-board-frame{
+  flex:1 1 auto!important;
+  min-width:0!important;min-height:0!important;height:auto!important;
+  margin:0!important;padding:5px!important;
+  overflow:hidden!important;
+  border:1px solid rgba(215,173,53,.18)!important;
+  border-radius:13px!important;
+  background:#05070a!important;
+}
+.classmode-board-surface{
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:5px!important;
+  overflow:hidden!important;
+}
+.classmode-board-surface.with-tools{grid-template-columns:50px minmax(0,1fr)!important}
+.classmode-board-sidebar-left{min-height:0!important;height:100%!important;padding:3px!important;gap:2px!important;overflow-y:auto!important}
+.classmode-board-sidebar-left button{min-height:36px!important;padding:3px!important}
+.classmode-board-sidebar-left button span{display:none!important}
+.classmode-board-stage{
+  position:relative!important;
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  overflow:hidden!important;
+  border-radius:10px!important;
+  background:#f5f1e8!important;
+}
+.classmode-resource-preview,.classmode-map-embed,.class-board-canvas-shell{
+  position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  overflow:hidden!important;
+  border-radius:10px!important;
+}
+.classmode-resource-preview{z-index:1!important;display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;background:#0b0e14!important}
+.class-board-canvas-shell{z-index:2!important;background:transparent!important}
+.classmode-map-embed{z-index:4!important;background:#07101a!important}
+.resource-preview-head{min-height:36px!important;padding:5px 8px!important}
+.resource-preview-body{position:relative!important;min-height:0!important;height:100%!important;display:grid!important;place-items:center!important;overflow:hidden!important;background:#080b10!important}
+.resource-preview-body>img,.resource-preview-body>video,.resource-preview-body>iframe,.resource-preview-body>object{
+  width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  object-fit:contain!important;border:0!important;background:#080b10!important
+}
+.resource-preview-body>audio{width:min(720px,92%)!important}
+.class-board-canvas{width:100%!important;height:100%!important;object-fit:contain!important;touch-action:none!important}
+.classmode-board-identity{pointer-events:none!important}
+.classmode-board-watermark{max-width:32%!important;max-height:48%!important;opacity:.07!important}
+.classmode-board-teacher-mark{max-width:43%!important;opacity:.9!important}
+.classmode-toolbar{
+  flex:0 0 auto!important;
+  min-height:38px!important;max-height:46px!important;
+  display:flex!important;gap:4px!important;
+  margin:0!important;padding:4px!important;
+  overflow-x:auto!important;overflow-y:hidden!important;
+  border-radius:10px!important;
+}
+.classmode-tool-group{flex:0 0 auto!important;display:flex!important;gap:3px!important;flex-wrap:nowrap!important}
+.classmode-tool-group button,.classmode-tool-group select,.classmode-tool-group input{min-height:29px!important;padding:3px 6px!important;font-size:.68rem!important;white-space:nowrap!important}
+.classmode-side-column{
+  min-width:0!important;min-height:0!important;height:100%!important;
+  display:flex!important;flex-direction:column!important;gap:6px!important;
+  overflow:hidden!important;
+}
+.classmode-side-column>.classmode-side-panel:not(.live-teacher-panel):not(.classmode-students-panel):not(.classmode-phrases-panel){display:none!important}
+.live-teacher-panel{flex:0 0 auto!important;margin:0!important;padding:8px!important;max-height:235px!important;overflow:auto!important}
+.live-teacher-panel.is-idle .live-panel-description{display:none!important}
+.live-teacher-panel.is-idle .panel-heading{margin-bottom:6px!important}
+.classmode-students-panel{flex:1 1 auto!important;min-height:0!important;margin:0!important;padding:7px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.classmode-students-list{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding-inline-end:2px!important}
+.classmode-student-row{padding:4px!important}
+.classmode-student-row-main{min-height:36px!important;padding:3px!important}
+.classmode-student-row-main small{display:none!important}
+.classmode-student-row-actions{gap:2px!important}
+.classmode-student-row-actions button{min-width:27px!important;min-height:27px!important;padding:3px!important}
+.classmode-student-actions{display:flex!important;gap:3px!important;overflow-x:auto!important;flex-wrap:nowrap!important}
+.classmode-student-actions button{flex:0 0 auto!important;padding:5px 7px!important;font-size:.68rem!important}
+.classmode-phrases-panel{flex:0 0 clamp(120px,22vh,185px)!important;min-height:0!important;margin:0!important;padding:7px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.classmode-phrase-list{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}
+.classmode-phrase-add{display:none!important}
+.classmode-bottom-actions{
+  position:relative!important;z-index:45!important;
+  min-width:0!important;min-height:46px!important;
+  display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;align-items:center!important;
+  gap:5px!important;margin:0!important;padding:4px 6px!important;
+  border:1px solid var(--mobdea-line)!important;border-radius:12px!important;
+  background:linear-gradient(135deg,#0d1118,#17140e)!important;
+}
+.classmode-bottom-actions-mid{min-width:0!important;display:flex!important;gap:4px!important;justify-content:center!important;overflow-x:auto!important;flex-wrap:nowrap!important}
+.classmode-bottom-actions button{min-height:32px!important;padding:5px 8px!important;font-size:.69rem!important;white-space:nowrap!important}
+.classmode-bottom-actions-mid button:nth-child(n+5){display:none!important}
+
+/* Embedded lesson map must fill the display instead of stacking. */
+.classmode-map-embed .lesson-map-studio{
+  width:100%!important;height:100%!important;min-height:0!important;
+  display:grid!important;grid-template-columns:clamp(175px,21vw,240px) minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  border-radius:0!important;overflow:hidden!important
+}
+.classmode-map-embed .lesson-map-symbol-sidebar{min-height:0!important;max-height:none!important;overflow-y:auto!important;padding:6px!important}
+.classmode-map-embed .lesson-map-main{min-width:0!important;min-height:0!important;height:100%!important;grid-template-rows:auto auto auto minmax(0,1fr) auto!important;overflow:hidden!important}
+.classmode-map-embed .lesson-map-canvas-shell,.classmode-map-embed .map-pro-stage{min-height:0!important;height:100%!important}
+.classmode-map-embed .lesson-map-symbol-list{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.classmode-map-embed .lesson-map-topbar,.classmode-map-embed .lesson-map-controlbar,.classmode-map-embed .lesson-map-search-row,.classmode-map-embed .lesson-map-footer-info{padding:4px 6px!important}
+
+/* Standalone map challenge: three clean areas and a visible map. */
+.map-game-page{min-width:0!important;overflow:hidden!important}
+.map-challenge-pro{width:100%!important;max-width:none!important;min-width:0!important;overflow:hidden!important}
+.map-game-layout{min-width:0!important;display:grid!important;grid-template-columns:clamp(175px,19vw,230px) minmax(0,1fr) clamp(225px,24vw,300px)!important;gap:0!important;overflow:hidden!important}
+.map-game-main,.map-game-canvas-shell{min-width:0!important;min-height:0!important;overflow:hidden!important}
+.map-game-canvas-shell .map-pro-stage{width:100%!important;height:100%!important;min-height:520px!important}
+.map-pro-svg{display:block!important;width:100%!important;height:100%!important}
+@media(max-width:980px){
+  .map-game-layout{grid-template-columns:180px minmax(0,1fr)!important}
+  .map-game-question-panel{grid-column:1/-1!important;max-height:220px!important;overflow:auto!important}
+}
+
+/* Portal screens always show useful content instead of an empty shell. */
+.portal-preview-shell{width:min(1050px,100%)!important;max-width:none!important}
+.portal-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.portal-cards article{min-width:0!important}
+@media(max-width:760px){.portal-cards{grid-template-columns:1fr!important}}
+
+/* Print adapter must render the print DOM, not a hidden white page. */
+.print-only{display:none!important}
+body.mobdea-printing-cards .no-print{display:none!important}
+body.mobdea-printing-cards .print-only{display:block!important;position:relative!important;z-index:9999!important;background:#fff!important;color:#111!important}
+body.mobdea-printing-cards .student-card-lab{background:#fff!important;padding:0!important}
+body.mobdea-printing-cards .print-run-header,body.mobdea-printing-cards .print-pack-label{color:#111!important}
+body.mobdea-printing-cards .print-pack-page{background:#fff!important}
+
+/* Low-height phones in landscape: keep content readable, not microscopic. */
+@media(orientation:landscape) and (max-height:520px){
+  .classmode-top-header{grid-template-columns:46px minmax(380px,1fr) 56px!important;min-height:42px!important;padding:2px 4px!important}
+  .classmode-header-brand>div,.classmode-header-meta .header-meta-item:not(:first-child){display:none!important}
+  .classmode-header-brand img{width:32px!important;height:32px!important}
+  .classmode-header-tabs button{min-height:35px!important;font-size:.59rem!important}
+  .classmode-header-tabs button svg{width:16px!important;height:16px!important}
+  .classmode-layout{grid-template-columns:minmax(0,1fr) clamp(205px,28vw,245px)!important}
+  .classmode-resource-card{display:none!important}
+  .classmode-board-topbar .classmode-metrics>div:nth-child(2),.classmode-board-topbar .classmode-metrics>div:nth-child(3){display:none!important}
+  .classmode-board-sidebar-left{width:44px!important}
+  .classmode-board-surface.with-tools{grid-template-columns:44px minmax(0,1fr)!important}
+  .classmode-toolbar{min-height:32px!important;max-height:36px!important}
+  .live-teacher-panel{display:none!important}
+  .classmode-phrases-panel{flex-basis:96px!important}
+  .classmode-bottom-actions{min-height:39px!important}
+}
+
+/* Portrait fallback is usable, while native Android can still lock landscape. */
+@media(orientation:portrait) and (max-width:900px){
+  .lesson-mode-shell{height:100dvh!important;overflow:hidden!important}
+  .classmode-top-header{grid-template-columns:auto minmax(0,1fr) auto!important}
+  .classmode-header-brand>div,.classmode-header-meta .header-meta-item:not(:first-child){display:none!important}
+  .classmode-header-tabs{grid-template-columns:repeat(6,78px)!important;overflow-x:auto!important;justify-content:flex-start!important}
+  .classmode-layout{grid-template-columns:minmax(0,1fr)!important}
+  .classmode-side-column{display:none!important}
+  .classmode-bottom-actions-mid button:nth-child(n+4){display:none!important}
+}
+
+/* =========================================================
+   MOBDEA 10.2.1 — ACCESS, VIEWER AND MAP STABILITY
+   ========================================================= */
+.portal-quick-actions{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin:12px 0;
+}
+.portal-quick-actions>button{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:12px;
+  border:1px solid rgba(215,173,53,.22);
+  border-radius:14px;
+  color:#f8edd0;
+  background:linear-gradient(145deg,#101725,#17140e);
+  text-align:right;
+}
+.portal-quick-actions>button>span{min-width:0;display:grid;gap:3px}
+.portal-quick-actions strong,.portal-quick-actions small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.portal-quick-actions small{color:#aab5c5}
+@media(max-width:720px){.portal-quick-actions{grid-template-columns:1fr}}
+
+.live-idle-actions{display:grid;grid-template-columns:1fr;gap:6px}
+.live-idle-actions button{width:100%;justify-content:center}
+
+/* Student lesson viewer: one professional in-app presentation surface. */
+.student-lesson-viewer-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:500;
+  display:grid;
+  place-items:center;
+  padding:max(10px,var(--safe-top)) max(10px,var(--safe-right)) max(10px,var(--safe-bottom)) max(10px,var(--safe-left));
+  background:rgba(2,4,8,.88);
+  backdrop-filter:blur(12px);
+}
+.student-lesson-viewer{
+  width:min(1180px,100%);
+  height:min(760px,94dvh);
+  min-width:0;
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border:1px solid rgba(215,173,53,.35);
+  border-radius:20px;
+  background:linear-gradient(145deg,#0b0e14,#151d2a);
+  box-shadow:0 30px 80px #000b;
+}
+.student-lesson-viewer>header{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:11px 14px;
+  border-bottom:1px solid rgba(215,173,53,.2);
+}
+.student-lesson-viewer>header>div{min-width:0}
+.student-lesson-viewer>header h2,.student-lesson-viewer>header small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.student-lesson-viewer-stage{
+  min-width:0;
+  min-height:0;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  padding:8px;
+  background:#06080c;
+}
+.student-lesson-media,.student-lesson-document{
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  object-fit:contain;
+  border:0;
+  border-radius:10px;
+  background:#080b10;
+}
+.student-lesson-audio{width:min(760px,92%)}
+.student-lesson-file-fallback{display:grid;place-items:center;gap:10px;text-align:center;color:#f3e6c3}
+.student-lesson-viewer>footer{
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border-top:1px solid rgba(215,173,53,.2);
+}
+.student-lesson-resource-tabs{min-width:0;display:flex;gap:5px;overflow-x:auto;overflow-y:hidden}
+.student-lesson-resource-tabs button{
+  flex:0 0 auto;
+  max-width:180px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:6px 8px;
+  border:1px solid #ffffff12;
+  border-radius:9px;
+  color:#cbd4e0;
+  background:#ffffff06;
+}
+.student-lesson-resource-tabs button.active{color:#161109;background:linear-gradient(145deg,#f0d478,#b87d16)}
+.student-lesson-resource-tabs span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:650px){
+  .student-lesson-viewer{height:96dvh;border-radius:13px}
+  .student-lesson-viewer>footer{grid-template-columns:auto 1fr auto}
+  .student-lesson-resource-tabs button span{display:none}
+}
+
+/* Keep the live-class action available on short landscape phones. */
+@media(orientation:landscape) and (max-height:520px){
+  .live-teacher-panel{display:block!important;flex:0 0 auto!important;max-height:92px!important;overflow:auto!important}
+  .live-teacher-panel.is-idle .panel-heading h3{font-size:.76rem!important}
+  .live-teacher-panel.is-idle .settings-notice{display:none!important}
+  .live-teacher-panel.is-idle .live-idle-actions{grid-template-columns:1fr!important}
+  .live-teacher-panel.is-open{
+    position:fixed!important;
+    z-index:420!important;
+    top:max(6px,var(--safe-top))!important;
+    right:max(6px,var(--safe-right))!important;
+    width:min(390px,46vw)!important;
+    max-height:calc(100dvh - 12px)!important;
+    box-shadow:0 22px 60px #000c!important;
+  }
+}
+
+/* Map challenge: fixed professional workspace, no stacked panels. */
+.map-challenge-pro{
+  width:100%!important;
+  height:calc(100dvh - 2 * clamp(8px,1.3vw,22px))!important;
+  min-width:0!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  overflow:hidden!important;
+  padding:0!important;
+}
+.map-game-topbar{min-width:0!important;min-height:50px!important;padding:5px 10px!important;overflow:hidden!important}
+.map-game-layout{
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-columns:clamp(145px,17vw,215px) minmax(0,1fr) clamp(205px,22vw,285px)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+.map-game-nav,.map-game-main,.map-game-question-panel{min-width:0!important;min-height:0!important;height:100%!important;overflow:hidden!important}
+.map-game-nav{display:flex!important;flex-direction:column!important}
+.map-game-nav nav,.map-game-secondary-nav{min-height:0!important;overflow-y:auto!important}
+.map-game-nav nav button,.map-game-secondary-nav button{min-height:37px!important;padding:5px 7px!important;font-size:.72rem!important}
+.map-game-main{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important}
+.map-game-toolbar,.map-layer-dock{min-width:0!important;overflow-x:auto!important;overflow-y:hidden!important;flex-wrap:nowrap!important;padding:4px!important}
+.map-region-tabs,.map-view-tools,.map-layer-dock{display:flex!important;gap:4px!important;flex-wrap:nowrap!important}
+.map-region-tabs button,.map-layer-dock button{flex:0 0 auto!important;min-height:30px!important;padding:4px 7px!important;font-size:.66rem!important}
+.map-game-canvas-shell{position:relative!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;overflow:hidden!important;background:#07101a!important}
+.map-game-canvas-shell .map-pro-stage{width:100%!important;height:100%!important;min-width:0!important;min-height:0!important}
+.map-game-canvas-shell .map-pro-svg{display:block!important;width:100%!important;height:100%!important}
+.map-game-question-panel{overflow-y:auto!important;padding:8px!important}
+.map-question-copy h3{font-size:clamp(.9rem,1.4vw,1.22rem)!important}
+.map-question-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:4px!important}
+.map-build-palette{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:4px!important;max-height:215px!important;overflow-y:auto!important}
+.map-build-palette button{min-width:0!important;padding:5px!important}
+@media(max-width:980px) and (orientation:landscape){
+  .map-challenge-pro{height:calc(100dvh - 70px)!important}
+  .map-game-topbar{min-height:42px!important}
+  .map-game-layout{grid-template-columns:130px minmax(0,1fr) 195px!important}
+  .map-player-profile div,.map-game-title small,.map-game-brand strong{display:none!important}
+  .map-game-question-panel{grid-column:auto!important;max-height:none!important}
+}
+@media(max-width:699px) and (orientation:portrait){
+  .map-challenge-pro{height:auto!important;min-height:calc(100dvh - 70px)!important;overflow:visible!important}
+  .map-game-layout{height:auto!important;grid-template-columns:1fr!important;grid-template-rows:auto minmax(430px,65vh) auto!important;overflow:visible!important}
+  .map-game-nav{height:auto!important;max-height:185px!important}
+  .map-game-question-panel{height:auto!important;max-height:none!important}
+}
+
+.runtime-error-screen{
+  width:min(720px,calc(100% - 24px));
+  min-height:360px;
+  margin:clamp(20px,7vh,90px) auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:28px;
+  border:1px solid rgba(215,173,53,.35);
+  border-radius:22px;
+  color:#f8efd9;
+  text-align:center;
+  background:linear-gradient(145deg,#0c1018,#19150e);
+  box-shadow:0 25px 70px #0008;
+}
+.runtime-error-screen>img{width:82px;height:82px;object-fit:contain;padding:7px;border-radius:18px;background:#fff}
+.runtime-error-screen>svg{color:#e8b94e}
+.runtime-error-screen h2,.runtime-error-screen p{margin:0}
+.runtime-error-screen p{max-width:580px;color:#d3d8e0;overflow-wrap:anywhere}
+.runtime-error-screen>div{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.runtime-error-screen small{color:#9ba8b8}
+
+/* ===== MOBDEA CLASSMODE RESPONSIVE V2 START ===== */
+
+.classmode-board-page {
+  width: 100% !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 6px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  direction: rtl;
+  color: #f7dfaa;
+  background:
+    radial-gradient(
+      circle at 50% 15%,
+      rgba(146, 91, 26, 0.18),
+      transparent 44%
+    ),
+    linear-gradient(
+      180deg,
+      #17130e 0%,
+      #080706 100%
+    ) !important;
+}
+
+/* منع تمدد مكونات وضع الحصة خارج الشاشة */
+.classmode-board-page * {
+  box-sizing: border-box;
+}
+
+.classmode-board-page .classmode-shell {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* الشريط العلوي */
+.classmode-board-page .classmode-header,
+.classmode-board-page .classmode-topbar,
+.classmode-board-page .classmode-media-navigator,
+.classmode-board-page .media-navigator {
+  min-width: 0 !important;
+  margin: 0 !important;
+  border: 1px solid rgba(220, 160, 72, 0.35) !important;
+  border-radius: 12px !important;
+  background: rgba(12, 11, 9, 0.97) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* أيقونات المحتوى */
+.classmode-board-page .classmode-mode-tabs,
+.classmode-board-page .classmode-media-tabs,
+.classmode-board-page .media-navigator-tabs,
+.classmode-board-page [class*="media-nav"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: nowrap !important;
+  gap: 5px !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: thin;
+}
+
+.classmode-board-page .classmode-mode-tabs button,
+.classmode-board-page .classmode-media-tabs button,
+.classmode-board-page .media-navigator button,
+.classmode-board-page [class*="media-nav"] button {
+  flex: 0 0 auto !important;
+  min-width: 68px !important;
+  min-height: 48px !important;
+  padding: 5px 8px !important;
+  border: 1px solid rgba(224, 169, 83, 0.3) !important;
+  border-radius: 9px !important;
+  color: #f2cd80 !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+/* مساحة الشرح وقائمة الطلاب */
+.classmode-board-page .classmode-main,
+.classmode-board-page .classmode-layout,
+.classmode-board-page .classmode-workspace,
+.classmode-board-page .classmode-content {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(230px, 22vw, 290px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 7px !important;
+  overflow: hidden !important;
+}
+
+/* شاشة العرض الرئيسية */
+.classmode-board-page .classmode-board-panel,
+.classmode-board-page .classmode-stage,
+.classmode-board-page .classmode-display,
+.classmode-board-page .classmode-resource-stage,
+.classmode-board-page .classmode-canvas-wrap {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  border: 2px solid rgba(190, 128, 48, 0.58) !important;
+  border-radius: 12px !important;
+  background:
+    linear-gradient(
+      rgba(239, 215, 169, 0.96),
+      rgba(220, 185, 123, 0.96)
+    ),
+    #d7b57d !important;
+  box-shadow:
+    inset 0 0 38px rgba(84, 42, 5, 0.2),
+    0 10px 28px rgba(0, 0, 0, 0.32) !important;
+}
+
+/* المحتوى يملأ شاشة الشرح */
+.classmode-board-page canvas,
+.classmode-board-page iframe,
+.classmode-board-page video,
+.classmode-board-page img,
+.classmode-board-page .react-pdf__Page,
+.classmode-board-page .react-pdf__Page__canvas,
+.classmode-board-page .classmode-resource-viewer {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* لوحة الطلاب على التابلت */
+.classmode-board-page .classmode-side-panel:not(.classmode-phrases-pane) {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 7px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(218, 160, 72, 0.38) !important;
+  border-radius: 12px !important;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(27, 24, 18, 0.98),
+      rgba(10, 9, 7, 0.98)
+    ) !important;
+}
+
+/* إخفاء لوحة الجمل القديمة لأنها استبدلت بالأيقونتين */
+.classmode-board-page .classmode-phrases-pane {
+  display: none !important;
+}
+
+/* قائمة الطلاب */
+.classmode-board-page .classmode-students-list {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 3px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+
+.classmode-board-page .classmode-student-row {
+  min-height: 36px !important;
+  padding: 4px 5px !important;
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 5px !important;
+  border: 1px solid rgba(224, 169, 83, 0.22) !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+.classmode-board-page .classmode-student-row button {
+  min-width: 29px !important;
+  min-height: 29px !important;
+  padding: 3px !important;
+}
+
+/* منطقة أزرار الطالب */
+.classmode-board-page .classmode-student-actions {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  padding-top: 6px !important;
+}
+
+/* أيقونتا الجمل */
+.classmode-board-page .classmode-phrase-icon-row {
+  position: relative !important;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  margin-top: 4px !important;
+}
+
+.classmode-board-page .classmode-phrase-menu {
+  position: relative !important;
+  min-width: 0 !important;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary {
+  min-height: 42px !important;
+  padding: 5px 7px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  cursor: pointer !important;
+  list-style: none !important;
+  border: 1px solid rgba(224, 169, 83, 0.42) !important;
+  border-radius: 9px !important;
+  color: #f6d995 !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  user-select: none;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary span {
+  font-size: 19px !important;
+  line-height: 1 !important;
+}
+
+.classmode-board-page .classmode-phrase-menu > summary small {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}
+
+.classmode-board-page .classmode-phrase-menu-positive > summary {
+  border-color: rgba(67, 194, 105, 0.48) !important;
+}
+
+.classmode-board-page .classmode-phrase-menu-corrective > summary {
+  border-color: rgba(232, 152, 45, 0.55) !important;
+}
+
+/* القائمة المنبثقة للجمل */
+.classmode-board-page .classmode-phrase-popover {
+  position: absolute !important;
+  z-index: 300 !important;
+  right: 0 !important;
+  bottom: calc(100% + 7px) !important;
+  width: min(280px, 72vw) !important;
+  max-height: 260px !important;
+  padding: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(224, 169, 83, 0.48) !important;
+  border-radius: 11px !important;
+  color: #f6dfab !important;
+  background: rgba(12, 11, 9, 0.99) !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.55) !important;
+}
+
+.classmode-board-page .classmode-phrase-popover strong {
+  display: block !important;
+  margin-bottom: 7px !important;
+  text-align: center !important;
+  color: #e7b85c !important;
+}
+
+.classmode-board-page .classmode-phrase-choices {
+  max-height: 205px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  overflow-y: auto !important;
+}
+
+.classmode-board-page .classmode-phrase-choices button {
+  width: 100% !important;
+  min-height: 35px !important;
+  padding: 6px 8px !important;
+  text-align: right !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 7px !important;
+  color: #f5e3bb !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.classmode-board-page .classmode-phrase-choices button:active {
+  transform: scale(0.98);
+}
+
+.classmode-board-page .classmode-select-student-notice {
+  grid-column: 1 / -1 !important;
+  padding: 7px !important;
+  text-align: center !important;
+  font-size: 11px !important;
+  color: rgba(247, 223, 170, 0.72) !important;
+}
+
+/* الشريط السفلي */
+.classmode-board-page .classmode-footer,
+.classmode-board-page .classmode-bottom-bar,
+.classmode-board-page .classmode-session-actions {
+  min-width: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 5px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border: 1px solid rgba(218, 160, 72, 0.35) !important;
+  border-radius: 11px !important;
+  background: rgba(11, 10, 8, 0.97) !important;
+}
+
+.classmode-board-page .classmode-footer button,
+.classmode-board-page .classmode-bottom-bar button,
+.classmode-board-page .classmode-session-actions button {
+  flex: 0 0 auto !important;
+}
+
+/* تابلت متوسط */
+@media (max-width: 1100px) and (orientation: landscape) {
+  .classmode-board-page {
+    padding: 4px !important;
+  }
+
+  .classmode-board-page .classmode-main,
+  .classmode-board-page .classmode-layout,
+  .classmode-board-page .classmode-workspace,
+  .classmode-board-page .classmode-content {
+    grid-template-columns: minmax(0, 1fr) 220px !important;
+    gap: 4px !important;
+  }
+
+  .classmode-board-page .classmode-student-row {
+    min-height: 32px !important;
+    font-size: 10px !important;
+  }
+
+  .classmode-board-page .classmode-mode-tabs button,
+  .classmode-board-page .classmode-media-tabs button,
+  .classmode-board-page .media-navigator button {
+    min-width: 61px !important;
+    min-height: 43px !important;
+    font-size: 9px !important;
+  }
+}
+
+/* الموبايل العرضي */
+@media (max-width: 900px) and (orientation: landscape) {
+  .classmode-board-page {
+    padding: 2px !important;
+  }
+
+  .classmode-board-page .classmode-main,
+  .classmode-board-page .classmode-layout,
+  .classmode-board-page .classmode-workspace,
+  .classmode-board-page .classmode-content {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* مساحة الشرح تملأ الشاشة */
+  .classmode-board-page .classmode-board-panel,
+  .classmode-board-page .classmode-stage,
+  .classmode-board-page .classmode-display,
+  .classmode-board-page .classmode-resource-stage,
+  .classmode-board-page .classmode-canvas-wrap {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Drawer الطلاب الموجود في المشروع */
+  .classmode-board-page .classmode-student-drawer-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1200 !important;
+    display: grid !important;
+    justify-items: end !important;
+    background: rgba(0, 0, 0, 0.62) !important;
+  }
+
+  .classmode-board-page .classmode-student-drawer {
+    width: min(290px, 78vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 8px !important;
+    overflow: hidden !important;
+    border-left: 1px solid rgba(224, 169, 83, 0.45) !important;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(29, 25, 18, 0.99),
+        rgba(8, 7, 6, 0.99)
+      ) !important;
+    box-shadow: -22px 0 55px rgba(0, 0, 0, 0.62) !important;
+  }
+
+  .classmode-board-page .classmode-student-drawer-list {
+    min-height: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .classmode-board-page .classmode-phrase-popover {
+    position: fixed !important;
+    right: 8px !important;
+    bottom: 65px !important;
+    width: min(290px, calc(100vw - 16px)) !important;
+    max-height: calc(100dvh - 90px) !important;
+  }
+
+  .classmode-board-page .classmode-phrase-choices {
+    max-height: calc(100dvh - 145px) !important;
+  }
+
+  .classmode-board-page .classmode-mode-tabs button,
+  .classmode-board-page .classmode-media-tabs button,
+  .classmode-board-page .media-navigator button {
+    min-width: 55px !important;
+    min-height: 39px !important;
+    padding: 3px 5px !important;
+    font-size: 8px !important;
+  }
+}
+
+/* رسالة تدوير الهاتف عند الوضع الرأسي */
+@media (max-width: 900px) and (orientation: portrait) {
+  .classmode-board-page::before {
+    content: "لف الهاتف للوضع العرضي لتشغيل وضع الحصة";
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: #f3d28c;
+    background:
+      radial-gradient(
+        circle at center,
+        rgba(110, 67, 22, 0.3),
+        transparent 55%
+      ),
+      #090806;
+  }
+
+  .classmode-board-page > * {
+    visibility: hidden !important;
+  }
+}
+
+/* ===== MOBDEA CLASSMODE RESPONSIVE V2 END ===== */
+
+
+/* =========================================================
+   MOBDEA FINAL UI HOTFIX — 2026-08-02
+   Fixes the real JSX structure used by AppShell, ClassMode and
+   Whiteboard on low-height Android tablets and landscape phones.
+   ========================================================= */
+html, body, #root {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+body { overflow: hidden !important; }
+
+/* ---------- Main application shell ---------- */
+.app-shell-v103:not(.lesson-mode-shell) {
+  width: 100% !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.app-shell-v103:not(.lesson-mode-shell) > .app-content {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+@media (max-width: 1100px), (orientation: portrait) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: 50px minmax(0, 1fr) !important;
+    grid-template-areas: "mobileHeader" "content" !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    grid-area: mobileHeader !important;
+    position: relative !important;
+    inset: auto !important;
+    z-index: 100 !important;
+    width: 100% !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    padding: 4px 8px !important;
+    display: grid !important;
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+    direction: rtl !important;
+    background: rgba(8, 11, 17, .98) !important;
+    border-bottom: 1px solid rgba(215, 173, 53, .24) !important;
+  }
+
+  .app-shell-v103 .mobile-menu-button,
+  .app-shell-v103 .mobile-alert-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+  }
+
+  .app-shell-v103 .mobile-brand-copy {
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103 .mobile-brand-avatar {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    object-fit: contain !important;
+    border-radius: 9px !important;
+  }
+
+  .app-shell-v103 .mobile-brand-copy > div,
+  .app-shell-v103 .mobile-brand-copy strong,
+  .app-shell-v103 .mobile-brand-copy span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .app-shell-v103 .mobile-brand-copy strong { font-size: 12px !important; }
+  .app-shell-v103 .mobile-brand-copy span { font-size: 8px !important; }
+
+  .app-shell-v103 .mobile-header-actions {
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103 .mobile-role-pill {
+    max-width: 72px !important;
+    padding: 4px 7px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 8px !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    grid-area: content !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar,
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    z-index: 1002 !important;
+    width: min(82vw, 310px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    transform: translateX(105%) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar.open,
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar-grid-area.is-open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  .app-shell-v103 .sidebar-nav {
+    min-height: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .app-shell-v103 > .drawer-overlay,
+  .app-shell-v103 > .app-shell-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1001 !important;
+    display: block !important;
+    background: rgba(0, 0, 0, .62) !important;
+    backdrop-filter: blur(2px) !important;
+  }
+}
+
+/* ---------- Compact dashboard on real Android landscape viewports ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    grid-template-rows: 44px minmax(0, 1fr) !important;
+  }
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 3px 6px !important;
+  }
+  .app-shell-v103 .mobile-menu-button,
+  .app-shell-v103 .mobile-alert-button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+  .app-shell-v103 .mobile-brand-avatar {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+  }
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content { padding: 4px !important; }
+
+  .dashboard-desktop-topbar { display: none !important; }
+  .dashboard-reference-layout,
+  .dashboard-v103 { gap: 5px !important; }
+  .dashboard-reference-hero,
+  .dashboard-v103 .dashboard-reference-hero {
+    min-height: 170px !important;
+    max-height: 190px !important;
+    grid-template-columns: minmax(0, 1fr) minmax(185px, .65fr) !important;
+    overflow: hidden !important;
+  }
+  .dashboard-reference-copy { padding: 10px 14px !important; }
+  .dashboard-reference-copy h2 { font-size: clamp(2.5rem, 7vw, 4rem) !important; }
+  .dashboard-reference-copy h3 { margin: 4px 0 7px !important; font-size: 1rem !important; }
+  .dashboard-reference-copy p { display: none !important; }
+  .dashboard-reference-portrait { min-height: 170px !important; height: 170px !important; }
+  .dashboard-today-panel { display: none !important; }
+  .dashboard-feature-grid,
+  .dashboard-v103 .dashboard-feature-grid {
+    grid-template-columns: repeat(6, minmax(105px, 1fr)) !important;
+    gap: 5px !important;
+    overflow-x: auto !important;
+  }
+  .dashboard-feature-card,
+  .dashboard-v103 .dashboard-feature-card {
+    min-width: 105px !important;
+    min-height: 92px !important;
+    padding: 7px !important;
+  }
+  .dashboard-feature-card p,
+  .dashboard-feature-card small,
+  .dashboard-reference-bottom { display: none !important; }
+}
+
+/* ---------- Class mode: board gets ~80%, students stay on the right ---------- */
+.classmode-v103.classmode-final-layout,
+.classmode-v103.classmode-final-layout.fullscreen {
+  width: 100% !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: 50px minmax(0, 1fr) 44px !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  overflow: hidden !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-top-header {
+  height: 50px !important;
+  min-height: 50px !important;
+  grid-template-columns: clamp(44px, 10vw, 155px) minmax(330px, 1fr) clamp(58px, 11vw, 145px) !important;
+  gap: 5px !important;
+  padding: 3px 5px !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-layout {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(175px, 20vw, 225px) !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+  direction: ltr !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-board-panel {
+  grid-column: 1 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  direction: rtl !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-side-column {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) auto !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+  direction: rtl !important;
+}
+
+.classmode-v103.classmode-final-layout .live-teacher-panel.is-idle { display: none !important; }
+.classmode-v103.classmode-final-layout .live-teacher-panel:not(.is-idle) {
+  position: fixed !important;
+  z-index: 450 !important;
+  top: 58px !important;
+  right: 8px !important;
+  width: min(360px, 88vw) !important;
+  max-height: calc(100dvh - 112px) !important;
+  overflow: auto !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .7) !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-students-panel {
+  grid-row: 1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 5px !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-phrases-panel {
+  grid-row: 2 !important;
+  max-height: 82px !important;
+  padding: 5px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-phrases-panel .panel-heading,
+.classmode-v103.classmode-final-layout .classmode-phrases-panel .classmode-phrase-add { display: none !important; }
+.classmode-v103.classmode-final-layout .classmode-phrase-list {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 4px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+.classmode-v103.classmode-final-layout .classmode-phrase-row { flex: 0 0 auto !important; }
+
+.classmode-v103.classmode-final-layout .classmode-student-row-actions {
+  grid-template-columns: repeat(6, minmax(23px, 1fr)) !important;
+  gap: 2px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-student-row-actions button {
+  min-width: 0 !important;
+  min-height: 25px !important;
+  padding: 1px !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.classmode-v103.classmode-final-layout .classmode-student-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 3px !important;
+  overflow: visible !important;
+}
+.classmode-v103.classmode-final-layout .classmode-student-actions > button {
+  min-width: 0 !important;
+  width: 100% !important;
+  padding: 4px 3px !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: .58rem !important;
+}
+.classmode-v103.classmode-final-layout .classmode-phrase-icon-row {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 3px !important;
+}
+
+.classmode-v103.classmode-final-layout .classmode-bottom-actions {
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 3px 5px !important;
+}
+.classmode-v103.classmode-final-layout .classmode-bottom-actions button {
+  min-height: 30px !important;
+  padding: 3px 7px !important;
+  font-size: .62rem !important;
+}
+
+.classmode-v103.classmode-final-layout > .spoken-banner {
+  left: 50% !important;
+  bottom: 49px !important;
+  width: auto !important;
+  min-width: 220px !important;
+  max-width: min(430px, 78vw) !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  pointer-events: none !important;
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .classmode-v103.classmode-final-layout,
+  .classmode-v103.classmode-final-layout.fullscreen {
+    grid-template-rows: 42px minmax(0, 1fr) 38px !important;
+    gap: 3px !important;
+    padding: 3px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-top-header {
+    height: 42px !important;
+    min-height: 42px !important;
+    grid-template-columns: 38px minmax(300px, 1fr) 48px !important;
+    padding: 2px 4px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-header-brand > div,
+  .classmode-v103.classmode-final-layout .classmode-header-meta .header-meta-item:not(:first-child) { display: none !important; }
+  .classmode-v103.classmode-final-layout .classmode-header-brand img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-header-tabs button {
+    min-height: 34px !important;
+    padding: 2px !important;
+    font-size: .5rem !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-header-tabs svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-layout {
+    grid-template-columns: minmax(0, 1fr) clamp(165px, 20vw, 205px) !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-board-topbar {
+    flex-basis: 29px !important;
+    min-height: 29px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-current-badge,
+  .classmode-v103.classmode-final-layout .classmode-top-actions .secondary-btn,
+  .classmode-v103.classmode-final-layout .classmode-top-actions .danger-btn { display: none !important; }
+  .classmode-v103.classmode-final-layout .classmode-media-navigator {
+    flex-basis: 30px !important;
+    min-height: 30px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-toolbar {
+    flex-basis: 31px !important;
+    min-height: 31px !important;
+    max-height: 31px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-phrases-panel { display: none !important; }
+  .classmode-v103.classmode-final-layout .classmode-side-column {
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-bottom-actions {
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+  .classmode-v103.classmode-final-layout .classmode-bottom-actions-mid > button:nth-child(n + 6) { display: none !important; }
+  .classmode-v103.classmode-final-layout > .spoken-banner { bottom: 42px !important; }
+}
+
+/* ---------- Standalone whiteboard: header/layout/footer are siblings ---------- */
+.whiteboard-page {
+  width: 100% !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 3px !important;
+  display: grid !important;
+  grid-template-rows: 48px minmax(0, 1fr) 40px !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+}
+.whiteboard-page > .whiteboard-reference-header {
+  grid-row: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  margin: 0 !important;
+}
+.whiteboard-page > .whiteboard-reference-layout {
+  grid-row: 2 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: 54px minmax(0, 1fr) clamp(165px, 18vw, 215px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+  direction: ltr !important;
+}
+.whiteboard-page > .whiteboard-reference-footer {
+  grid-row: 3 !important;
+  width: 100% !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  margin: 0 !important;
+  padding: 3px 6px !important;
+}
+.whiteboard-page .whiteboard-tool-rail {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  direction: rtl !important;
+}
+.whiteboard-page .whiteboard-paper-stage {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 4px !important;
+  display: grid !important;
+  grid-template-rows: 36px minmax(0, 1fr) 38px !important;
+  overflow: hidden !important;
+  direction: rtl !important;
+}
+.whiteboard-page .whiteboard-resource-strip {
+  min-width: 0 !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 3px 5px !important;
+  overflow: hidden !important;
+}
+.whiteboard-page .whiteboard-resource-strip label,
+.whiteboard-page .whiteboard-resource-strip select { min-width: 0 !important; }
+.whiteboard-page .whiteboard-canvas-viewport {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 3px !important;
+  overflow: hidden !important;
+}
+.whiteboard-page .whiteboard-canvas-stack {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+}
+.whiteboard-page .whiteboard-bottom-toolbar {
+  grid-row: 3 !important;
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 2px 4px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+  gap: 4px !important;
+  overflow-x: auto !important;
+}
+.whiteboard-page .whiteboard-students-panel {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 4px !important;
+  overflow: hidden !important;
+  direction: rtl !important;
+}
+.whiteboard-page .whiteboard-students-list {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
+.whiteboard-page .whiteboard-motto { min-height: 58px !important; }
+.whiteboard-page .whiteboard-teacher-card {
+  left: 58px !important;
+  bottom: auto !important;
+  top: 4px !important;
+  min-height: 36px !important;
+  max-height: 40px !important;
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .whiteboard-page {
+    grid-template-rows: 38px minmax(0, 1fr) 34px !important;
+    gap: 2px !important;
+    padding: 2px !important;
+  }
+  .whiteboard-page > .whiteboard-reference-header {
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+  }
+  .whiteboard-page > .whiteboard-reference-layout {
+    grid-template-columns: 42px minmax(0, 1fr) clamp(145px, 18vw, 185px) !important;
+    gap: 2px !important;
+  }
+  .whiteboard-page > .whiteboard-reference-footer {
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+  }
+  .whiteboard-page .whiteboard-title-plaque {
+    min-width: 125px !important;
+    max-width: 42vw !important;
+    min-height: 30px !important;
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+  }
+  .whiteboard-page .whiteboard-title-plaque small { display: none !important; }
+  .whiteboard-page .whiteboard-brand-flag {
+    top: 3px !important;
+    left: 3px !important;
+    width: 34px !important;
+    height: 30px !important;
+  }
+  .whiteboard-page .whiteboard-teacher-card { display: none !important; }
+  .whiteboard-page .whiteboard-tool-rail button {
+    min-height: 26px !important;
+    padding: 2px !important;
+    font-size: 0 !important;
+  }
+  .whiteboard-page .whiteboard-tool-rail button svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  .whiteboard-page .whiteboard-paper-stage {
+    grid-template-rows: 30px minmax(0, 1fr) 32px !important;
+    padding: 2px !important;
+  }
+  .whiteboard-page .whiteboard-resource-strip {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 2px 3px !important;
+  }
+  .whiteboard-page .whiteboard-bottom-toolbar {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+  }
+  .whiteboard-page .whiteboard-bottom-toolbar button,
+  .whiteboard-page .whiteboard-page-controls button,
+  .whiteboard-page .whiteboard-view-controls button {
+    min-height: 25px !important;
+    padding: 2px 4px !important;
+    font-size: 7px !important;
+  }
+  .whiteboard-page .whiteboard-motto { display: none !important; }
+}
+
+/* ===== MOBDEA R2 START: landscape + maps + library ===== */
+
+.map-pro-stage {
+  position: relative !important;
+  isolation: isolate !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(24, 99, 137, .95), #071c2b 58%, #031019 100%) !important;
+}
+
+.map-pro-stage > .map-pro-transform {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: block !important;
+  transform-origin: center center !important;
+}
+
+.map-pro-stage .map-pro-svg,
+.map-pro-stage .map-pro-draw-canvas,
+.map-pro-stage .map-pro-placement-layer {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.map-pro-stage .map-pro-svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.map-game-main,
+.map-game-canvas-shell,
+.lesson-map-main,
+.lesson-map-canvas-shell,
+.classmode-map-embed {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.map-game-canvas-shell,
+.lesson-map-canvas-shell {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.classmode-map-embed .lesson-map-studio {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.classmode-map-embed .lesson-map-main {
+  height: 100% !important;
+  min-height: 0 !important;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+}
+
+.classmode-map-embed .lesson-map-canvas-shell,
+.classmode-map-embed .map-pro-stage {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+@media (orientation: landscape) and (max-height: 680px) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    width: 100vw !important;
+    height: 100dvh !important;
+    grid-template-rows: 42px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 4px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .dashboard-reference-layout,
+  .dashboard-v103 {
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 4px !important;
+  }
+
+  .dashboard-reference-hero,
+  .dashboard-v103 .dashboard-reference-hero {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 132px !important;
+    min-height: 132px !important;
+    max-height: 132px !important;
+    grid-template-columns: minmax(0, 1.25fr) minmax(145px, .55fr) !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-reference-copy {
+    min-width: 0 !important;
+    padding: 7px 11px !important;
+    align-content: center !important;
+  }
+
+  .dashboard-reference-copy h2 {
+    margin: 0 !important;
+    font-size: clamp(1.45rem, 4.2vw, 2.2rem) !important;
+    line-height: 1 !important;
+  }
+
+  .dashboard-reference-copy h3 {
+    margin: 3px 0 5px !important;
+    font-size: .78rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .dashboard-reference-copy p {
+    display: none !important;
+  }
+
+  .dashboard-reference-actions {
+    gap: 5px !important;
+    margin-top: 5px !important;
+  }
+
+  .dashboard-reference-actions button {
+    min-height: 28px !important;
+    padding: 4px 9px !important;
+    font-size: .66rem !important;
+  }
+
+  .dashboard-reference-portrait {
+    width: 100% !important;
+    height: 132px !important;
+    min-height: 132px !important;
+    max-height: 132px !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-reference-portrait img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center 25% !important;
+  }
+
+  .dashboard-today-panel,
+  .dashboard-reference-bottom {
+    display: none !important;
+  }
+
+  .dashboard-feature-grid,
+  .dashboard-v103 .dashboard-feature-grid {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-feature-card,
+  .dashboard-v103 .dashboard-feature-card {
+    min-width: 0 !important;
+    min-height: 78px !important;
+    height: 78px !important;
+    padding: 5px !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-feature-card h3,
+  .dashboard-feature-card strong {
+    font-size: .67rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .dashboard-feature-card p,
+  .dashboard-feature-card small,
+  .dashboard-feature-card .secondary-btn {
+    display: none !important;
+  }
+
+  .dashboard-feature-card svg {
+    width: 25px !important;
+    height: 25px !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 680px) {
+  .map-game-page {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 3px !important;
+    overflow: hidden !important;
+  }
+
+  .map-challenge-pro {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    grid-template-rows: 42px minmax(0, 1fr) !important;
+  }
+
+  .map-game-layout {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    grid-template-columns: 132px minmax(0, 1fr) 195px !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  .map-game-main {
+    height: 100% !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+  }
+
+  .map-game-canvas-shell,
+  .map-game-canvas-shell .map-pro-stage {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+}
+
+@media (orientation: portrait) {
+  .map-game-page {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: calc(100dvh - 54px) !important;
+    padding: 4px !important;
+    overflow-y: auto !important;
+  }
+
+  .map-challenge-pro {
+    width: 100% !important;
+    height: auto !important;
+    min-height: calc(100dvh - 62px) !important;
+    overflow: visible !important;
+  }
+
+  .map-game-layout {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(520px, 62dvh) auto !important;
+    overflow: visible !important;
+  }
+
+  .map-game-nav,
+  .map-game-main,
+  .map-game-question-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+  }
+
+  .map-game-main {
+    min-height: 520px !important;
+    grid-template-rows: auto minmax(440px, 1fr) auto !important;
+  }
+
+  .map-game-canvas-shell,
+  .map-game-canvas-shell .map-pro-stage {
+    width: 100% !important;
+    min-height: 440px !important;
+    height: 100% !important;
+  }
+
+  .map-game-question-panel {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+/* ===== MOBDEA R2 END ===== */
+
+/* ===== MOBDEA R3 START ===== */
+
+.map-pro-stage {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background:
+    radial-gradient(circle at 50% 42%, #14577a 0%, #08293d 52%, #03111b 100%) !important;
+}
+
+.map-pro-stage > .map-pro-transform {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: block !important;
+  transform-origin: center center !important;
+}
+
+.map-pro-stage .map-pro-svg {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+}
+
+.map-pro-stage .map-pro-placement-layer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.map-pro-stage .map-pro-draw-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 3 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (orientation: landscape) and (max-height: 760px) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    width: 100vw !important;
+    height: 100dvh !important;
+    grid-template-rows: 40px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding: 2px 5px !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 4px !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-page.dashboard-v103,
+  .dashboard-reference-layout.dashboard-v103 {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: 72px minmax(0, 1fr) !important;
+    gap: 5px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-v103 .dashboard-desktop-topbar,
+  .dashboard-v103 .dashboard-reference-portrait,
+  .dashboard-v103 .dashboard-today-panel,
+  .dashboard-v103 .dashboard-reference-bottom,
+  .dashboard-v103 .dashboard-hidden-live-metrics {
+    display: none !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-hero {
+    width: 100% !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    max-height: 72px !important;
+    display: block !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border-radius: 12px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 9px !important;
+    padding: 6px 12px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-kicker,
+  .dashboard-v103 .dashboard-reference-copy h3,
+  .dashboard-v103 .dashboard-reference-copy p {
+    display: none !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy h2 {
+    grid-column: 1 !important;
+    margin: 0 !important;
+    font-size: clamp(1.25rem, 3.3vw, 2rem) !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-cta {
+    grid-column: 3 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    margin: 0 !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-cta button {
+    min-height: 32px !important;
+    padding: 5px 9px !important;
+    font-size: .67rem !important;
+    white-space: nowrap !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-grid {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: 40px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 4px 7px !important;
+    padding: 6px 8px !important;
+    text-align: right !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-icon {
+    grid-column: 1 !important;
+    grid-row: 1 / 3 !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    display: grid !important;
+    place-items: center !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card strong {
+    grid-column: 2 !important;
+    margin: 0 !important;
+    font-size: .76rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card small {
+    display: none !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-link {
+    grid-column: 2 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    font-size: .58rem !important;
+    line-height: 1 !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 760px) {
+  .classmode-v103.classmode-final-layout,
+  .classmode-v103.classmode-final-layout.fullscreen {
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    grid-template-rows: 42px minmax(0, 1fr) 38px !important;
+    gap: 3px !important;
+    padding: 3px !important;
+    overflow: hidden !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-top-header {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    grid-template-columns: 42px minmax(330px, 1fr) 52px !important;
+    gap: 3px !important;
+    padding: 2px 4px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-header-brand > div,
+  .classmode-v103.classmode-final-layout .classmode-header-meta .header-meta-item:not(:first-child) {
+    display: none !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-header-brand img {
+    width: 33px !important;
+    height: 33px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-header-tabs {
+    gap: 3px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-header-tabs button {
+    min-height: 35px !important;
+    padding: 2px 4px !important;
+    font-size: .56rem !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-header-tabs svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-layout {
+    height: 100% !important;
+    min-height: 0 !important;
+    grid-template-columns: minmax(0, 1fr) clamp(138px, 15vw, 172px) !important;
+    gap: 3px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-board-panel {
+    gap: 3px !important;
+    padding: 3px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-board-topbar {
+    flex-basis: 29px !important;
+    min-height: 29px !important;
+    max-height: 29px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-current-badge,
+  .classmode-v103.classmode-final-layout .classmode-top-actions .secondary-btn,
+  .classmode-v103.classmode-final-layout .classmode-top-actions .danger-btn {
+    display: none !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-media-navigator {
+    flex-basis: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    padding: 2px 5px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-board-frame {
+    padding: 0 !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-toolbar {
+    min-height: 31px !important;
+    max-height: 31px !important;
+    padding: 2px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-side-column {
+    gap: 3px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .live-teacher-panel {
+    display: none !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-students-panel {
+    padding: 4px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-student-row {
+    padding: 2px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-student-row-main {
+    min-height: 31px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-student-row-actions button {
+    min-width: 23px !important;
+    min-height: 23px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-phrases-panel {
+    display: none !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-bottom-actions {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 2px 5px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-bottom-actions button {
+    min-height: 29px !important;
+    padding: 3px 6px !important;
+    font-size: .62rem !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 760px) {
+  .classmode-map-embed .lesson-map-studio {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: 108px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .classmode-map-embed .lesson-map-symbol-sidebar {
+    width: 108px !important;
+    min-width: 108px !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 3px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .classmode-map-embed .lesson-map-sidebar-title small,
+  .classmode-map-embed .lesson-map-custom-label,
+  .classmode-map-embed .lesson-map-placed-list {
+    display: none !important;
+  }
+
+  .classmode-map-embed .lesson-map-sidebar-title {
+    padding: 3px !important;
+    font-size: .58rem !important;
+  }
+
+  .classmode-map-embed .lesson-map-group-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .classmode-map-embed .lesson-map-group-tabs button {
+    flex: 0 0 auto !important;
+    padding: 3px 4px !important;
+    font-size: .5rem !important;
+  }
+
+  .classmode-map-embed .lesson-map-symbol-list {
+    grid-template-columns: 1fr !important;
+    gap: 3px !important;
+  }
+
+  .classmode-map-embed .lesson-map-symbol-list button {
+    min-height: 31px !important;
+    padding: 3px !important;
+  }
+
+  .classmode-map-embed .lesson-map-symbol-list button small {
+    display: none !important;
+  }
+
+  .classmode-map-embed .lesson-map-main {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+    overflow: hidden !important;
+  }
+
+  .classmode-map-embed .lesson-map-recommendation,
+  .classmode-map-embed .lesson-map-search-row {
+    display: none !important;
+  }
+
+  .classmode-map-embed .lesson-map-topbar,
+  .classmode-map-embed .lesson-map-controlbar {
+    min-width: 0 !important;
+    padding: 3px 5px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .classmode-map-embed .lesson-map-region-tabs,
+  .classmode-map-embed .lesson-map-layer-tabs,
+  .classmode-map-embed .lesson-map-draw-tools {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .classmode-map-embed .lesson-map-region-tabs button,
+  .classmode-map-embed .lesson-map-layer-tabs button,
+  .classmode-map-embed .lesson-map-draw-tools button {
+    flex: 0 0 auto !important;
+    min-height: 25px !important;
+    padding: 2px 4px !important;
+    font-size: .5rem !important;
+  }
+
+  .classmode-map-embed .lesson-map-canvas-shell {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .classmode-map-embed .lesson-map-canvas-shell .map-pro-stage {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .classmode-map-embed .lesson-map-footer-info {
+    min-height: 20px !important;
+    padding: 2px 5px !important;
+    font-size: .5rem !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 760px) {
+  .map-game-page {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 3px !important;
+    overflow: hidden !important;
+  }
+
+  .map-challenge-pro {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: 42px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .map-challenge-pro .map-game-layout {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: 118px minmax(0, 1fr) 172px !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .map-challenge-pro .map-game-nav,
+  .map-challenge-pro .map-game-question-panel {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: 4px !important;
+    overflow-y: auto !important;
+  }
+
+  .map-challenge-pro .map-game-main {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: 33px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .map-challenge-pro .map-game-canvas-shell {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .map-challenge-pro .map-game-canvas-shell .map-pro-stage {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+}
+
+@media (orientation: portrait) {
+  .map-game-page {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .map-challenge-pro {
+    width: 100% !important;
+    height: auto !important;
+    min-height: calc(100dvh - 48px) !important;
+    overflow: visible !important;
+  }
+
+  .map-challenge-pro .map-game-layout {
+    width: 100% !important;
+    height: auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(460px, 64dvh) auto !important;
+    overflow: visible !important;
+  }
+
+  .map-challenge-pro .map-game-main {
+    min-height: 460px !important;
+    grid-template-rows: auto minmax(400px, 1fr) !important;
+  }
+
+  .map-challenge-pro .map-game-canvas-shell,
+  .map-challenge-pro .map-game-canvas-shell .map-pro-stage {
+    min-height: 400px !important;
+  }
+}
+
+/* ===== MOBDEA R3 END ===== */
+
+/* ===== MOBDEA LOGIN FIT R4 START ===== */
+
+.auth-screen,
+.auth-screen * {
+  box-sizing: border-box;
+}
+
+/* شاشة الدخول العرضية: كل العناصر داخل الشاشة دون تمرير */
+@media (orientation: landscape) and (max-height: 760px) {
+  .auth-screen {
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 4px !important;
+    overflow: hidden !important;
+    place-items: stretch !important;
+  }
+
+  .auth-card {
+    width: calc(100vw - 8px) !important;
+    height: calc(100dvh - 8px) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 8px) !important;
+    grid-template-columns: minmax(165px, .52fr) minmax(0, 1.48fr) !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+
+  .auth-brand-panel {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 10px !important;
+    gap: 6px !important;
+    justify-content: flex-end !important;
+    background-size: cover !important;
+  }
+
+  .auth-brand-orb {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 13px !important;
+  }
+
+  .auth-kicker {
+    padding: 4px 7px !important;
+    font-size: .58rem !important;
+  }
+
+  .auth-brand-copy h1 {
+    margin: 2px 0 !important;
+    font-size: clamp(1.15rem, 3vw, 1.75rem) !important;
+    line-height: 1 !important;
+  }
+
+  .auth-brand-copy p,
+  .auth-brand-copy small,
+  .auth-brand-notes {
+    display: none !important;
+  }
+
+  .auth-form-panel {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 7px 9px !important;
+    gap: 5px !important;
+    overflow: hidden !important;
+  }
+
+  .auth-topline {
+    min-height: 35px !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  .auth-topline h2 {
+    margin: 0 !important;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+  }
+
+  .auth-topline p {
+    display: none !important;
+  }
+
+  .auth-role-pill {
+    padding: 4px 7px !important;
+    font-size: .58rem !important;
+  }
+
+  .auth-role-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+
+  .auth-role-card {
+    min-width: 0 !important;
+    min-height: 45px !important;
+    height: 45px !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+    display: grid !important;
+    grid-template-columns: 25px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  .auth-role-card span {
+    width: 25px !important;
+    height: 25px !important;
+    border-radius: 7px !important;
+  }
+
+  .auth-role-card strong {
+    font-size: .62rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .auth-role-card small {
+    display: none !important;
+  }
+
+  .auth-panel-shell {
+    min-height: 0 !important;
+    gap: 5px !important;
+    padding: 7px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .auth-field {
+    gap: 3px !important;
+  }
+
+  .auth-field span {
+    font-size: .63rem !important;
+  }
+
+  .auth-field input {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 6px 9px !important;
+    border-radius: 9px !important;
+    font-size: .76rem !important;
+  }
+
+  .auth-pin-wrap input {
+    padding-left: 38px !important;
+  }
+
+  .auth-pin-eye {
+    width: 27px !important;
+    height: 27px !important;
+    left: 4px !important;
+  }
+
+  .auth-remember-row {
+    min-height: 22px !important;
+    gap: 5px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .auth-remember,
+  .auth-link-btn {
+    font-size: .61rem !important;
+  }
+
+  .auth-submit {
+    min-height: 33px !important;
+    height: 33px !important;
+    padding: 5px 9px !important;
+    border-radius: 9px !important;
+    font-size: .7rem !important;
+  }
+
+  .auth-inline-actions {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5px !important;
+  }
+
+  .auth-help {
+    display: none !important;
+  }
+
+  .auth-notice.error,
+  .auth-notice.success {
+    padding: 5px 7px !important;
+    font-size: .62rem !important;
+  }
+}
+
+/* شاشة الدخول الطولية: الفورم فقط داخل الشاشة دون تمرير */
+@media (orientation: portrait) and (max-width: 900px) {
+  .auth-screen {
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 4px !important;
+    overflow: hidden !important;
+    place-items: stretch !important;
+  }
+
+  .auth-card {
+    width: calc(100vw - 8px) !important;
+    height: calc(100dvh - 8px) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 8px) !important;
+    grid-template-columns: 1fr !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+
+  .auth-brand-panel {
+    display: none !important;
+  }
+
+  .auth-form-panel {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: 9px !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+
+  .auth-topline h2 {
+    margin: 0 !important;
+    font-size: 1.05rem !important;
+  }
+
+  .auth-topline p {
+    display: none !important;
+  }
+
+  .auth-role-pill {
+    padding: 5px 8px !important;
+    font-size: .62rem !important;
+  }
+
+  .auth-role-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+
+  .auth-role-card {
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 5px !important;
+    border-radius: 10px !important;
+  }
+
+  .auth-role-card span {
+    width: 25px !important;
+    height: 25px !important;
+  }
+
+  .auth-role-card strong {
+    font-size: .65rem !important;
+  }
+
+  .auth-role-card small,
+  .auth-help {
+    display: none !important;
+  }
+
+  .auth-panel-shell {
+    gap: 6px !important;
+    padding: 8px !important;
+    border-radius: 12px !important;
+  }
+
+  .auth-field {
+    gap: 3px !important;
+  }
+
+  .auth-field span {
+    font-size: .68rem !important;
+  }
+
+  .auth-field input {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 7px 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .auth-submit {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 6px 10px !important;
+    border-radius: 10px !important;
+  }
+}
+
+/* ===== MOBDEA LOGIN FIT R4 END ===== */

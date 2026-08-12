@@ -1,7 +1,7 @@
 {
   "name": "mobdea-mobile",
   "private": true,
-  "version": "10.1.0",
+  "version": "10.13.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -27,7 +27,10 @@
     "@capacitor/core": "^7.4.3",
     "@capacitor/preferences": "^7.0.2",
     "@capacitor/share": "^7.0.2",
+    "@tesseract.js-data/ara": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "lucide-react": "^0.468.0",
+    "pdfjs-dist": "4.10.38",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
@@ -35,9 +38,11 @@
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
     "@vitejs/plugin-react": "^4.4.1",
+    "@xmldom/xmldom": "^0.9.10",
+    "fake-indexeddb": "^6.2.5",
     "vite": "^6.1.0"
   },
   "mobdea": {
-    "versionCode": "101"
+    "versionCode": 116
   }
 }

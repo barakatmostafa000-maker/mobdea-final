@@ -6,6 +6,7 @@ import {
 } from './cloudSync';
 import { encodeSharePayload } from '../utils/shareCodec';
 import { safeTrim } from '../utils/safety';
+import { buildPublicAppUrl } from './publicAppUrl';
 
 const LIVE_TOKEN_HEADER = 'X-Mobdea-Live-Token';
 const LIVE_WORKSPACE_HEADER = 'X-Mobdea-Workspace';
@@ -46,6 +47,27 @@ function bodySize(value) {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 
+function validateCreatedRoom(room = {}) {
+  const roomId = safeTrim(room.roomId || room.id || '', 120);
+  const joinCode = safeTrim(room.joinCode || '', 20);
+  const teacherToken = safeTrim(room.teacherToken || '', 260);
+  if (!roomId || !joinCode || teacherToken.length < 16) {
+    throw new Error('استجابة خادم الحصة غير مكتملة. لم يتم إنشاء غرفة صالحة.');
+  }
+  return { ...room, roomId, joinCode, teacherToken };
+}
+
+export function validateLiveStudentLink(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+    if (url.searchParams.get('shareKind') !== 'live') return false;
+    return Boolean(url.searchParams.get('shareData'));
+  } catch {
+    return false;
+  }
+}
+
 export function liveClassSupported() {
   return Boolean(
     globalThis.RTCPeerConnection
@@ -55,13 +77,19 @@ export function liveClassSupported() {
 }
 
 export function buildLiveStudentLink(payload, path = globalThis.location?.pathname || '/') {
-  const base = new URL(globalThis.location?.href || 'https://localhost/');
-  base.pathname = path;
-  base.search = '';
-  base.hash = '';
+  const roomId = safeTrim(payload?.roomId || '', 120);
+  const joinCode = safeTrim(payload?.joinCode || '', 20);
+  const endpoint = String(payload?.endpoint || '').replace(/\/$/, '');
+  const workspaceId = safeTrim(payload?.workspaceId || '', 80).replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!roomId || !joinCode || !/^https:\/\//i.test(endpoint) || !workspaceId) {
+    throw new Error('بيانات رابط الحصة غير مكتملة. أعد إنشاء الغرفة.');
+  }
+  const base = buildPublicAppUrl('/join.html', globalThis.location, payload?.publicAppUrl || '');
   base.searchParams.set('shareKind', 'live');
-  base.searchParams.set('shareData', encodeSharePayload(payload));
-  return base.toString();
+  base.searchParams.set('shareData', encodeSharePayload({ ...payload, roomId, joinCode, endpoint, workspaceId }));
+  const link = base.toString();
+  if (!validateLiveStudentLink(link)) throw new Error('تعذر تجهيز رابط الطالب بصورة صحيحة.');
+  return link;
 }
 
 export async function createLiveRoom(settings, metadata = {}) {
@@ -81,7 +109,8 @@ export async function createLiveRoom(settings, metadata = {}) {
   if (!response.ok) {
     throw new Error(await readErrorBody(response, `تعذر إنشاء الحصة المباشرة (${response.status}).`));
   }
-  return { ...(await response.json()), endpoint: config.endpoint, workspaceId: config.workspaceId };
+  const created = validateCreatedRoom(await response.json());
+  return { ...created, endpoint: config.endpoint, workspaceId: config.workspaceId };
 }
 
 export async function joinLiveRoom(configLike, roomId, joinCode, profile = {}) {
@@ -102,7 +131,14 @@ export async function joinLiveRoom(configLike, roomId, joinCode, profile = {}) {
   if (!response.ok) {
     throw new Error(await readErrorBody(response, `تعذر دخول الحصة (${response.status}).`));
   }
-  return { ...(await response.json()), ...config };
+  const joined = await response.json();
+  const roomIdValue = safeTrim(joined.roomId || roomId || '', 120);
+  const participantToken = safeTrim(joined.participantToken || '', 260);
+  const participantId = safeTrim(joined.participantId || joined.id || '', 120);
+  if (!roomIdValue || !participantId || participantToken.length < 12) {
+    throw new Error('استجابة دخول الطالب غير مكتملة. أعد فتح رابط الحصة.');
+  }
+  return { ...joined, roomId: roomIdValue, participantId, participantToken, ...config };
 }
 
 export async function postLiveEvent(configLike, roomId, token, event) {

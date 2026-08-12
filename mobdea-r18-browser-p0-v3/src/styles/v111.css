@@ -1,0 +1,732 @@
+/* P0-1: one viewport owner for Android safe areas and classroom geometry. */
+
+/* The legacy v103 skin remains available for visual styling, but it is no longer
+   allowed to own classroom geometry. display: contents keeps the five viewport
+   slots as grid participants while breaking every legacy selector that required
+   .classmode-v103.classmode-final-layout on the same element. */
+.classmode-viewport-skin {
+  display: contents !important;
+}
+
+
+.classmode-viewport.classmode-final-layout,
+.classmode-viewport.classmode-final-layout.fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  isolation: isolate !important;
+  width: var(--mobdea-app-width, 100vw) !important;
+  height: var(--mobdea-app-height, 100dvh) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: grid !important;
+  /* Keep the header's 48px touch targets completely inside their own row.
+     A 46px row clipped the hit box on a few short Android landscape viewports. */
+  grid-template-rows: clamp(54px, 9vh, 60px) minmax(0, 1fr) clamp(42px, 7.5vh, 50px) !important;
+  gap: clamp(2px, .55vw, 7px) !important;
+  padding:
+    max(3px, var(--mobdea-safe-top))
+    max(3px, var(--mobdea-safe-right))
+    max(3px, var(--mobdea-safe-bottom))
+    max(3px, var(--mobdea-safe-left)) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-header,
+.classmode-viewport-body,
+.classmode-viewport-stage,
+.classmode-viewport-students,
+.classmode-viewport-footer {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport-header {
+  position: relative !important;
+  z-index: 20 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-header > .classmode-top-header {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  grid-template-columns: clamp(96px, 14vw, 190px) minmax(0, 1fr) clamp(80px, 13vw, 170px) !important;
+  padding: 3px 6px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-header .classmode-header-brand,
+.classmode-viewport-header .classmode-header-meta {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-header .classmode-header-brand img {
+  width: 38px !important;
+  height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  object-fit: contain !important;
+}
+
+.classmode-viewport-header .classmode-header-tabs {
+  min-width: 0 !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: minmax(54px, 1fr) !important;
+  grid-template-columns: none !important;
+  align-items: center !important;
+  gap: 3px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain !important;
+  scrollbar-width: thin !important;
+}
+
+.classmode-viewport-header .classmode-header-tabs button,
+.classmode-viewport-header .classmode-header-tabs button:nth-child(n) {
+  width: auto !important;
+  min-width: 54px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-body.classmode-layout {
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(158px, 18vw, 224px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: clamp(3px, .65vw, 9px) !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage,
+.classmode-viewport-students {
+  position: relative !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage > .classmode-board-panel,
+.classmode-viewport-students > .classmode-side-column {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-stage > .classmode-board-panel {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage .classmode-board-frame {
+  position: relative !important;
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  height: 0 !important;
+  min-height: 150px !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage .classmode-board-surface,
+.classmode-viewport-stage .classmode-board-surface.with-tools {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-stage .classmode-board-stage,
+.classmode-viewport-stage .classmode-board-surface.with-tools .classmode-board-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport-stage .classmode-board-sidebar-left {
+  position: absolute !important;
+  z-index: 42 !important;
+  inset: 48px auto 7px 7px !important;
+  width: 52px !important;
+  max-height: calc(100% - 55px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .38) !important;
+}
+
+.classmode-viewport-stage .classmode-toolbar {
+  position: absolute !important;
+  z-index: 44 !important;
+  right: 8px !important;
+  bottom: 8px !important;
+  left: 68px !important;
+  width: auto !important;
+  min-height: 0 !important;
+  max-height: min(33%, 116px) !important;
+  overflow: auto !important;
+  border-radius: 12px !important;
+  background: rgba(7, 10, 15, .94) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .42) !important;
+}
+
+.classmode-viewport-stage .classmode-resource-preview,
+.classmode-viewport-stage .classmode-map-embed,
+.classmode-viewport-stage .classmode-games-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport-stage .unified-media-renderer {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  background: #070a0f !important;
+}
+
+.classmode-viewport-stage .unified-media-renderer > .unified-media-image,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-video,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-pdf,
+.classmode-viewport-stage .unified-media-renderer > iframe,
+.classmode-viewport-stage .unified-media-renderer > .pptx-preview {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  object-fit: contain !important;
+}
+
+.classmode-viewport-stage .unified-media-renderer > .unified-media-audio {
+  width: min(720px, calc(100% - 32px)) !important;
+}
+
+.classmode-viewport-students > .classmode-side-column {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.classmode-viewport-footer {
+  position: relative !important;
+  z-index: 24 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport-footer > .classmode-bottom-actions {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.classmode-viewport-overlays {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  pointer-events: none !important;
+}
+
+.classmode-viewport-overlays > * {
+  pointer-events: auto !important;
+}
+
+.classmode-viewport-overlays > .spoken-banner {
+  position: absolute !important;
+  z-index: 1002 !important;
+  top: calc(max(3px, var(--mobdea-safe-top)) + clamp(50px, 9vh, 62px)) !important;
+  right: 50% !important;
+  width: min(560px, calc(100% - 24px)) !important;
+  margin: 0 !important;
+  transform: translateX(50%) !important;
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .classmode-viewport.classmode-final-layout,
+  .classmode-viewport.classmode-final-layout.fullscreen {
+    grid-template-rows: 54px minmax(0, 1fr) 42px !important;
+    gap: 2px !important;
+  }
+
+  .classmode-viewport-header > .classmode-top-header {
+    grid-template-columns: 74px minmax(0, 1fr) 64px !important;
+    padding: 3px 4px !important;
+  }
+
+  .classmode-viewport-header .classmode-header-brand img {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .classmode-viewport-header .classmode-header-brand div,
+  .classmode-viewport-header .classmode-header-meta .header-meta-item:not(.book-icon),
+  .classmode-viewport-header .classmode-header-tabs span {
+    display: none !important;
+  }
+
+  .classmode-viewport-header .classmode-header-tabs button,
+  .classmode-viewport-header .classmode-header-tabs button:nth-child(n) {
+    min-width: 48px !important;
+    min-height: 48px !important;
+    padding: 4px !important;
+  }
+
+  .classmode-viewport-stage .classmode-board-topbar,
+  .classmode-viewport-stage .classmode-resource-card {
+    display: none !important;
+  }
+}
+
+/* Short landscape phones use the student drawer. A 10-inch 1024px tablet
+   keeps its live student rail even when its CSS height is only 600px. */
+@media (orientation: landscape) and (max-height: 620px) and (max-width: 960px) {
+  .classmode-viewport-body.classmode-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .classmode-viewport-students {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .classmode-viewport-body.classmode-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .classmode-viewport-students {
+    display: none !important;
+  }
+}
+
+.map-name-answer {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.map-name-answer input {
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid rgba(215, 173, 53, .38);
+  border-radius: 10px;
+  padding: 8px 11px;
+  background: #070a0f;
+  color: #fff4d2;
+}
+
+.ocr-review-panel {
+  border: 1px solid rgba(28, 111, 82, .24);
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(145deg, #f5fbf8, #fffdf7);
+}
+
+.ocr-review-panel > header,
+.ocr-review-panel > header > div,
+.ocr-review-panel article footer,
+.ocr-review-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ocr-review-panel header strong,
+.ocr-review-panel header small { display: block; }
+.ocr-review-panel header small,
+.ocr-review-panel > p { color: var(--muted); }
+.ocr-review-list { display: grid; gap: 10px; max-height: 540px; overflow: auto; padding: 4px; }
+.ocr-review-list article { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 9px; border: 1px solid var(--line); border-radius: 13px; padding: 11px; background: #fff; }
+.ocr-review-list article.approved { border-color: #53a57e; box-shadow: inset 4px 0 #53a57e; }
+.ocr-review-list article > .ocr-review-meta,
+.ocr-review-list article > footer { grid-column: 1 / -1; }
+.ocr-review-list label { display: grid; gap: 5px; font-size: 12px; }
+.ocr-review-list input,
+.ocr-review-list textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px; resize: vertical; }
+.ocr-review-meta span { border-radius: 999px; padding: 4px 8px; background: #eef3f0; color: #486056; font-size: 11px; }
+.ocr-approve-check { display: inline-flex !important; grid-auto-flow: column; align-items: center; }
+.ocr-approve-check input { width: 19px; height: 19px; }
+
+@media (max-width: 780px) {
+  .ocr-review-list article { grid-template-columns: 1fr; }
+  .ocr-review-list article > .ocr-review-meta,
+  .ocr-review-list article > footer { grid-column: auto; }
+}
+
+/* P0-2: PDF navigation stays touchable independently from whiteboard tools. */
+.classmode-viewport-stage .classmode-page-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  flex-wrap: wrap !important;
+}
+
+.classmode-viewport-stage .classmode-page-nav > button,
+.classmode-viewport-stage .classmode-pdf-zoom-controls > button {
+  min-width: 40px !important;
+  min-height: 40px !important;
+  touch-action: manipulation !important;
+}
+
+.classmode-viewport-stage .classmode-pdf-zoom-controls {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding-inline-start: 4px !important;
+}
+
+.classmode-viewport-stage .classmode-pdf-zoom-controls b {
+  min-width: 44px !important;
+  text-align: center !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* R18 P0-4: make administrative borders a real selectable layer. */
+.map-pro-country.borders-only {
+  fill: rgba(17, 31, 42, 0.18) !important;
+  stroke: #f0d478 !important;
+  stroke-width: 2.2 !important;
+  vector-effect: non-scaling-stroke;
+}
+.map-pro-country.borders-only.highlighted,
+.map-pro-country.borders-only:hover {
+  fill: rgba(240, 212, 120, 0.22) !important;
+  stroke: #fff4bd !important;
+  stroke-width: 3 !important;
+}
+
+/* ========================================================================== */
+/* R18 browser acceptance hotfix: classroom + visible SVG map challenge.       */
+/* ========================================================================== */
+
+/* ClassModeViewport now carries both classes on the same real root. Keep the
+   obsolete wrapper rule inert so it can never flatten a future classroom DOM. */
+.classmode-viewport-skin { display: block !important; }
+
+.classmode-viewport.classmode-v103.classmode-final-layout {
+  display: grid !important;
+  grid-template-rows: clamp(54px, 9vh, 62px) minmax(0, 1fr) clamp(44px, 8vh, 52px) !important;
+  width: var(--mobdea-app-width, 100vw) !important;
+  height: var(--mobdea-app-height, 100dvh) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-header,
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-body,
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-footer {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-body {
+  grid-template-columns: minmax(0, 1fr) clamp(160px, 19vw, 230px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-frame,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-surface,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-stage {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+/* The GeoJSON already contains real country polygons. Draw those polygons
+   directly. The previous feTurbulence/diffuse-lighting filter could blank or
+   severely stall the country layer on mobile Chromium/WebView. */
+.map-pro-country-layer {
+  filter: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.map-pro-country-layer .map-pro-country {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  fill: #52784f !important;
+  stroke: #f0dc9b !important;
+  stroke-width: 1.35 !important;
+  vector-effect: non-scaling-stroke !important;
+}
+
+.map-pro-country-layer .map-pro-country.highlighted {
+  fill: #d49a38 !important;
+  stroke: #fff4be !important;
+  stroke-width: 2.8 !important;
+}
+
+.map-challenge-pro.map-game-v103 {
+  height: 100dvh !important;
+  min-height: 620px !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-game-layout {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-game-main {
+  display: grid !important;
+  grid-template-rows: auto minmax(360px, 1fr) auto !important;
+  min-height: 0 !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell {
+  display: block !important;
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: 360px !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  background: #08253a !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-pro-stage,
+.map-challenge-pro.map-game-v103 .map-pro-transform,
+.map-challenge-pro.map-game-v103 .map-pro-svg {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 360px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.map-challenge-pro.map-game-v103 .map-pro-stage {
+  position: relative !important;
+  contain: layout paint !important;
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .map-challenge-pro.map-game-v103 {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow-y: auto !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-layout {
+    height: auto !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(480px, 66vh) auto !important;
+    overflow: visible !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-main {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    min-height: 480px !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-question-panel {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+  .map-challenge-pro.map-game-v103 .map-game-canvas-shell,
+  .map-challenge-pro.map-game-v103 .map-pro-stage,
+  .map-challenge-pro.map-game-v103 .map-pro-svg {
+    min-height: 400px !important;
+  }
+}
+
+
+/* ===== R18 browser P0 acceptance fixes ===== */
+/* Board-only focus: keep the teaching canvas as the whole viewport. */
+.classmode-viewport.stage-focus-mode {
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  padding: max(2px, var(--mobdea-safe-top)) max(2px, var(--mobdea-safe-right)) max(2px, var(--mobdea-safe-bottom)) max(2px, var(--mobdea-safe-left)) !important;
+}
+.classmode-viewport.stage-focus-mode > .classmode-viewport-header,
+.classmode-viewport.stage-focus-mode > .classmode-viewport-footer,
+.classmode-viewport.stage-focus-mode .classmode-viewport-students,
+.classmode-viewport.stage-focus-mode .classmode-board-topbar,
+.classmode-viewport.stage-focus-mode .classmode-resource-card,
+.classmode-viewport.stage-focus-mode .classmode-session-plan {
+  display: none !important;
+}
+.classmode-viewport.stage-focus-mode > .classmode-viewport-body,
+.classmode-viewport.stage-focus-mode > .classmode-viewport-body.classmode-layout {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.classmode-viewport.stage-focus-mode .classmode-viewport-stage,
+.classmode-viewport.stage-focus-mode .classmode-board-panel,
+.classmode-viewport.stage-focus-mode .classmode-board-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.classmode-board-focus-toggle {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 46 !important;
+  min-height: 38px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 7px 12px !important;
+  border: 1px solid rgba(231,191,98,.78) !important;
+  border-radius: 12px !important;
+  color: #fff0be !important;
+  background: rgba(7,10,15,.94) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.36) !important;
+}
+.classmode-board-focus-toggle.active { background: linear-gradient(145deg,#8b5817,#2c1a08) !important; }
+
+/* Historical board: parchment canvas with visible, non-obstructive historical identity. */
+.classmode-v103 .class-board-canvas-shell.board-theme-history {
+  background:
+    linear-gradient(90deg, rgba(112,70,24,.09), transparent 11% 89%, rgba(112,70,24,.09)),
+    radial-gradient(circle at 50% 44%, rgba(190,137,53,.12), transparent 36%),
+    repeating-linear-gradient(0deg, rgba(92,58,24,.025) 0 1px, transparent 1px 7px),
+    linear-gradient(145deg,#f0dfb9 0%,#fff6df 48%,#ead4a7 100%) !important;
+  box-shadow: inset 0 0 0 4px rgba(112,70,24,.32), inset 0 0 46px rgba(90,52,17,.18) !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-theme-art { opacity: .48 !important; }
+.classmode-v103 .board-theme-history .classmode-board-watermark { opacity: .055 !important; }
+.classmode-v103 .board-theme-history .class-board-canvas { background: transparent !important; }
+
+/* Media surface: the actual asset must own all remaining height. */
+.classmode-viewport-stage .classmode-resource-preview {
+  display: grid !important;
+  grid-template-rows: minmax(38px, auto) minmax(0, 1fr) !important;
+}
+.classmode-viewport-stage .classmode-resource-preview .resource-preview-body,
+.classmode-viewport-stage .classmode-resource-preview .unified-media-renderer {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.classmode-viewport-stage .unified-media-renderer > .unified-media-pdf,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-image,
+.classmode-viewport-stage .unified-media-renderer > .unified-media-video {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #05080d !important;
+}
+
+/* Lesson maps: when the drawer is closed the canvas is the ONLY grid row. */
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-main {
+  grid-template-rows: minmax(0, 1fr) !important;
+  padding: 0 !important;
+}
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-canvas-shell {
+  grid-row: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.classmode-v103 .lesson-map-studio.tools-closed .map-pro-stage,
+.classmode-v103 .lesson-map-studio.tools-closed .map-pro-transform,
+.classmode-v103 .lesson-map-studio.tools-closed .map-pro-svg {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Map challenge: hard reset the three-column landscape geometry and guarantee a real map viewport. */
+.map-challenge-pro.map-game-v103 {
+  display: grid !important;
+  grid-template-rows: 52px minmax(0, 1fr) !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  min-height: 560px !important;
+  overflow: hidden !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-layout {
+  grid-row: 2 !important;
+  display: grid !important;
+  grid-template-columns: clamp(145px,15vw,210px) minmax(0,1fr) clamp(215px,22vw,300px) !important;
+  grid-template-rows: minmax(0,1fr) !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-main {
+  display: grid !important;
+  grid-template-rows: auto minmax(0,1fr) auto !important;
+  min-height: 0 !important;
+}
+.map-challenge-pro.map-game-v103 .map-game-canvas-shell {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 280px !important;
+  overflow: hidden !important;
+}
+.map-challenge-pro.map-game-v103 .map-pro-stage,
+.map-challenge-pro.map-game-v103 .map-pro-transform,
+.map-challenge-pro.map-game-v103 .map-pro-svg {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}

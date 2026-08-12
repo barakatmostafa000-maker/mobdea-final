@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckSquare, Eye, Printer, Search, ShieldCheck, Square, BadgeCheck, IdCard, School, CalendarDays, UserRound, WalletCards, UsersRound, Sparkles, ArrowLeftRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { identity } from '../config/identity';
-import { currentAcademicYear, mirrorCardsForDuplex } from '../utils/printLayout';
+import { buildDuplexPagePairs, currentAcademicYear, mirrorCardsForDuplex, nativeDuplexMode } from '../utils/printLayout';
 import { printCurrentView } from '../services/nativePlatform';
 
 const CARD_PRESETS = {
@@ -174,6 +174,30 @@ function PrintRun({ title, students, side, columns, rows, duplexMode = 'none' })
   );
 }
 
+function DuplexPrintRun({ students, columns, rows, duplexMode }) {
+  const pairs = buildDuplexPagePairs(students, columns * rows);
+  return (
+    <section className="print-run duplex-print-run">
+      <div className="print-run-header">
+        <h2>الوجه والظهر</h2>
+        <p>كل صفحة وجه يليها الظهر المطابق لنفس الورقة.</p>
+      </div>
+      <div className="print-pack">
+        {pairs.flatMap((pair, pairIndex) => [
+          <div className="print-pack-page duplex-front-page" data-sheet={pair.sheetIndex + 1} data-side="front" key={`pair-${pair.sheetIndex}-front`}>
+            <div className="print-pack-label">الورقة {pair.sheetIndex + 1} — الوجه الأمامي</div>
+            <PrintSheet students={pair.students} side="front" columns={columns} rows={rows}/>
+          </div>,
+          <div className={`print-pack-page duplex-back-page ${pairIndex === pairs.length - 1 ? 'last-page' : ''}`} data-sheet={pair.sheetIndex + 1} data-side="back" key={`pair-${pair.sheetIndex}-back`}>
+            <div className="print-pack-label">الورقة {pair.sheetIndex + 1} — الظهر المطابق</div>
+            <PrintSheet students={pair.students} side="back" columns={columns} rows={rows} duplexMode={duplexMode}/>
+          </div>,
+        ])}
+      </div>
+    </section>
+  );
+}
+
 export default function StudentCards({ data, auth }) {
   const isOwnCardOnly = auth?.role === 'student';
   const rosterStudents = useMemo(
@@ -185,7 +209,7 @@ export default function StudentCards({ data, auth }) {
   const [side, setSide] = useState('front');
   const [printMode, setPrintMode] = useState('front');
   const [cardsPerPage, setCardsPerPage] = useState(9);
-  const [duplexMode, setDuplexMode] = useState('flip-long-edge');
+  const [duplexMode, setDuplexMode] = useState('driver-long-edge');
   const [selectedStudentId, setSelectedStudentId] = useState(rosterStudents[0]?.id || null);
   const [selectedIds, setSelectedIds] = useState(isOwnCardOnly && rosterStudents[0] ? [rosterStudents[0].id] : []);
   const [printNotice, setPrintNotice] = useState('');
@@ -229,18 +253,93 @@ export default function StudentCards({ data, auth }) {
   const selectAllVisible = () => setSelectedIds(visibleIds);
   const clearSelection = () => setSelectedIds([]);
 
-  const startPrinting = async () => {
+  const waitForPrintableAssets = async () => {
+    if (document.fonts?.ready) await document.fonts.ready.catch(() => null);
+    const images = [...document.querySelectorAll('.print-only img')];
+    await Promise.all(images.map((image) => {
+      if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+      return new Promise((resolve) => {
+        const done = () => resolve();
+        image.addEventListener('load', done, { once: true });
+        image.addEventListener('error', done, { once: true });
+        window.setTimeout(done, 5000);
+      });
+    }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  };
+
+  const waitForPrintDialogToClose = () => new Promise((resolve) => {
+    let dialogOpened = false;
+    let settled = false;
+    let fallbackTimer = null;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('blur', markOpened);
+      window.removeEventListener('focus', handleReturn);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearTimeout(fallbackTimer);
+      resolve();
+    };
+
+    const markOpened = () => {
+      dialogOpened = true;
+    };
+
+    const handleReturn = () => {
+      if (dialogOpened) window.setTimeout(finish, 450);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') dialogOpened = true;
+      if (dialogOpened && document.visibilityState === 'visible') {
+        window.setTimeout(finish, 450);
+      }
+    };
+
+    window.addEventListener('blur', markOpened);
+    window.addEventListener('focus', handleReturn);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Some Android print services do not emit blur/visibility events. Keep the
+    // printable DOM alive long enough for their asynchronous snapshot instead
+    // of removing it after two seconds and producing a blank PDF.
+    fallbackTimer = window.setTimeout(finish, 30000);
+  });
+
+  const startPrinting = async (requestedMode = printMode) => {
     if (!selectedVisibleStudents.length) {
       setPrintNotice('حدد طالبًا واحدًا على الأقل قبل الطباعة.');
       return;
     }
+
+    const normalizedMode = ['front', 'back', 'both'].includes(requestedMode) ? requestedMode : printMode;
+    if (normalizedMode !== printMode) {
+      setPrintMode(normalizedMode);
+      // React must commit the requested front/back sheets before Android takes
+      // its print snapshot. Two animation frames are more reliable than a
+      // fixed timeout on slower tablets.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
     setPrinting(true);
-    setPrintNotice('جارٍ تجهيز معاينة الطباعة…');
+    setPrintNotice(normalizedMode === 'both' ? 'جارٍ تجهيز الوجه الأمامي والخلفي للطباعة…' : 'جارٍ تجهيز الكروت والصور والخطوط…');
     document.body.classList.add('mobdea-printing-cards');
     try {
+      await waitForPrintableAssets();
+      // Force layout, then keep one extra paint window before the native
+      // WebView print adapter captures the document.
+      void document.body.offsetHeight;
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      await printCurrentView('بطاقات طلاب المبدع');
-      setPrintNotice('تم فتح معاينة الطباعة. اختر الطابعة أو الحفظ بصيغة PDF.');
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+      await printCurrentView('بطاقات طلاب المبدع', {
+        duplexMode: normalizedMode === 'both' ? nativeDuplexMode(duplexMode) : 'none',
+      });
+      setPrintNotice(normalizedMode === 'both'
+        ? 'معاينة الطباعة مفتوحة: كل صفحة وجه يليها الظهر المطابق لنفس الورقة. فعّل الطباعة على الوجهين من الطابعة إذا كانت تدعمها.'
+        : 'معاينة الطباعة مفتوحة. اختر الحفظ بصيغة PDF أو الطابعة.');
+      await waitForPrintDialogToClose();
     } catch (error) {
       setPrintNotice(error?.message || 'تعذر تشغيل الطباعة على هذا الجهاز.');
     } finally {
@@ -250,14 +349,14 @@ export default function StudentCards({ data, auth }) {
   };
 
   return (
-    <section className="page student-card-lab">
+    <section className="page student-card-lab cards-v103">
       <div className="page-heading no-print">
         <div>
           <span className="eyebrow">تصميم وطباعة كارت الطالب</span>
           <h2>كروت الطلاب</h2>
           <p>التصميم ثابت كما هو، مع معاينة الوجه الأمامي والخلفي وطباعة عدد كبير من الطلاب في الصفحة الواحدة.</p>
         </div>
-        <button className="primary-btn icon-button" onClick={() => void startPrinting()} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ التجهيز…' : 'طباعة الكروت'}</button>
+        <button className="primary-btn icon-button" onClick={() => void startPrinting('both')} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ التجهيز…' : 'طباعة الكروت (الوجهين)'}</button>
       </div>
 
       {printNotice && <div className="settings-notice card-print-notice no-print">{printNotice}</div>}
@@ -356,11 +455,13 @@ export default function StudentCards({ data, auth }) {
           <label className="duplex-mode-control">
             <span>محاذاة ظهر الكارت عند الطباعة على الوجهين</span>
             <select value={duplexMode} onChange={(event) => setDuplexMode(event.target.value)}>
-              <option value="flip-long-edge">قلب على الحافة الطويلة — عكس الأعمدة</option>
-              <option value="flip-short-edge">قلب على الحافة القصيرة — تدوير ترتيب الصفحة</option>
-              <option value="none">بدون عكس — للطباعة اليدوية</option>
+              <option value="driver-long-edge">Duplex تلقائي — الحافة الطويلة</option>
+              <option value="driver-short-edge">Duplex تلقائي — الحافة القصيرة</option>
+              <option value="manual-long-edge">طباعة يدوية — قلب الحافة الطويلة</option>
+              <option value="manual-short-edge">طباعة يدوية — قلب الحافة القصيرة</option>
+              <option value="none">بدون قلب أو عكس</option>
             </select>
-            <small>استخدم الإعداد المطابق لطريقة Duplex في الطابعة حتى يأتي الظهر خلف نفس الطالب.</small>
+            <small>التلقائي يترك مواضع الوجه والظهر متطابقة ويجعل تعريف الطابعة ينفذ القلب. اليدوي يعكس صفوف أو أعمدة الظهر قبل إعادة إدخال الورق.</small>
           </label>
 
           {!isOwnCardOnly && (
@@ -379,18 +480,14 @@ export default function StudentCards({ data, auth }) {
           )}
 
           <div className="card-print-actions">
-            <button className="primary-btn icon-button" onClick={() => void startPrinting()} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ تجهيز الطباعة…' : `طباعة ${printMode === 'both' ? 'الوجهين' : (printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي')}`}</button>
+            <button className="primary-btn icon-button" onClick={() => void startPrinting(printMode)} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ تجهيز الطباعة…' : `طباعة ${printMode === 'both' ? 'الوجهين' : (printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي')}`}</button>
           </div>
         </aside>
       </div>
 
       <div className="print-pack no-print">
         {printMode === 'both' ? (
-          <>
-            <PrintRun title="الوجه الأمامي" students={selectedVisibleStudents} side="front" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
-            <div className="print-run-separator" />
-            <PrintRun title="الوجه الخلفي" students={selectedVisibleStudents} side="back" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
-          </>
+          <DuplexPrintRun students={selectedVisibleStudents} columns={preset.cols} rows={preset.rows} duplexMode={duplexMode}/>
         ) : (
           <PrintRun
             title={printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}
@@ -405,11 +502,7 @@ export default function StudentCards({ data, auth }) {
 
       <div className="print-only">
         {printMode === 'both' ? (
-          <>
-            <PrintRun title="الوجه الأمامي" students={selectedVisibleStudents} side="front" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
-            <div className="print-run-separator" />
-            <PrintRun title="الوجه الخلفي" students={selectedVisibleStudents} side="back" columns={preset.cols} rows={preset.rows} duplexMode={duplexMode} />
-          </>
+          <DuplexPrintRun students={selectedVisibleStudents} columns={preset.cols} rows={preset.rows} duplexMode={duplexMode}/>
         ) : (
           <PrintRun
             title={printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}

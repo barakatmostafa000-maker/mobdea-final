@@ -1,0 +1,4 @@
+*.zip export-ignore
+*.bundle export-ignore
+dist export-ignore
+node_modules export-ignore

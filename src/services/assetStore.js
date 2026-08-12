@@ -1,10 +1,13 @@
-import { decryptBytes, encryptBytes } from './localCrypto';
+import { decryptBytes, encryptBytes } from './localCrypto.js';
+import { IncrementalSha256 } from './incrementalSha256.js';
 
 const DB_NAME = 'mobdea_assets_v2';
 const STORE_NAME = 'assets';
 const DB_VERSION = 1;
 const LEGACY_DB_NAME = 'mobdea_assets_v1';
 const MAX_ASSET_BYTES = 200 * 1024 * 1024;
+const CHUNKED_ASSET_FORMAT = 'mobdea-local-chunked-v1';
+const ENCRYPTION_CHUNK_BYTES = 2 * 1024 * 1024;
 const objectUrlCache = new Map();
 
 function openDb(name = DB_NAME) {
@@ -59,34 +62,52 @@ function createId() {
   return `asset-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
-async function sha256Hex(bytes) {
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
 async function writeEncryptedAsset(blob, metadata = {}) {
   if (!(blob instanceof Blob)) throw new Error('الملف غير صالح.');
   if (blob.size <= 0) throw new Error('الملف فارغ.');
   if (blob.size > MAX_ASSET_BYTES) throw new Error('الحد الأقصى للملف الواحد 200 ميجابايت.');
-  const plainBytes = new Uint8Array(await blob.arrayBuffer());
-  const encrypted = await encryptBytes(plainBytes);
   const id = String(metadata.id || createId());
-  const sha256 = String(metadata.sha256 || await sha256Hex(plainBytes)).toLowerCase();
-  const record = {
-    id,
-    format: encrypted.format,
-    iv: encrypted.iv,
-    ciphertext: new Blob([encrypted.ciphertext], { type: 'application/octet-stream' }),
-    name: String(metadata.name || 'file').slice(0, 180),
-    type: String(metadata.type || blob.type || 'application/octet-stream').slice(0, 120),
-    size: blob.size,
-    sha256,
-    kind: String(metadata.kind || 'resource').slice(0, 40),
-    createdAt: metadata.createdAt || new Date().toISOString(),
-  };
-  await withStore('readwrite', (store) => store.put(record));
+  const hasher = metadata.sha256 ? null : new IncrementalSha256();
+  const chunkCount = Math.ceil(blob.size / ENCRYPTION_CHUNK_BYTES);
+  try {
+    for (let index = 0; index < chunkCount; index += 1) {
+      const start = index * ENCRYPTION_CHUNK_BYTES;
+      const plainBytes = new Uint8Array(await blob.slice(start, Math.min(blob.size, start + ENCRYPTION_CHUNK_BYTES)).arrayBuffer());
+      hasher?.update(plainBytes);
+      const encrypted = await encryptBytes(plainBytes);
+      await withStore('readwrite', (store) => store.put({
+        id: `${id}:chunk:${index}`,
+        parentId: id,
+        chunkIndex: index,
+        internalAssetChunk: true,
+        format: encrypted.format,
+        iv: encrypted.iv,
+        ciphertext: new Blob([encrypted.ciphertext], { type: 'application/octet-stream' }),
+        size: plainBytes.byteLength,
+      }));
+    }
+    const record = {
+      id,
+      format: CHUNKED_ASSET_FORMAT,
+      chunkCount,
+      chunkBytes: ENCRYPTION_CHUNK_BYTES,
+      name: String(metadata.name || 'file').slice(0, 180),
+      type: String(metadata.type || blob.type || 'application/octet-stream').slice(0, 120),
+      size: blob.size,
+      sha256: String(metadata.sha256 || hasher.digestHex()).toLowerCase(),
+      kind: String(metadata.kind || 'resource').slice(0, 40),
+      createdAt: metadata.createdAt || new Date().toISOString(),
+    };
+    await withStore('readwrite', (store) => store.put(record));
+  } catch (error) {
+    await withStore('readwrite', (store) => {
+      store.delete(id);
+      for (let index = 0; index < chunkCount; index += 1) store.delete(`${id}:chunk:${index}`);
+    }).catch(() => {});
+    throw error;
+  }
   revokeAssetUrl(id);
-  return { id, name: record.name, type: record.type, size: record.size, sha256: record.sha256, kind: record.kind, createdAt: record.createdAt };
+  return getAssetMetadata(id);
 }
 
 export async function storeAsset(fileOrBlob, metadata = {}) {
@@ -130,6 +151,7 @@ export async function listAssetMetadata(ids = null) {
     const transaction = db.transaction(STORE_NAME, 'readonly');
     const records = await requestResult(transaction.objectStore(STORE_NAME).getAll());
     return (records || [])
+      .filter((record) => !record.internalAssetChunk)
       .filter((record) => !wanted || wanted.has(String(record.id)))
       .map((record) => ({
         id: record.id,
@@ -152,6 +174,16 @@ export async function importAssetBlob(blob, metadata = {}) {
 export async function getAssetBlob(id) {
   const record = await getAsset(id);
   if (!record) return null;
+  if (record.format === CHUNKED_ASSET_FORMAT) {
+    const chunks = [];
+    for (let index = 0; index < Number(record.chunkCount || 0); index += 1) {
+      const chunk = await getAsset(`${record.id}:chunk:${index}`);
+      if (!chunk?.ciphertext || !chunk?.iv || !chunk?.format) throw new Error(`ملف ${record.name || record.id} غير مكتمل داخل ذاكرة المنصة.`);
+      const encryptedBuffer = await chunk.ciphertext.arrayBuffer();
+      chunks.push(await decryptBytes({ format: chunk.format, iv: chunk.iv, ciphertext: new Uint8Array(encryptedBuffer) }));
+    }
+    return new Blob(chunks, { type: record.type || 'application/octet-stream' });
+  }
   if (record.format && record.ciphertext) {
     const encryptedBuffer = await record.ciphertext.arrayBuffer();
     const plain = await decryptBytes({ format: record.format, iv: record.iv, ciphertext: new Uint8Array(encryptedBuffer) });
@@ -201,7 +233,13 @@ export function revokeAssetUrl(id) {
 export async function deleteAsset(id) {
   if (!id) return;
   revokeAssetUrl(id);
-  await withStore('readwrite', (store) => store.delete(String(id)));
+  const record = await getAsset(id);
+  await withStore('readwrite', (store) => {
+    store.delete(String(id));
+    if (record?.format === CHUNKED_ASSET_FORMAT) {
+      for (let index = 0; index < Number(record.chunkCount || 0); index += 1) store.delete(`${id}:chunk:${index}`);
+    }
+  });
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -239,7 +277,7 @@ export async function exportAssets() {
     const transaction = db.transaction(STORE_NAME, 'readonly');
     const records = await requestResult(transaction.objectStore(STORE_NAME).getAll());
     const output = [];
-    for (const record of records || []) {
+    for (const record of (records || []).filter((item) => !item.internalAssetChunk)) {
       const blob = await getAssetBlob(record.id);
       if (!blob) continue;
       const data = await new Promise((resolve, reject) => {

@@ -54,9 +54,10 @@ export async function openResourceDocument(resource = {}, url = '') {
   return true;
 }
 
-export async function printCurrentView(title = 'المُبدع') {
+export async function printCurrentView(title = 'المُبدع', options = {}) {
+  const duplexMode = options?.duplexMode || 'none';
   if (Capacitor.isNativePlatform()) {
-    await NativePrinter.printCurrentView({ title });
+    await NativePrinter.printCurrentView({ title, duplexMode });
     return true;
   }
   window.print();

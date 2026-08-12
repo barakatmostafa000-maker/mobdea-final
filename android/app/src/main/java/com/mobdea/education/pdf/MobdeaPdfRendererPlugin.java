@@ -14,22 +14,19 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.security.MessageDigest;
-import java.util.Locale;
 
 @CapacitorPlugin(name = "MobdeaPdfRenderer")
 public class MobdeaPdfRendererPlugin extends Plugin {
-    private static final long MAX_PDF_BYTES = 160L * 1024L * 1024L;
+    private static final long MAX_PDF_BYTES = 200L * 1024L * 1024L;
     private static final int MAX_RENDER_WIDTH = 2200;
 
     @PluginMethod
     public void renderPage(PluginCall call) {
-        final String base64 = call.getString("base64", "");
+        final String assetPath = call.getString("assetPath", "");
         final int requestedPage = Math.max(1, call.getInt("page", 1));
         final int requestedWidth = Math.min(MAX_RENDER_WIDTH, Math.max(640, call.getInt("maxWidth", 1600)));
-        if (base64.isEmpty()) {
-            call.reject("PDF data is required.");
+        if (assetPath.isEmpty()) {
+            call.reject("A staged PDF path is required.");
             return;
         }
 
@@ -40,18 +37,8 @@ public class MobdeaPdfRendererPlugin extends Plugin {
             PdfRenderer.Page page = null;
             Bitmap bitmap = null;
             try {
-                byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
-                if (bytes.length == 0 || bytes.length > MAX_PDF_BYTES) throw new IllegalArgumentException("PDF size is not supported.");
-                String hash = toHex(MessageDigest.getInstance("SHA-256").digest(bytes));
-                File cacheDir = new File(getContext().getCacheDir(), "pdf-pages");
-                if (!cacheDir.exists() && !cacheDir.mkdirs()) throw new IllegalStateException("Unable to create PDF cache.");
-                pdfFile = new File(cacheDir, hash + ".pdf");
-                if (!pdfFile.exists() || pdfFile.length() != bytes.length) {
-                    try (FileOutputStream output = new FileOutputStream(pdfFile)) {
-                        output.write(bytes);
-                        output.flush();
-                    }
-                }
+                pdfFile = resolveStagedAsset(assetPath);
+                if (!pdfFile.exists() || pdfFile.length() == 0 || pdfFile.length() > MAX_PDF_BYTES) throw new IllegalArgumentException("PDF size is not supported.");
 
                 descriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY);
                 renderer = new PdfRenderer(descriptor);
@@ -73,7 +60,7 @@ public class MobdeaPdfRendererPlugin extends Plugin {
                 result.put("pageCount", pageCount);
                 result.put("width", requestedWidth);
                 result.put("height", height);
-                result.put("sha256", hash);
+                result.put("asset", pdfFile.getName());
                 getActivity().runOnUiThread(() -> call.resolve(result));
             } catch (Exception error) {
                 String message = error.getMessage() == null ? "Unable to render PDF page." : error.getMessage();
@@ -87,9 +74,12 @@ public class MobdeaPdfRendererPlugin extends Plugin {
         }).start();
     }
 
-    private String toHex(byte[] bytes) {
-        StringBuilder builder = new StringBuilder(bytes.length * 2);
-        for (byte value : bytes) builder.append(String.format(Locale.US, "%02x", value));
-        return builder.toString();
+    private File resolveStagedAsset(String path) throws Exception {
+        File directory = new File(getContext().getCacheDir(), "native-assets").getCanonicalFile();
+        File target = new File(path).getCanonicalFile();
+        if (!target.getPath().startsWith(directory.getPath() + File.separator)) {
+            throw new SecurityException("PDF asset path is outside the app cache.");
+        }
+        return target;
     }
 }

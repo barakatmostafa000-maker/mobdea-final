@@ -10,6 +10,7 @@ const resources = [
   { id: 'img-1', type: 'image' },
   { id: 'img-2', type: 'image' },
   { id: 'video-1', type: 'video' },
+  { id: 'audio-1', type: 'audio' },
   { id: 'slides-1', type: 'slides' },
   { id: 'doc-1', type: 'document' },
 ];
@@ -17,7 +18,9 @@ const resources = [
 test('class media navigator filters every supported lesson media type', () => {
   assert.deepEqual(resourcesForContentMode(resources, 'images').map((item) => item.id), ['img-1', 'img-2']);
   assert.deepEqual(resourcesForContentMode(resources, 'videos').map((item) => item.id), ['video-1']);
-  assert.deepEqual(resourcesForContentMode(resources, 'files').map((item) => item.id), ['slides-1', 'doc-1']);
+  assert.deepEqual(resourcesForContentMode(resources, 'audio').map((item) => item.id), ['audio-1']);
+  assert.deepEqual(resourcesForContentMode(resources, 'slides').map((item) => item.id), ['slides-1']);
+  assert.deepEqual(resourcesForContentMode(resources, 'files').map((item) => item.id), ['doc-1']);
   assert.deepEqual(resourcesForContentMode(resources, 'pdf').map((item) => item.id), ['pdf-1']);
 });
 

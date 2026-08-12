@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  LIBRARY_GRADES,
   LIBRARY_KINDS,
   clampLessonPage,
   getGradeExams,
@@ -8,8 +9,20 @@ import {
   getLessonModeResources,
   collectLibraryAssetIds,
   migrateLibraryItems,
+  inferMediaType,
 } from '../src/services/libraryModel.js';
 import { getGradeMapRecommendation } from '../src/data/geography.js';
+
+
+
+test('class media normalization preserves every supported lesson media type', () => {
+  assert.equal(inferMediaType({ type: 'image', fileName: 'map.bin' }), 'image');
+  assert.equal(inferMediaType({ type: 'video', fileName: 'lesson.bin' }), 'video');
+  assert.equal(inferMediaType({ type: 'slides', fileName: 'deck.bin' }), 'slides');
+  assert.equal(inferMediaType({ type: 'textbook', fileName: 'book.bin' }), 'pdf');
+  assert.equal(inferMediaType({ mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', fileName: 'lesson.pptx' }), 'slides');
+  assert.equal(inferMediaType({ mimeType: 'application/pdf', fileName: 'lesson.dat' }), 'pdf');
+});
 
 test('legacy textbook with exams migrates into two permanent grade sources', () => {
   const migrated = migrateLibraryItems([{
@@ -44,7 +57,29 @@ test('lesson mode builds one automatic textbook resource and all lesson media', 
   assert.equal(resources[0].pageStart, 12);
   assert.equal(resources[0].pageEnd, 18);
   assert.equal(resources[0].examAssetId, 'exam-asset');
-  assert.deepEqual(resources.map((item) => item.type), ['textbook', 'image', 'video', 'audio']);
+  assert.deepEqual(resources.map((item) => item.type), ['textbook', 'pdf', 'image', 'video', 'audio']);
+});
+
+test('selected lesson content still opens when the active class grade is stale', () => {
+  const data = {
+    contentLibrary: [
+      { id: 'book-6', kind: LIBRARY_KINDS.GRADE_TEXTBOOK, type: 'textbook', grade: 'الصف السادس الابتدائي', assetId: 'book-asset', title: 'كتاب السادس' },
+      { id: 'lesson-6', kind: LIBRARY_KINDS.LESSON, type: 'lesson', grade: 'الصف السادس الابتدائي', title: 'درس محفوظ', pageStart: 3, pageEnd: 8 },
+      { id: 'lesson-image', kind: LIBRARY_KINDS.LESSON_MEDIA, lessonId: 'lesson-6', type: 'image', assetId: 'image-asset', title: 'صورة الدرس' },
+    ],
+  };
+
+  const resources = getLessonModeResources(
+    data,
+    'الصف الرابع الابتدائي',
+    'lesson-6',
+  );
+
+  assert.equal(resources[0].virtualLessonTextbook, true);
+  assert.equal(resources[0].sourceResourceId, 'book-6');
+  assert.equal(resources[0].pageStart, 3);
+  assert.equal(resources[1].lessonId, 'lesson-6');
+  assert.equal(resources[1].type, 'image');
 });
 
 test('lesson PDF navigation never leaves the selected page range', () => {
@@ -61,12 +96,22 @@ test('lesson PDF navigation safely handles a missing resource', () => {
   assert.equal(clampLessonPage(50, null, 20), 20);
 });
 
+test('library includes every grade through third secondary', () => {
+  assert.deepEqual(LIBRARY_GRADES.slice(-3), [
+    'الصف الأول الثانوي',
+    'الصف الثاني الثانوي',
+    'الصف الثالث الثانوي',
+  ]);
+});
+
 test('grade map recommendations match the requested curriculum', () => {
   assert.equal(getGradeMapRecommendation('الصف الرابع الابتدائي').defaultRegion, 'egypt');
   assert.equal(getGradeMapRecommendation('الصف السادس الابتدائي').defaultRegion, 'arab');
   assert.equal(getGradeMapRecommendation('الصف الأول الإعدادي').defaultRegion, 'africa');
   assert.deepEqual(getGradeMapRecommendation('الصف الثاني الإعدادي').recommended, ['asia', 'europe']);
   assert.deepEqual(getGradeMapRecommendation('الصف الثالث الإعدادي').recommended, ['northAmerica', 'southAmerica', 'australia']);
+  assert.equal(getGradeMapRecommendation('الصف الأول الثانوي').defaultRegion, 'world');
+  assert.equal(getGradeMapRecommendation('الصف الثالث الثانوي').recommended.includes('egypt'), true);
   assert.equal(getGradeMapRecommendation('الصف الاول الاعدادي - مجموعة أ').defaultRegion, 'africa');
   assert.deepEqual(getGradeMapRecommendation('الصف الثاني الإعدادي (ب)').recommended, ['asia', 'europe']);
 });
@@ -89,4 +134,35 @@ test('lesson map keeps independent explanation layers for every selected region'
   assert.equal(state.regions.asia.placements[0].id, 'asia-mountain');
   assert.equal(state.regions.asia.strokes[0].id, 'asia-line');
   assert.equal(state.regions.europe.placements[0].id, 'europe-river');
+});
+
+test('library resources match a grade even when the session adds a group suffix', () => {
+  const data = {
+    contentLibrary: [
+      {
+        id: 'book-grade-normalized',
+        kind: LIBRARY_KINDS.GRADE_TEXTBOOK,
+        type: 'textbook',
+        grade: 'الصف الأول الإعدادي',
+        assetId: 'book-normalized',
+      },
+      {
+        id: 'lesson-grade-normalized',
+        kind: LIBRARY_KINDS.LESSON,
+        type: 'lesson',
+        grade: 'الصف الأول الإعدادي',
+        title: 'الدرس الأول',
+      },
+    ],
+  };
+
+  const textbook = getGradeTextbook(data, 'الصف الأول الإعدادي - مجموعة أ');
+  const resources = getLessonModeResources(
+    data,
+    'الصف الأول الإعدادي - مجموعة أ',
+    'lesson-grade-normalized',
+  );
+
+  assert.equal(textbook?.assetId, 'book-normalized');
+  assert.equal(resources[0]?.virtualLessonTextbook, true);
 });

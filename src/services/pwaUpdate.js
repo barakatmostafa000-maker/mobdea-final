@@ -1,15 +1,56 @@
+import { Capacitor } from '@capacitor/core';
 import { release } from '../config/release';
 
 let waitingWorker = null;
 let onReadyCallback = null;
 let registrationTimer = null;
 
+
+/* MOBDEA R3 DEV SW CLEANUP START */
+async function cleanupDevelopmentServiceWorker() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return;
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+  } catch {
+    // Development cleanup is best-effort.
+  }
+
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith('mobdea-shell-'))
+          .map((key) => caches.delete(key)),
+      );
+    }
+  } catch {
+    // Development cleanup is best-effort.
+  }
+}
+/* MOBDEA R3 DEV SW CLEANUP END */
 export function isServiceWorkerSupported() {
-  return typeof navigator !== 'undefined' && 'serviceWorker' in navigator && !window.Capacitor?.isNativePlatform?.();
+
+  if (import.meta.env.DEV) return false;if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return false;
+  // Capacitor's Android WebView must never register the PWA worker. A worker
+  // cached inside the native app can serve chunks from an older release and
+  // produce a completely white screen before React starts.
+  if (Capacitor.isNativePlatform()) return false;
+  const protocol = globalThis.location?.protocol || '';
+  return !['capacitor:', 'file:'].includes(protocol);
 }
 
+
 export function registerServiceWorker(onReady) {
-  if (!isServiceWorkerSupported()) return () => {};
+
+  if (import.meta.env.DEV) {
+    void cleanupDevelopmentServiceWorker();
+    return () => {};
+  }if (!isServiceWorkerSupported()) return () => {};
   onReadyCallback = onReady;
   const base = new URL(import.meta.env.BASE_URL || './', document.baseURI);
   const scriptUrl = new URL('sw.js', base);

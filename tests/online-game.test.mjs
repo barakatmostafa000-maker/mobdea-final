@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeOnlineQuestions,
+  onlineQuestionSecondsLeft,
+  onlineQuestionTiming,
   publicOnlineQuestion,
   scoreOnlineAnswer,
   sortedOnlineScoreboard,
@@ -26,6 +28,20 @@ test('public online question never exposes the answer', () => {
   assert.equal('answerIndex' in shared, false);
   assert.equal('answer' in shared, false);
   assert.deepEqual(shared.options, ['صح', 'خطأ']);
+});
+
+test('online question timer stays synchronized for delayed delivery and reconnect', () => {
+  const [question] = normalizeOnlineQuestions([
+    { id: 'q-sync', text: 'سؤال متزامن', options: ['أ', 'ب'], answerIndex: 0 },
+  ]);
+  const timing = onlineQuestionTiming(25, Date.parse('2026-08-08T12:00:00.000Z'));
+  const firstDelivery = publicOnlineQuestion(question, 0, 1, 25, timing);
+  const reconnectDelivery = publicOnlineQuestion(question, 0, 1, 25, timing);
+
+  assert.equal(firstDelivery.endsAt, reconnectDelivery.endsAt);
+  assert.equal(onlineQuestionSecondsLeft(firstDelivery, Date.parse('2026-08-08T12:00:07.400Z')), 18);
+  assert.equal(onlineQuestionSecondsLeft(reconnectDelivery, Date.parse('2026-08-08T12:00:24.900Z')), 1);
+  assert.equal(onlineQuestionSecondsLeft(firstDelivery, Date.parse('2026-08-08T12:00:25.100Z')), 0);
 });
 
 test('online scoring rewards correct and faster answers', () => {

@@ -1,6 +1,6 @@
 import { gradeOptions } from '../data/questionBank.js';
 
-export const EXTRA_LIBRARY_GRADES = ['الصف الثالث الإعدادي'];
+export const EXTRA_LIBRARY_GRADES = [];
 export const LIBRARY_GRADES = [...new Set([...gradeOptions.map((item) => item.label), ...EXTRA_LIBRARY_GRADES])];
 
 export const LIBRARY_KINDS = Object.freeze({
@@ -12,6 +12,16 @@ export const LIBRARY_KINDS = Object.freeze({
 });
 
 const normalizeText = (value = '') => String(value ?? '').trim();
+const normalizeGrade = (value = '') => normalizeText(value)
+  .replace(/\s+/g, ' ')
+  .replace(/[–—-]/g, ' ')
+  .toLowerCase();
+const sameGrade = (left, right) => {
+  const a = normalizeGrade(left);
+  const b = normalizeGrade(right);
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+};
 
 function stableHash(value = '') {
   let hash = 2166136261;
@@ -60,7 +70,10 @@ export function hasResourceSource(resource = {}) {
 }
 
 export function inferMediaType(file = {}) {
-  const mime = String(file.type || file.mimeType || '').toLowerCase();
+  const explicit = String(file.type || '').toLowerCase();
+  if (['image', 'video', 'audio', 'pdf', 'slides', 'document', 'file', 'link'].includes(explicit)) return explicit;
+  if (explicit === 'textbook' || explicit === 'exams') return 'pdf';
+  const mime = String(file.mimeType || file.type || '').toLowerCase();
   const name = String(file.name || file.fileName || '').toLowerCase();
   if (mime.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/.test(name)) return 'image';
   if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/.test(name)) return 'video';
@@ -212,18 +225,18 @@ export function getAllLibraryGrades(data = {}) {
 
 export function getGradeTextbook(dataOrItems, grade) {
   const items = Array.isArray(dataOrItems) ? dataOrItems : (dataOrItems?.contentLibrary || []);
-  return items.find((item) => isGradeTextbook(item) && item.grade === grade) || null;
+  return items.find((item) => isGradeTextbook(item) && sameGrade(item.grade, grade)) || null;
 }
 
 export function getGradeExams(dataOrItems, grade) {
   const items = Array.isArray(dataOrItems) ? dataOrItems : (dataOrItems?.contentLibrary || []);
-  return items.find((item) => isGradeExams(item) && item.grade === grade) || null;
+  return items.find((item) => isGradeExams(item) && sameGrade(item.grade, grade)) || null;
 }
 
 export function getLessonsForGrade(dataOrItems, grade) {
   const items = Array.isArray(dataOrItems) ? dataOrItems : (dataOrItems?.contentLibrary || []);
   return items
-    .filter((item) => isLesson(item) && (!grade || item.grade === grade))
+    .filter((item) => isLesson(item) && (!grade || sameGrade(item.grade, grade)))
     .sort((a, b) => {
       const dateCompare = String(a.lessonDate || a.date || '').localeCompare(String(b.lessonDate || b.date || ''));
       if (dateCompare) return dateCompare;
@@ -248,17 +261,27 @@ export function getLessonBundle(data = {}, lessonId) {
 }
 
 export function resolveDefaultLesson(data = {}, grade, preferredId = '') {
-  const lessons = getLessonsForGrade(data, grade);
-  return lessons.find((lesson) => String(lesson.id) === String(preferredId)) || lessons[0] || null;
+  const allLessons = getLessonsForGrade(data, '');
+  const preferred = allLessons.find((lesson) => String(lesson.id) === String(preferredId));
+  if (preferred) return preferred;
+  const lessonsForGrade = getLessonsForGrade(data, grade);
+  return lessonsForGrade[0] || allLessons[0] || null;
 }
 
 export function getLessonModeResources(data = {}, grade, lessonId = '') {
   const lesson = resolveDefaultLesson(data, grade, lessonId);
   if (!lesson) {
-    return (data.contentLibrary || []).filter((item) => !isLesson(item) && !isGradeExams(item) && (!item.grade || item.grade === grade) && hasResourceSource(item));
+    const resources = (data.contentLibrary || []).filter((item) => (
+      !isLesson(item)
+      && !isGradeExams(item)
+      && (!grade || !item.grade || sameGrade(item.grade, grade))
+      && hasResourceSource(item)
+    ));
+    return resources;
   }
-  const textbook = getGradeTextbook(data, grade);
-  const exams = getGradeExams(data, grade);
+  const effectiveGrade = lesson.grade || grade;
+  const textbook = getGradeTextbook(data, effectiveGrade);
+  const exams = getGradeExams(data, effectiveGrade);
   const resources = [];
   if (textbook && hasResourceSource(textbook)) {
     resources.push({
@@ -281,7 +304,33 @@ export function getLessonModeResources(data = {}, grade, lessonId = '') {
       examFileName: exams?.fileName || '',
       boardLayers: lesson.boardLayers || {},
       annotations: lesson.annotations || textbook.annotations || [],
+      sourceKind: 'textbook',
       virtualLessonTextbook: true,
+    });
+  }
+  if (exams && hasResourceSource(exams)) {
+    resources.push({
+      ...exams,
+      id: `lesson-exams:${lesson.id}`,
+      sourceResourceId: exams.id,
+      lessonId: lesson.id,
+      kind: LIBRARY_KINDS.LESSON_MEDIA,
+      type: 'pdf',
+      title: `${lesson.title} — مرجع الامتحانات`,
+      grade: lesson.grade,
+      term: lesson.term,
+      unit: lesson.unit,
+      lesson: lesson.title,
+      pageStart: 1,
+      pageEnd: '',
+      notes: lesson.notes || exams.notes || '',
+      homework: lesson.homework || '',
+      sequence: lesson.sequence || exams.sequence,
+      relatedQuestionIds: lesson.relatedQuestionIds || exams.relatedQuestionIds || [],
+      boardLayers: lesson.boardLayers || {},
+      annotations: lesson.examAnnotations || [],
+      sourceKind: 'exams',
+      virtualLessonExams: true,
     });
   }
   resources.push(...getLessonMedia(data, lesson.id).filter(hasResourceSource).map((item) => ({
@@ -295,6 +344,7 @@ export function getLessonModeResources(data = {}, grade, lessonId = '') {
     notes: item.notes || lesson.notes || '',
     homework: lesson.homework || '',
     sequence: item.sequence?.length ? item.sequence : lesson.sequence,
+    sourceKind: item.sourceKind || item.type || 'lesson-media',
   })));
   if (lesson.recordingAssetId || (lesson.recordingUrl && lesson.recordingUrl !== '#')) {
     resources.push({
@@ -319,6 +369,55 @@ export function getLessonModeResources(data = {}, grade, lessonId = '') {
     });
   }
   return resources;
+}
+
+
+export function getLessonQuestionSources(data = {}, lessonId = '') {
+  const bundle = getLessonBundle(data, lessonId);
+  if (!bundle) return [];
+  const sources = [];
+  if (bundle.textbook && hasResourceSource(bundle.textbook)) {
+    sources.push({
+      ...bundle.textbook,
+      sourceKind: 'textbook',
+      lessonId: bundle.lesson.id,
+      lesson: bundle.lesson.title,
+      unit: bundle.lesson.unit,
+      term: bundle.lesson.term,
+      grade: bundle.lesson.grade,
+      pageStart: bundle.lesson.pageStart || 1,
+      pageEnd: bundle.lesson.pageEnd || bundle.lesson.pageStart || 1,
+      notes: bundle.lesson.notes || bundle.textbook.notes || '',
+      homework: bundle.lesson.homework || '',
+    });
+  }
+  if (bundle.exams && hasResourceSource(bundle.exams)) {
+    sources.push({
+      ...bundle.exams,
+      sourceKind: 'exams',
+      lessonId: bundle.lesson.id,
+      lesson: bundle.lesson.title,
+      unit: bundle.lesson.unit,
+      term: bundle.lesson.term,
+      grade: bundle.lesson.grade,
+      pageStart: 1,
+      pageEnd: '',
+      notes: bundle.lesson.notes || bundle.exams.notes || '',
+      homework: bundle.lesson.homework || '',
+    });
+  }
+  sources.push(...bundle.media.map((item) => ({
+    ...item,
+    sourceKind: item.sourceKind || item.type || 'lesson-media',
+    lessonId: bundle.lesson.id,
+    lesson: bundle.lesson.title,
+    unit: bundle.lesson.unit,
+    term: bundle.lesson.term,
+    grade: bundle.lesson.grade,
+    notes: item.notes || bundle.lesson.notes || '',
+    homework: bundle.lesson.homework || '',
+  })));
+  return sources;
 }
 
 export function clampLessonPage(page, resource = {}, pdfPageCount = Infinity) {

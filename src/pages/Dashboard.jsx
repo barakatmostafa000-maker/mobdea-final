@@ -154,7 +154,7 @@ export default function Dashboard({ data, navigate, auth }) {
   };
 
   return (
-    <section className="page dashboard-page dashboard-reference-layout">
+    <section className="page dashboard-page dashboard-reference-layout dashboard-v103">
       <div className="dashboard-desktop-topbar">
         <div className="dashboard-search-wrap">
           <Search size={21} />

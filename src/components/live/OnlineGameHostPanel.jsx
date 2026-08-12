@@ -8,23 +8,21 @@ import {
   Play,
   Radio,
   RotateCcw,
+  Share2,
   Trophy,
   Users,
   WifiOff,
 } from 'lucide-react';
 import {
   buildLiveStudentLink,
-  closeLiveRoom,
-  createLivePoller,
-  createLiveRoom,
-  fetchLiveEvents,
-  listLiveParticipants,
-  postLiveEvent,
+  validateLiveStudentLink,
 } from '../../services/liveClass';
 import { cloudConfigured } from '../../services/cloudSync';
-import { copyToClipboard } from '../../services/share';
+import { copyToClipboard, shareLink } from '../../services/share';
 import {
   normalizeOnlineQuestions,
+  onlineQuestionSecondsLeft,
+  onlineQuestionTiming,
   publicOnlineQuestion,
   scoreOnlineAnswer,
   sortedOnlineScoreboard,
@@ -36,14 +34,30 @@ function errorText(error, fallback) {
   return error?.message || fallback;
 }
 
+/* MOBDEA_GAME_ROOMS_HOST_V1 */
+import {
+  createGameRoom as createOnlineGameRoom,
+  postGameEvent as postOnlineGameEvent,
+  fetchGameParticipants as fetchOnlineGameParticipants,
+  fetchGameEvents as fetchOnlineGameEvents,
+  closeGameRoom as closeOnlineGameRoom,
+  createGamePoller as createOnlineGamePoller,
+} from '../../services/gameRooms';
+
 export default function OnlineGameHostPanel({
   cloudSync,
   title = 'تحدي أونلاين',
   grade = '',
   unit = '',
+  lessonId = '',
+  sourceKind = '',
+  sourceFileName = '',
   questions = [],
   onNotice,
   onFinish,
+  onOpenSettings,
+  onQuestionsUsed,
+  startRequest = 0,
 }) {
   const [room, setRoom] = useState(null);
   const [participants, setParticipants] = useState([]);
@@ -58,10 +72,12 @@ export default function OnlineGameHostPanel({
   const cursorRef = useRef(0);
   const processedEventsRef = useRef(new Set());
   const currentQuestionStartedAtRef = useRef(0);
+  const currentQuestionTimingRef = useRef(null);
   const answersRef = useRef({});
   const scoresRef = useRef({});
   const phaseRef = useRef(phase);
   const questionIndexRef = useRef(questionIndex);
+  const lastStartRequestRef = useRef(0);
 
   const questionSet = useMemo(
     () => normalizeOnlineQuestions(questions, 10),
@@ -98,7 +114,7 @@ export default function OnlineGameHostPanel({
   const send = useCallback(async (event) => {
     const activeRoom = roomRef.current;
     if (!activeRoom) return null;
-    return postLiveEvent(
+    return postOnlineGameEvent(
       activeRoom,
       activeRoom.roomId,
       activeRoom.teacherToken,
@@ -106,21 +122,33 @@ export default function OnlineGameHostPanel({
     );
   }, []);
 
-  const studentLink = useMemo(() => {
-    if (!room) return '';
+  const makeStudentLink = useCallback((activeRoom) => {
+    if (!activeRoom) return '';
     return buildLiveStudentLink({
       experience: 'game',
-      roomId: room.roomId,
-      joinCode: room.joinCode,
-      endpoint: room.endpoint,
-      workspaceId: room.workspaceId,
+      roomId: activeRoom.roomId,
+      joinCode: activeRoom.joinCode,
+      endpoint: activeRoom.endpoint,
+      workspaceId: activeRoom.workspaceId,
+      publicAppUrl: cloudSync?.publicAppUrl || '',
       title,
       grade,
       lesson: unit,
+      lessonId,
+      sourceKind,
+      sourceFileName,
+      questionCount: questionSet.length,
       gameTitle: title,
-      expiresAt: room.expiresAt,
+      expiresAt: activeRoom.expiresAt,
     });
-  }, [grade, room, title, unit]);
+  }, [cloudSync?.publicAppUrl, grade, lessonId, questionSet.length, sourceFileName, sourceKind, title, unit]);
+  const studentLink = useMemo(() => {
+    try {
+      return makeStudentLink(room);
+    } catch {
+      return '';
+    }
+  }, [makeStudentLink, room]);
 
   const broadcastScoreboard = useCallback(async (targetId = 'all', extra = {}) => {
     const activeRoom = roomRef.current;
@@ -149,6 +177,7 @@ export default function OnlineGameHostPanel({
           index,
           questionSet.length,
           QUESTION_SECONDS,
+          currentQuestionTimingRef.current,
         ),
       },
     });
@@ -223,17 +252,17 @@ export default function OnlineGameHostPanel({
   useEffect(() => {
     if (!room) return undefined;
     let disposed = false;
-    const stopParticipants = createLivePoller({
+    const stopParticipants = createOnlineGamePoller({
       intervalMs: 2500,
-      poll: () => listLiveParticipants(room, room.roomId, room.teacherToken),
+      poll: () => fetchOnlineGameParticipants(room, room.roomId, room.teacherToken),
       onData: (result) => {
         if (!disposed) setParticipants(result.participants || []);
       },
       onError: () => {},
     });
-    const stopEvents = createLivePoller({
+    const stopEvents = createOnlineGamePoller({
       intervalMs: 700,
-      poll: () => fetchLiveEvents(
+      poll: () => fetchOnlineGameEvents(
         room,
         room.roomId,
         room.teacherToken,
@@ -263,24 +292,26 @@ export default function OnlineGameHostPanel({
     });
     return () => {
       disposed = true;
-      stopParticipants();
-      stopEvents();
+      stopParticipants.stop();
+      stopEvents.stop();
     };
   }, [broadcastScoreboard, processAnswer, room, sendCurrentQuestion]);
 
   useEffect(() => {
     if (phase !== 'question' || !currentQuestion) return undefined;
-    if (secondsLeft <= 0) {
-      void endCurrentQuestion();
-      return undefined;
-    }
-    const timer = setTimeout(() => setSecondsLeft((value) => value - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [currentQuestion, endCurrentQuestion, phase, secondsLeft]);
+    const tick = () => {
+      const remaining = onlineQuestionSecondsLeft(currentQuestionTimingRef.current || {});
+      setSecondsLeft(remaining);
+      if (remaining <= 0 && phaseRef.current === 'question') void endCurrentQuestion();
+    };
+    tick();
+    const timer = setInterval(tick, 250);
+    return () => clearInterval(timer);
+  }, [currentQuestion, endCurrentQuestion, phase]);
 
   const createRoom = async () => {
     if (!configured) {
-      showNotice('فعّل المزامنة السحابية أولًا لإنشاء غرفة لعب أونلاين.');
+      showNotice('يلزم إعداد رابط الخادم ومساحة العمل والرمز مرة واحدة من نافذة الحصة الأونلاين، ثم أعد إنشاء غرفة اللعب.');
       return;
     }
     if (!questionSet.length) {
@@ -290,11 +321,24 @@ export default function OnlineGameHostPanel({
     setBusy(true);
     setNotice('');
     try {
-      const created = await createLiveRoom({ cloudSync }, {
+      const created = await createOnlineGameRoom({ cloudSync }, {
         title,
+        teacherName: 'المعلم',
         grade,
         lesson: unit,
+        mode: 'multiplayer',
+        maxParticipants: 60,
         ttlSeconds: 4 * 60 * 60,
+        state: {
+          grade,
+          unit,
+          lessonId,
+          sourceKind,
+          sourceFileName,
+          questionCount: questionSet.length,
+          questionIds: questionSet.map((question) => question.id),
+          status: 'waiting',
+        },
       });
       setRoom(created);
       roomRef.current = created;
@@ -307,13 +351,25 @@ export default function OnlineGameHostPanel({
       answersRef.current = {};
       setQuestionIndex(-1);
       setPhase('waiting');
-      showNotice('تم إنشاء غرفة اللعب. أرسل الرابط للطلاب ثم ابدأ التحدي.');
+      const createdLink = makeStudentLink(created);
+      if (!validateLiveStudentLink(createdLink)) throw new Error('تعذر تجهيز رابط غرفة اللعب.');
+      onQuestionsUsed?.(questionSet.map((question) => question.id));
+      const copied = await copyToClipboard(createdLink);
+      showNotice(copied
+        ? 'تم إنشاء غرفة اللعب ونسخ رابط الطلاب تلقائيًا.'
+        : 'تم إنشاء غرفة اللعب. استخدم زر نسخ الرابط أو المعاينة.');
     } catch (error) {
       showNotice(errorText(error, 'تعذر إنشاء غرفة اللعب.'));
     } finally {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!startRequest || startRequest === lastStartRequestRef.current) return;
+    lastStartRequestRef.current = startRequest;
+    if (!roomRef.current) void createRoom();
+  }, [startRequest]);
 
   const startQuestionAt = async (nextIndex) => {
     if (!questionSet[nextIndex]) return;
@@ -323,6 +379,7 @@ export default function OnlineGameHostPanel({
     setPhase('question');
     phaseRef.current = 'question';
     currentQuestionStartedAtRef.current = Date.now();
+    currentQuestionTimingRef.current = onlineQuestionTiming(QUESTION_SECONDS, currentQuestionStartedAtRef.current);
     await send({
       type: nextIndex === 0 ? 'game-start' : 'game-state',
       targetId: 'all',
@@ -349,6 +406,9 @@ export default function OnlineGameHostPanel({
         title,
         grade,
         unit,
+        lessonId,
+        sourceKind,
+        sourceFileName,
         participantCount: finalBoard.length,
         questionCount: questionSet.length,
         scores: finalBoard,
@@ -374,6 +434,7 @@ export default function OnlineGameHostPanel({
     answersRef.current = {};
     setQuestionIndex(-1);
     questionIndexRef.current = -1;
+    currentQuestionTimingRef.current = null;
     setPhase('waiting');
     phaseRef.current = 'waiting';
     await broadcastScoreboard('all', { reset: true });
@@ -390,9 +451,10 @@ export default function OnlineGameHostPanel({
         targetId: 'all',
         data: { title, scoreboard },
       }).catch(() => null);
-      await closeLiveRoom(activeRoom, activeRoom.roomId, activeRoom.teacherToken);
+      await closeOnlineGameRoom(activeRoom, activeRoom.roomId, activeRoom.teacherToken);
       setRoom(null);
       roomRef.current = null;
+      currentQuestionTimingRef.current = null;
       setPhase('idle');
       showNotice('تم إنهاء غرفة اللعب.');
     } catch (error) {
@@ -403,9 +465,21 @@ export default function OnlineGameHostPanel({
   };
 
   const copyLink = async () => {
-    if (!studentLink) return;
+    if (!studentLink || !validateLiveStudentLink(studentLink)) {
+      showNotice('رابط غرفة اللعب غير مكتمل. أعد إنشاء الغرفة.');
+      return;
+    }
     const copied = await copyToClipboard(studentLink);
-    showNotice(copied ? 'تم نسخ رابط اللعب الأونلاين.' : 'الرابط جاهز للمشاركة.');
+    showNotice(copied ? 'تم نسخ رابط اللعب الأونلاين.' : 'الرابط جاهز للمشاركة من زر المعاينة.');
+  };
+
+  const shareGameLink = async () => {
+    if (!studentLink || !validateLiveStudentLink(studentLink)) {
+      showNotice('رابط غرفة اللعب غير مكتمل. أعد إنشاء الغرفة.');
+      return;
+    }
+    const shared = await shareLink(studentLink, title, 'رابط دخول الطلاب إلى التحدي الأونلاين');
+    showNotice(shared ? 'تم فتح مشاركة رابط اللعب.' : 'تم إلغاء المشاركة.');
   };
 
   return (
@@ -434,7 +508,7 @@ export default function OnlineGameHostPanel({
           <button
             className="primary-btn"
             type="button"
-            disabled={busy || !configured || !questionSet.length}
+            disabled={busy || !questionSet.length}
             onClick={createRoom}
           >
             {busy ? <LoaderCircle className="spin" size={18} /> : <Radio size={18} />}
@@ -447,6 +521,7 @@ export default function OnlineGameHostPanel({
             <div><span>كود الدخول</span><strong>{room.joinCode}</strong></div>
             <div><span>المشاركون</span><strong>{participants.length}</strong></div>
             <button className="secondary-btn" type="button" onClick={copyLink}><Copy size={17} /> نسخ الرابط</button>
+            <button className="secondary-btn" type="button" onClick={shareGameLink}><Share2 size={17} /> مشاركة</button>
             <a className="secondary-btn" href={studentLink} target="_blank" rel="noopener noreferrer"><Link size={17} /> معاينة</a>
           </div>
 

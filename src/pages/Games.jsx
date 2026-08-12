@@ -4,6 +4,7 @@ import { questionBank, gradeOptions } from '../data/questionBank';
 import { mergeQuestionBanks } from '../services/assessment';
 import { encourageStudent, playVoiceClip } from '../services/voice';
 import OnlineGameHostPanel from '../components/live/OnlineGameHostPanel';
+import { appendQuestionHistory, selectQuestionRound } from '../services/questionRotation';
 
 const modes = [
   ['speed', '⚡', 'تحدي السرعة', 'أسئلة متتالية مع مؤقت وCombo.'],
@@ -18,11 +19,6 @@ const modes = [
 ];
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
-const recentSafe = (items, history) => {
-  const unseen = items.filter((item) => !history.includes(item.id));
-  return unseen.length >= Math.min(5, items.length) ? unseen : items;
-};
-
 const gradeKeyFromLabel = (label) => gradeOptions.find((item) => item.label === label)?.key || '6';
 const gradeLabelFromKey = (key) => gradeOptions.find((item) => item.key === key)?.label || '';
 
@@ -43,7 +39,7 @@ function playTone(kind = 'correct', settings = {}) {
   } catch {}
 }
 
-export default function Games({ data, updateData, shareState }) {
+export default function Games({ data, updateData, shareState, navigate }) {
   const [gradeKey, setGradeKey] = useState('6');
   const [unit, setUnit] = useState('all');
   const [mode, setMode] = useState(null);
@@ -73,12 +69,37 @@ export default function Games({ data, updateData, shareState }) {
   const selectedStudent = data.students.find((s) => s.id === Number(playerOne));
   const secondStudent = data.students.find((s) => s.id === Number(playerTwo));
   const gradeLabel = gradeLabelFromKey(gradeKey);
-  const contentResources = useMemo(() => (data.contentLibrary || []).filter((item) => !item.grade || item.grade === gradeLabel), [data.contentLibrary, gradeLabel]);
+  const contentResources = useMemo(() => (data.contentLibrary || []).filter((item) => (
+    item.type === 'lesson'
+    && (!item.grade || item.grade === gradeLabel)
+  )), [data.contentLibrary, gradeLabel]);
   const lessonResources = useMemo(() => contentResources.filter((item) => unit === 'all' || item.unit === unit), [contentResources, unit]);
   const focusResource = lessonResources.find((item) => String(item.id) === String(focusResourceId)) || lessonResources[0] || null;
+  const focusedQuestions = useMemo(() => {
+    if (!focusResource) return filtered;
+    const lessonTitle = String(focusResource.title || focusResource.lesson || '').trim();
+    const exact = filtered.filter((question) => (
+      String(question.lessonId || '') === String(focusResource.id)
+      || String(question.resourceId || '') === String(focusResource.id)
+      || (lessonTitle && String(question.lesson || '').trim() === lessonTitle)
+    ));
+    return exact.length ? exact : filtered;
+  }, [filtered, focusResource]);
 
   const sharedInvite = shareState?.kind === 'game' ? shareState.payload : null;
   const pendingInvite = data.settings?.pendingChallenge || null;
+  const pinnedLesson = useMemo(() => (data.contentLibrary || []).find((item) => (
+    item.type === 'lesson'
+    && String(item.id) === String(data.settings?.classLessonId || '')
+  )) || null, [data.contentLibrary, data.settings?.classLessonId]);
+
+  useEffect(() => {
+    if (!pinnedLesson) return;
+    const nextGradeKey = gradeKeyFromLabel(pinnedLesson.grade);
+    setGradeKey(nextGradeKey);
+    setUnit(pinnedLesson.unit || 'all');
+    setFocusResourceId(pinnedLesson.id);
+  }, [pinnedLesson?.id]);
 
   useEffect(() => {
     const invite = sharedInvite || pendingInvite;
@@ -147,32 +168,51 @@ export default function Games({ data, updateData, shareState }) {
   };
 
   const startMode = (selectedMode) => {
-    const pool = recentSafe(poolFor(selectedMode), history);
-    if (!pool.length) {
+    const candidates = poolFor(selectedMode);
+    if (!candidates.length) {
       setFeedback('لا توجد أسئلة كافية لهذا الاختيار.');
       return;
     }
-    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, pool.length) : Math.min(10, pool.length);
-    resetRoundState(selectedMode, shuffle(pool).slice(0, count));
+    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, candidates.length) : Math.min(10, candidates.length);
+    resetRoundState(selectedMode, selectQuestionRound(candidates, history, count));
   };
 
   const startFromResource = (selectedMode, resource) => {
     if (!resource) return startMode(selectedMode);
     const targetGradeKey = gradeKeyFromLabel(resource.grade);
     const targetUnit = resource.unit || 'all';
-    const pool = recentSafe(poolFor(selectedMode, targetGradeKey, targetUnit), history);
-    if (!pool.length) {
-      setFeedback('هذا الدرس لا يملك أسئلة كافية بعد.');
+    const lessonTitle = String(resource.title || resource.lesson || '').trim();
+    const lessonPool = mergeQuestionBanks(questionBank, data.customQuestionBank || []).filter((question) => (
+      question.gradeKey === targetGradeKey
+      && (targetUnit === 'all' || question.unit === targetUnit)
+      && (
+        String(question.lessonId || '') === String(resource.id)
+        || String(question.resourceId || '') === String(resource.id)
+        || (lessonTitle && String(question.lesson || '').trim() === lessonTitle)
+      )
+    ));
+    const compatible = selectedMode === 'truefalse'
+      ? lessonPool.filter((question) => question.type === 'tf')
+      : selectedMode === 'character'
+        ? lessonPool.filter((question) => question.type === 'character')
+        : selectedMode === 'timeline'
+          ? lessonPool.filter((question) => question.type === 'timeline')
+          : selectedMode === 'matching'
+            ? lessonPool.filter((question) => question.type === 'mcq')
+            : lessonPool.filter((question) => ['mcq', 'tf', 'fill'].includes(question.type));
+    const candidates = compatible.length ? compatible : poolFor(selectedMode, targetGradeKey, targetUnit);
+    if (!candidates.length) {
+      setFeedback('هذا الدرس لا يملك أسئلة كافية بعد. احفظ محتوى الدرس أولًا لتوليد أسئلته.');
       return;
     }
     setGradeKey(targetGradeKey);
     setUnit(targetUnit);
     setFocusResourceId(resource.id);
-    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, pool.length) : Math.min(10, pool.length);
-    resetRoundState(selectedMode, shuffle(pool).slice(0, count));
+    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, candidates.length) : Math.min(10, candidates.length);
+    resetRoundState(selectedMode, selectQuestionRound(candidates, history, count));
   };
 
-  const persist = (questionId) => updateData({ ...data, gameQuestionHistory: [...history.filter((id) => id !== questionId), questionId].slice(-30) });
+  const persist = (questionId) => updateData({ ...data, gameQuestionHistory: appendQuestionHistory(history, [questionId], 500) });
 
   const award = (correct, base = 10) => {
     if (mode === 'battle' || mode === 'teams') {
@@ -301,6 +341,10 @@ export default function Games({ data, updateData, shareState }) {
       fileName: focusResource.fileName || '',
     } : null,
     roomTitle: `${gradeLabel || 'الصف'} • ${focusResource?.lesson || focusResource?.title || 'تحدي'}`,
+    lessonId: focusResource?.id || null,
+    questionIds: focusedQuestions.map((question) => question.id),
+    questionCount: focusedQuestions.length,
+    sources: [...new Set(focusedQuestions.map((question) => question.sourceKind || question.questionOrigin || 'lesson-content'))],
     createdAt: new Date().toISOString(),
   });
 
@@ -353,9 +397,9 @@ export default function Games({ data, updateData, shareState }) {
     return share;
   };
 
-  if (mode === 'result') return <section className="page"><div className="panel game-result-screen"><div className="game-result-icon">🏆</div><h2>انتهت الجولة</h2><p>{['battle', 'teams'].includes(mode) ? `${selectedStudent?.name}: ${battleScores.one} — ${secondStudent?.name}: ${battleScores.two}` : `النتيجة: ${score} نقطة`}</p><p className="game-level-copy">المستوى: {Math.floor(score / 100) + 1} • XP: {score}</p><button className="primary-btn" onClick={() => setMode(null)}>العودة للألعاب</button></div></section>;
+  if (mode === 'result') return <section className="page games-v103"><div className="panel game-result-screen"><div className="game-result-icon">🏆</div><h2>انتهت الجولة</h2><p>{['battle', 'teams'].includes(mode) ? `${selectedStudent?.name}: ${battleScores.one} — ${secondStudent?.name}: ${battleScores.two}` : `النتيجة: ${score} نقطة`}</p><p className="game-level-copy">المستوى: {Math.floor(score / 100) + 1} • XP: {score}</p><button className="primary-btn" onClick={() => setMode(null)}>العودة للألعاب</button></div></section>;
 
-  if (mode && current) return <section className="page game-live-page">
+  if (mode && current) return <section className="page game-live-page games-v103">
     <div className="game-stage-header"><button className="secondary-btn" onClick={() => setMode(null)}>خروج</button><div><span>السؤال {index + 1} من {round.length}</span><strong>{['battle', 'teams'].includes(mode) ? `${battleScores.one} : ${battleScores.two}` : `${score} نقطة`}</strong></div><div className={`game-timer ${seconds <= 5 ? 'danger' : ''}`}>⏱ {seconds}</div><div className="combo-badge">🔥 {combo}</div><button className="secondary-btn" onClick={() => copyGameLink(mode)} type="button">نسخ الرابط</button></div>
     <article className="panel professional-game-board">
       {sharedInvite && <div className="powerup-banner">رابط مشترَك: {sharedInvite.roomTitle || sharedInvite.mode || 'تحدي'}</div>}
@@ -372,7 +416,7 @@ export default function Games({ data, updateData, shareState }) {
     </article>
   </section>;
 
-  return <section className="page">
+  return <section className="page games-v103">
     <div className="page-heading">
       <div>
         <span className="eyebrow">محرك الألعاب الاحترافي</span>
@@ -412,9 +456,13 @@ export default function Games({ data, updateData, shareState }) {
       title={`${gradeLabel || 'الصف الحالي'} — ${focusResource?.lesson || focusResource?.title || (unit === 'all' ? 'تحدي المراجعة' : unit)}`}
       grade={gradeLabel}
       unit={focusResource?.unit || (unit === 'all' ? '' : unit)}
-      questions={filtered}
+      lessonId={focusResource?.id || ''}
+      sourceKind={focusedQuestions[0]?.sourceKind || ''}
+      sourceFileName={focusedQuestions[0]?.sourceFileName || focusedQuestions[0]?.sourceExamFileName || ''}
+      questions={focusedQuestions}
       onNotice={setShareNotice}
       onFinish={saveOnlineGameResult}
+      onOpenSettings={() => navigate?.('settings')}
     />
 
     {shareNotice && <div className="game-feedback good">{shareNotice}</div>}

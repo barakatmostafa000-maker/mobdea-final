@@ -171,6 +171,7 @@ export async function playVoiceClip(settings = {}, phraseType = '') {
   try {
     const audio = new Audio(url);
     audio.preload = 'auto';
+    audio.setAttribute('playsinline', '');
     audio.volume = getVolume(settings);
     await audio.play();
     return true;

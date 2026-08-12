@@ -1,0 +1,524 @@
+/* Mobdea 10.7 — functional class display, premium board/maps, visible points */
+
+.classmode-v103.classmode-final-layout .classmode-board-stage {
+  isolation: isolate;
+  overflow: hidden !important;
+}
+
+.classmode-v103 .classmode-board-stage.has-lesson-ribbon::before,
+.classmode-v103 .classmode-board-stage.has-lesson-ribbon::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .18;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.classmode-v103 .classmode-board-stage.has-lesson-ribbon::before {
+  inset-inline-start: 18px;
+  bottom: 16px;
+  width: clamp(74px, 10vw, 126px);
+  height: clamp(74px, 10vw, 126px);
+  border: 2px solid rgba(151, 101, 37, .25);
+  border-radius: 50%;
+  background-image:
+    radial-gradient(circle, transparent 34%, rgba(126, 80, 25, .18) 35% 38%, transparent 39%),
+    conic-gradient(from 0deg, rgba(126, 80, 25, .22) 0 8deg, transparent 8deg 22deg);
+}
+
+.classmode-v103 .classmode-board-stage.has-lesson-ribbon::after {
+  inset-inline-end: 24px;
+  bottom: 20px;
+  width: clamp(105px, 15vw, 190px);
+  height: clamp(54px, 8vw, 95px);
+  border-bottom: 9px double rgba(32, 91, 73, .16);
+  border-top: 4px solid rgba(32, 91, 73, .12);
+  transform: skewX(-14deg);
+  background-image:
+    linear-gradient(90deg, transparent 0 8%, rgba(32, 91, 73, .09) 8% 12%, transparent 12% 28%, rgba(32, 91, 73, .09) 28% 32%, transparent 32% 48%, rgba(32, 91, 73, .09) 48% 52%, transparent 52% 68%, rgba(32, 91, 73, .09) 68% 72%, transparent 72%);
+}
+
+.classmode-v103 .classmode-board-lesson-ribbon {
+  z-index: 8 !important;
+  border: 1px solid rgba(230, 190, 93, .72) !important;
+  background:
+    linear-gradient(90deg, rgba(215, 173, 53, .10), transparent 15% 85%, rgba(215, 173, 53, .10)),
+    linear-gradient(145deg, #05070b 0%, #171106 50%, #05070b 100%) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28), inset 0 0 0 2px rgba(215, 173, 53, .08) !important;
+}
+
+.classmode-v103 .classmode-board-lesson-ribbon::before,
+.classmode-v103 .classmode-board-lesson-ribbon::after {
+  content: '✦ 𓂀 ✦';
+  color: rgba(231, 191, 98, .7);
+  font-size: clamp(12px, 1.6vw, 19px);
+  letter-spacing: 4px;
+  white-space: nowrap;
+}
+
+.classmode-v103 .classmode-board-lesson-ribbon::after {
+  transform: scaleX(-1);
+}
+
+.classmode-v103 .board-ribbon-teacher img {
+  border: 2px solid #e7bf62 !important;
+  box-shadow: 0 0 0 3px rgba(231, 191, 98, .14), 0 4px 12px rgba(0, 0, 0, .35) !important;
+}
+
+.classmode-v103 .classmode-resource-preview {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+
+.classmode-v103 .resource-preview-head {
+  z-index: 8 !important;
+  min-height: 38px !important;
+  max-height: 52px !important;
+  overflow: hidden !important;
+}
+
+.classmode-v103 .resource-preview-body {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  background: #060b12 !important;
+}
+
+.classmode-v103 .resource-preview-body > img,
+.classmode-v103 .resource-preview-body > video,
+.classmode-v103 .resource-preview-body > iframe,
+.classmode-v103 .resource-preview-body > .pptx-preview {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  border: 0 !important;
+}
+
+.classmode-v103 .resource-preview-body > video {
+  background: #000 !important;
+}
+
+.classmode-v103 .classmode-pdf-page-image {
+  object-fit: contain !important;
+  background: #f7f3e9 !important;
+}
+
+.classmode-v103 .classmode-media-state {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: #f9e7b4;
+  background: radial-gradient(circle at 50% 30%, rgba(215, 173, 53, .10), transparent 38%), #07101a;
+}
+
+.classmode-v103 .classmode-media-state.error {
+  color: #ffd3d3;
+  background: radial-gradient(circle at 50% 30%, rgba(211, 74, 74, .12), transparent 38%), #11090c;
+}
+
+.classmode-v103 .classmode-media-state small {
+  color: inherit;
+  opacity: .75;
+}
+
+.classmode-v103 .pptx-preview,
+.classmode-v103 .pptx-slide {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.classmode-v103 .pptx-preview {
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) auto !important;
+  background: #080d15 !important;
+}
+
+.classmode-v103 .pptx-slide {
+  overflow: auto !important;
+  align-content: center !important;
+}
+
+/* Keep the map independent from lesson media and let it dominate the display. */
+.classmode-v103 .classmode-map-embed {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: #03101c !important;
+}
+
+.classmode-v103 .lesson-map-studio {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+.classmode-v103 .lesson-map-main {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+  gap: 3px !important;
+  padding: 3px !important;
+}
+
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-main {
+  grid-template-rows: auto minmax(0, 1fr) !important;
+}
+
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-controlbar,
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-search-row,
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-footer-info,
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-recommendation,
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-region-tabs {
+  display: none !important;
+}
+
+.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-topbar {
+  position: absolute !important;
+  inset: 8px auto auto 8px !important;
+  z-index: 20 !important;
+  width: auto !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.classmode-v103 .lesson-map-tools-toggle {
+  min-height: 38px !important;
+  padding: 7px 13px !important;
+  border: 1px solid rgba(231, 191, 98, .72) !important;
+  border-radius: 12px !important;
+  color: #ffe9ae !important;
+  background: rgba(6, 10, 16, .92) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .35) !important;
+}
+
+.classmode-v103 .lesson-map-canvas-shell,
+.classmode-v103 .map-pro-stage,
+.classmode-v103 .map-pro-transform {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.classmode-v103 .lesson-map-symbol-sidebar {
+  position: absolute !important;
+  z-index: 30 !important;
+  inset: 4px auto 4px 4px !important;
+  width: clamp(245px, 30vw, 390px) !important;
+  max-width: calc(100% - 12px) !important;
+  overflow-y: auto !important;
+  border: 1px solid rgba(231, 191, 98, .6) !important;
+  background: rgba(4, 10, 17, .97) !important;
+  box-shadow: 14px 0 35px rgba(0, 0, 0, .45) !important;
+}
+
+.classmode-v103 .map-pro-svg {
+  width: 100% !important;
+  height: 100% !important;
+  filter: saturate(1.12) contrast(1.04) !important;
+}
+
+/* Premium term/event controls. */
+.classmode-v103 .classmode-text-style-row button {
+  border: 1px solid rgba(215, 173, 53, .38) !important;
+  background: linear-gradient(145deg, rgba(35, 27, 14, .96), rgba(9, 13, 20, .98)) !important;
+  color: #f5d98b !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03) !important;
+}
+
+.classmode-v103 .classmode-text-style-row button.active {
+  border-color: #e7bf62 !important;
+  color: #fff5d6 !important;
+  background: linear-gradient(145deg, #704315, #171006) !important;
+  box-shadow: 0 0 0 2px rgba(215, 173, 53, .14), 0 6px 16px rgba(0, 0, 0, .24) !important;
+}
+
+/* The point button must never disappear on short landscape phones/tablets. */
+@media (orientation: landscape) {
+  .classmode-v103.classmode-final-layout .classmode-student-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-student-row-actions {
+    display: flex !important;
+    visibility: visible !important;
+    align-items: center !important;
+    gap: 3px !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-student-row-actions .student-attendance-mini,
+  .classmode-v103.classmode-final-layout .classmode-student-row-actions .student-point-minus {
+    display: none !important;
+  }
+
+  .classmode-v103.classmode-final-layout .classmode-student-row-actions .student-point-btn:not(.student-point-minus) {
+    display: inline-grid !important;
+    place-items: center !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 !important;
+    border: 1px solid #e7bf62 !important;
+    border-radius: 9px !important;
+    color: #171006 !important;
+    background: linear-gradient(145deg, #ffe08a, #c88a22) !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, .28) !important;
+  }
+}
+
+.live-inline-setup-actions .primary-btn {
+  min-width: 160px;
+  background: linear-gradient(135deg, #d7ad35, #f5d77d) !important;
+  color: #171006 !important;
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .classmode-v103 .resource-preview-head {
+    min-height: 32px !important;
+    max-height: 38px !important;
+  }
+
+  .classmode-v103 .lesson-map-main {
+    gap: 1px !important;
+    padding: 1px !important;
+  }
+
+  .classmode-v103 .classmode-board-lesson-ribbon::before,
+  .classmode-v103 .classmode-board-lesson-ribbon::after {
+    content: '✦' !important;
+    letter-spacing: 0 !important;
+  }
+}
+
+
+/* Online-class setup creates and exposes the student link in the same panel. */
+.live-student-link-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 230px) auto;
+  gap: 7px;
+  align-items: center;
+  margin: 7px 0 10px;
+  padding: 7px;
+  border: 1px solid rgba(231, 191, 98, .38);
+  border-radius: 12px;
+  background: rgba(5, 9, 15, .78);
+}
+
+.live-student-link-box input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(231, 191, 98, .28);
+  border-radius: 9px;
+  color: #fff3cf;
+  background: #07101a;
+  font-size: 12px;
+}
+
+.live-inline-setup .settings-notice {
+  white-space: normal;
+  line-height: 1.6;
+}
+
+/* R12: logout is the final scrollable navigation item, never a fixed overlay. */
+.app-shell-v103 .sidebar-nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+}
+.app-shell-v103 .sidebar-logout-nav {
+  margin-top: 12px;
+  border-color: rgba(220, 38, 38, .38) !important;
+  background: linear-gradient(135deg, rgba(127, 29, 29, .28), rgba(20, 12, 12, .7)) !important;
+}
+.app-shell-v103 .sidebar-logout-nav .nav-icon { color: #fca5a5; }
+.app-shell-v103 .sidebar-footer { flex: 0 0 auto; }
+
+/* R12: in-class lesson games occupy the full teaching stage. */
+.classmode-v103 .classmode-game-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(10px, 1.4vw, 18px);
+  overflow: auto;
+  color: #fff7df;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(215, 173, 53, .18), transparent 30%),
+    radial-gradient(circle at 85% 85%, rgba(48, 112, 89, .18), transparent 30%),
+    linear-gradient(145deg, #05080d, #101723 58%, #080b10);
+}
+.classmode-v103 .classmode-game-head,
+.classmode-v103 .classmode-game-controls,
+.classmode-v103 .classmode-game-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.classmode-v103 .classmode-game-head {
+  padding: 11px 14px;
+  border: 1px solid rgba(231, 191, 98, .48);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(108, 65, 19, .72), rgba(8, 12, 18, .92));
+}
+.classmode-v103 .classmode-game-head span,
+.classmode-v103 .classmode-game-head h3 { display: block; margin: 0; }
+.classmode-v103 .classmode-game-head span { color: #d8c595; font-size: .78rem; }
+.classmode-v103 .classmode-game-score { display: grid; grid-template-columns: auto auto; gap: 2px 8px; align-items: center; text-align: center; }
+.classmode-v103 .classmode-game-score small { grid-column: 1 / -1; color: #c6b890; font-size: .68rem; }
+.classmode-v103 .classmode-game-controls { flex-wrap: wrap; }
+.classmode-v103 .classmode-game-controls label { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid rgba(215, 173, 53, .28); border-radius: 12px; background: #ffffff08; }
+.classmode-v103 .classmode-game-controls select { min-width: 150px; border: 0; color: #fff; background: transparent; }
+.classmode-v103 .classmode-game-controls option { color: #111; }
+.classmode-v103 .classmode-game-question {
+  min-height: 0;
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  padding: clamp(16px, 3vw, 34px);
+  border: 1px solid rgba(231, 191, 98, .34);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255,255,255,.065), rgba(255,255,255,.015));
+  box-shadow: inset 0 0 50px rgba(0,0,0,.2);
+}
+.classmode-v103 .classmode-game-progress { display: flex; justify-content: space-between; gap: 12px; color: #d8c595; }
+.classmode-v103 .classmode-game-question h2 { margin: 0; text-align: center; line-height: 1.65; font-size: clamp(1.05rem, 2.4vw, 1.8rem); }
+.classmode-v103 .classmode-game-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.classmode-v103 .classmode-game-options button { min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; border: 1px solid rgba(215, 173, 53, .34); border-radius: 14px; color: #fff7df; background: linear-gradient(145deg, #1a202b, #0c1017); }
+.classmode-v103 .classmode-game-options button.correct { color: #e9ffef; border-color: #5ad67e; background: linear-gradient(145deg, #13572a, #0a2815); }
+.classmode-v103 .classmode-game-feedback { padding: 9px 12px; border-radius: 12px; text-align: center; color: #ffd7d7; background: rgba(127,29,29,.45); }
+.classmode-v103 .classmode-game-feedback.correct { color: #e8ffed; background: rgba(20,99,48,.52); }
+.classmode-v103 .classmode-game-footer button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(215,173,53,.32); border-radius: 11px; padding: 8px 12px; color: #f9e7b4; background: #ffffff08; }
+.classmode-v103 .classmode-game-empty { place-content: center; justify-items: center; text-align: center; }
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .classmode-v103 .classmode-game-panel { gap: 5px; padding: 6px; }
+  .classmode-v103 .classmode-game-head { padding: 6px 9px; border-radius: 11px; }
+  .classmode-v103 .classmode-game-question { gap: 7px; padding: 8px 14px; border-radius: 12px; }
+  .classmode-v103 .classmode-game-options button { min-height: 38px; padding: 5px; }
+  .classmode-v103 .classmode-game-controls label { padding: 4px 7px; }
+}
+.classmode-v103 .classmode-games-stage {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  background: #05080d;
+}
+.classmode-v103 .classmode-games-stage > .classmode-game-panel {
+  position: relative;
+  min-height: 100%;
+}
+.classmode-v103 .classmode-games-stage .online-game-host-panel {
+  margin: 10px;
+  border-color: rgba(231,191,98,.45);
+  background: linear-gradient(145deg, #101722, #090d13);
+}
+
+/* R12 student cloud state is visible instead of silently failing on a second device. */
+.portal-sync-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  font-size: .84rem;
+}
+.portal-sync-status.is-synced { color: #b9f6ca; border-color: rgba(72, 187, 120, .35); }
+.portal-sync-status.has-error { color: #ffd0d0; border-color: rgba(239, 68, 68, .42); }
+.portal-sync-status span { min-width: 0; overflow-wrap: anywhere; }
+
+/* R13 Arabic OCR extraction for textbook question pages. */
+.library-ocr-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 230px) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(201, 155, 65, .34);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(99, 66, 22, .14), rgba(255, 255, 255, .035));
+}
+.library-ocr-panel > div {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.library-ocr-panel strong,
+.library-ocr-panel small {
+  display: block;
+}
+.library-ocr-panel small {
+  margin-top: 3px;
+  color: var(--muted, #9aa4b2);
+  line-height: 1.6;
+}
+
+.library-ocr-source {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  font-size: .78rem;
+  color: var(--muted, #9aa4b2);
+}
+.library-ocr-source select {
+  width: 100%;
+  min-height: 40px;
+}
+.library-ocr-status {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 11px;
+  color: #f7e8bd;
+  background: rgba(12, 17, 25, .68);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .library-ocr-panel {
+    grid-template-columns: 1fr;
+  }
+  .library-ocr-panel .primary-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

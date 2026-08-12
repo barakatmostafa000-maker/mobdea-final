@@ -1146,7 +1146,10 @@ export const gradeOptions = [
   { key: '6', label: 'الصف السادس الابتدائي' },
   { key: '7', label: 'الصف الأول الإعدادي' },
   { key: '8', label: 'الصف الثاني الإعدادي' },
-  { key: '9', label: 'الصف الثالث الإعدادي' }
+  { key: '9', label: 'الصف الثالث الإعدادي' },
+  { key: '10', label: 'الصف الأول الثانوي' },
+  { key: '11', label: 'الصف الثاني الثانوي' },
+  { key: '12', label: 'الصف الثالث الثانوي' }
 ];
 
 export function filterQuestions({ gradeKey, unit = 'all', type = 'all' }) {

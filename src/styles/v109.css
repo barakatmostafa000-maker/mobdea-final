@@ -1,0 +1,152 @@
+/* MOBDEA R14 — deterministic student-card printing on Android/WebView. */
+
+body.mobdea-printing-cards {
+  background: #fff !important;
+  overflow: visible !important;
+}
+
+body.mobdea-printing-cards .student-card-lab > :not(.print-only),
+body.mobdea-printing-cards .sidebar,
+body.mobdea-printing-cards .mobile-header,
+body.mobdea-printing-cards .app-backdrop,
+body.mobdea-printing-cards .drawer-overlay {
+  display: none !important;
+}
+
+body.mobdea-printing-cards .student-card-lab,
+body.mobdea-printing-cards .student-card-lab > .print-only,
+body.mobdea-printing-cards .print-run,
+body.mobdea-printing-cards .print-pack,
+body.mobdea-printing-cards .print-pack-page,
+body.mobdea-printing-cards .print-sheet {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  background: #fff !important;
+}
+
+body.mobdea-printing-cards .student-card-lab > .print-only {
+  display: block !important;
+  position: static !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+body.mobdea-printing-cards .print-run-header,
+body.mobdea-printing-cards .print-pack-label,
+body.mobdea-printing-cards .print-run-separator {
+  display: none !important;
+}
+
+body.mobdea-printing-cards .print-sheet-grid {
+  display: grid !important;
+  grid-template-columns: repeat(var(--print-columns), minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(var(--print-rows), minmax(0, 1fr)) !important;
+  gap: 2.2mm !important;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  align-items: center !important;
+  justify-items: center !important;
+  align-content: stretch !important;
+}
+
+body.mobdea-printing-cards .print-slot {
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+body.mobdea-printing-cards .print-slot .student-card-template-card,
+body.mobdea-printing-cards .print-slot .student-card-face {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  aspect-ratio: 1536 / 572 !important;
+  overflow: hidden !important;
+  transform: none !important;
+  box-shadow: none !important;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  print-color-adjust: exact !important;
+  -webkit-print-color-adjust: exact !important;
+}
+
+body.mobdea-printing-cards .print-slot.empty-slot {
+  opacity: 0 !important;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 6mm;
+  }
+
+  html,
+  body,
+  #root,
+  body.mobdea-printing-cards #root,
+  body.mobdea-printing-cards .app-shell,
+  body.mobdea-printing-cards .app-content,
+  body.mobdea-printing-cards .page,
+  body.mobdea-printing-cards .student-card-lab,
+  body.mobdea-printing-cards .print-only {
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.mobdea-printing-cards .print-only,
+  body.mobdea-printing-cards .print-only * {
+    visibility: visible !important;
+  }
+
+  body.mobdea-printing-cards .print-pack-page {
+    width: 285mm !important;
+    height: 198mm !important;
+    min-height: 198mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.mobdea-printing-cards .print-only .print-pack-page.last-page {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  body.mobdea-printing-cards .print-sheet,
+  body.mobdea-printing-cards .print-sheet-grid {
+    width: 285mm !important;
+    height: 198mm !important;
+    max-width: 285mm !important;
+    max-height: 198mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.mobdea-printing-cards .student-card-template-image {
+    object-fit: fill !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+}

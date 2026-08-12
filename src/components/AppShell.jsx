@@ -80,7 +80,7 @@ export default function AppShell({ active, onChange, children, settings, data, a
   }
 
   return (
-    <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
+    <div className={`app-shell app-shell-v103 ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <header className="mobile-header">
         <button className="mobile-menu-button" onClick={() => setOpen(true)} aria-label="فتح القائمة"><Menu size={23} /></button>
         <div className="mobile-brand-copy">
@@ -91,7 +91,7 @@ export default function AppShell({ active, onChange, children, settings, data, a
           </div>
         </div>
         <div className="mobile-header-actions">
-          <span className="mobile-role-pill" aria-label={`الدور الحالي: ${roleLabel}`}>{roleLabel}</span>
+          <span className="mobile-role-pill mobile-header-pill" aria-label={`الدور الحالي: ${roleLabel}`}>{roleLabel}</span>
           <button className="mobile-alert-button" onClick={() => setSearchOpen(true)} aria-label="البحث الشامل"><Search size={20} /></button>
           <button className="mobile-alert-button" onClick={() => select('messages')} aria-label="التنبيهات">
             <Bell size={20} />
@@ -100,9 +100,9 @@ export default function AppShell({ active, onChange, children, settings, data, a
         </div>
       </header>
 
-      {open && <button className="drawer-overlay" onClick={() => setOpen(false)} aria-label="إغلاق القائمة" />}
+      {open && <button className="drawer-overlay app-shell-backdrop" onClick={() => setOpen(false)} aria-label="إغلاق القائمة" />}
 
-      <aside className={`sidebar ${open ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
+      <aside className={`sidebar sidebar-grid-area ${open ? 'open is-open' : ''} ${collapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-top">
           <button
             className="sidebar-desktop-toggle"
@@ -156,12 +156,16 @@ export default function AppShell({ active, onChange, children, settings, data, a
               <ChevronLeft className="nav-arrow" size={16} />
             </button>
           ))}
+          <button className="sidebar-logout-nav" type="button" onClick={onLogout}>
+            <span className="nav-icon"><LogOut size={19} /></span>
+            <span className="nav-copy"><strong>تسجيل الخروج</strong><small>آخر عنصر في القائمة</small></span>
+            <ChevronLeft className="nav-arrow" size={16} />
+          </button>
         </nav>
 
         <div className="sidebar-footer">
           <div><ShieldCheck size={18} /><span><strong>الإدارة محمية</strong><small>PIN وقفل تلقائي</small></span></div>
           <b>{release.footerLabel}</b>
-          <button className="logout-btn" type="button" onClick={onLogout}><LogOut size={16} /> تسجيل الخروج</button>
         </div>
       </aside>
 
