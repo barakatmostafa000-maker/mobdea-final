@@ -1,0 +1,102 @@
+name: Install V14 Full Cumulative
+
+on:
+  push:
+    branches:
+      - v14-working
+    paths:
+      - ".github/workflows/v14-install.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install-v14:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout v14-working
+        uses: actions/checkout@v4
+        with:
+          ref: v14-working
+          fetch-depth: 0
+
+      - name: Check all V14 parts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for part in 00 01 02 03 04 05; do
+            test -f "mobdea-v14.part-${part}" || {
+              echo "Missing mobdea-v14.part-${part}"
+              exit 1
+            }
+          done
+
+          echo "All 6 V14 parts found."
+
+      - name: Reassemble V14 ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat \
+            mobdea-v14.part-00 \
+            mobdea-v14.part-01 \
+            mobdea-v14.part-02 \
+            mobdea-v14.part-03 \
+            mobdea-v14.part-04 \
+            mobdea-v14.part-05 \
+            > /tmp/mobdea-v14.zip
+
+          echo "8570c9f4812e4c86831bd7dc1cda9806191ce31f3e9649fd95d14f829e81ed64  /tmp/mobdea-v14.zip" \
+            | sha256sum -c -
+
+      - name: Extract V14
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf /tmp/mobdea-v14
+          mkdir -p /tmp/mobdea-v14
+
+          unzip -q /tmp/mobdea-v14.zip -d /tmp/mobdea-v14
+
+          test -d /tmp/mobdea-v14/v14work
+
+      - name: Install V14 over current R18 source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rsync -a /tmp/mobdea-v14/v14work/ ./
+
+          test -f src/pages/ClassMode.jsx
+          test -f src/data/countryCards.js
+          test -f tests/board-country-cards-v14.test.mjs
+          test -f public/identity/class-board-history-v14.jpg
+
+      - name: Verify V14 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/board-country-cards-v14.test.mjs
+
+      - name: Commit installed V14
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Install V14 full cumulative over R18"
+          git push origin HEAD:v14-working
