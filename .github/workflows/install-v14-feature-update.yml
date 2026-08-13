@@ -1,6 +1,9 @@
 name: Install V14 Progress and Country Metadata
 
 on:
+  push:
+    branches:
+      - v14-working
   workflow_dispatch:
 
 permissions:
