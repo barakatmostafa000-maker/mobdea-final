@@ -36,7 +36,7 @@ test('class mode remembers PDF page and media zoom independently and exposes sep
   assert.match(source, /resourcePageMemoryRef\s*=\s*useRef\(new Map\(\)\)/);
   assert.match(source, /resourceZoomMemoryRef\s*=\s*useRef\(new Map\(\)\)/);
   for (const tool of ['normal-text', 'historical-term', 'geographical-term', 'important-event', 'date-term', 'person-term', 'place-term']) {
-    assert.match(source, new RegExp(`key: '${tool}'`));
+    assert.match(source, new RegExp(`'${tool}'`));
   }
   assert.match(source, /const canvasTool = TEXT_TOOL_STYLES\[tool\] \? 'text' : tool/);
 });

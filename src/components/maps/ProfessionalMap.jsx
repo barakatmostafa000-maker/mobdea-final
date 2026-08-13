@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useId, useRef, useState } from 'react';
 import { geometryPath, featureCenter, getCountryFeatureId, getCountryName } from '../../data/geography';
 
 function mapItemColor(layerKey) {
@@ -20,7 +20,7 @@ function countryFill(feature, index = 0) {
 }
 
 
-export function GeographyGlyph({ type = '', symbol = '●' }) {
+function FallbackGeographyGlyph({ type = '', symbol = '●' }) {
   const uid = useId().replace(/:/g, '');
   const relief = `relief-${uid}`;
   const earth = `earth-${uid}`;
@@ -142,6 +142,24 @@ export function GeographyGlyph({ type = '', symbol = '●' }) {
   return <span className="geography-fallback-glyph">{symbol || '●'}</span>;
 }
 
+export function GeographyGlyph({ type = '', symbol = '●' }) {
+  const [assetFailed, setAssetFailed] = useState(false);
+  const safeType = String(type || '').replace(/[^a-z0-9-]/gi, '').toLowerCase();
+  if (safeType && !assetFailed) {
+    return (
+      <img
+        className={`geography-glyph-image geography-glyph-asset type-${safeType}`}
+        src={`/map-symbols/${safeType}.png`}
+        alt=""
+        aria-hidden="true"
+        draggable="false"
+        onError={() => setAssetFailed(true)}
+      />
+    );
+  }
+  return <FallbackGeographyGlyph type={type} symbol={symbol} />;
+}
+
 function coordinateTicks(min, max, count = 6) {
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [];
   const span = max - min;
@@ -158,6 +176,29 @@ function degreeLabel(value, axis) {
   if (Math.abs(value) < 0.001) return '0°';
   if (axis === 'lon') return `${Math.abs(value)}° ${value > 0 ? 'ق' : 'غ'}`;
   return `${Math.abs(value)}° ${value > 0 ? 'ش' : 'ج'}`;
+}
+
+function polylinePath(coords = [], project) {
+  return coords.map((point, index) => `${index ? 'L' : 'M'}${project(point[0], point[1]).join(',')}`).join(' ');
+}
+
+function MapCoordinateFocusOverlay({ region, project, axis = '' }) {
+  const bounds = Array.isArray(region?.bounds) ? region.bounds : [-180, -90, 180, 90];
+  const [minLon, minLat, maxLon, maxLat] = bounds;
+  const longitudes = coordinateTicks(minLon, maxLon, 9);
+  const latitudes = coordinateTicks(minLat, maxLat, 8);
+  return (
+    <g className={`map-pro-coordinate-focus axis-${axis}`} aria-label={axis === 'longitude' ? 'خطوط الطول' : 'دوائر العرض'}>
+      {(axis === 'longitude' ? longitudes : latitudes).map((value) => {
+        if (axis === 'longitude') {
+          const [x] = project(value, minLat);
+          return <g key={`focus-lon:${value}`}><line x1={x} y1="8" x2={x} y2="612"/><text x={x + 5} y="594">{degreeLabel(value, 'lon')}</text></g>;
+        }
+        const [, y] = project(minLon, value);
+        return <g key={`focus-lat:${value}`}><line x1="8" y1={y} x2="992" y2={y}/><text x="18" y={Math.max(28, y - 5)}>{degreeLabel(value, 'lat')}</text></g>;
+      })}
+    </g>
+  );
 }
 
 function MapReferenceOverlay({ region, project }) {
@@ -243,10 +284,13 @@ export default function ProfessionalMap({
   project,
   zoom = 1,
   placements = [],
+  selectedPlacementId = '',
+  onSelectPlacement,
   onCountryClick,
   onFeatureClick,
   onDropPlacement,
   onMovePlacement,
+  onResizePlacement,
   onRemovePlacement,
   onStageClick,
   canvasRef,
@@ -257,6 +301,9 @@ export default function ProfessionalMap({
   ariaLabel = 'خريطة تفاعلية احترافية',
   mapStyle = 'relief',
   silent = false,
+  lineFeatures = [],
+  pointFeatures = [],
+  highlightCountryIsos = [],
 }) {
   const transformRef = useRef(null);
   const draggingPlacementRef = useRef('');
@@ -295,7 +342,8 @@ export default function ProfessionalMap({
           <MapDefs />
           <rect className="map-pro-ocean" width="1000" height="620" fill="url(#mapOcean)" filter={mapStyle === 'relief' ? 'url(#mapOceanTexture)' : undefined} />
           {!silent && <rect width="1000" height="620" fill="url(#mapGrid)" />}
-          {!silent && <MapReferenceOverlay region={region} project={project} />}
+          {!silent && !['latitude', 'longitude'].includes(layerKey) && <MapReferenceOverlay region={region} project={project} />}
+          {!silent && ['latitude', 'longitude'].includes(layerKey) && <MapCoordinateFocusOverlay region={region} project={project} axis={layerKey} />}
           {countries.length === 0 && (
             <g className="map-pro-empty" aria-label="لا توجد حدود خريطة متاحة">
               <rect x="250" y="235" width="500" height="150" rx="22" fill="#071827" stroke="#e2bd63" strokeWidth="2"/>
@@ -314,11 +362,12 @@ export default function ProfessionalMap({
               const name = getCountryName(feature);
               const center = project(...featureCenter(feature));
               const active = highlightedId === id || selectedId === id;
+              const basin = highlightCountryIsos.includes(id);
               return (
                 <g key={id}>
                   <path
                     d={geometryPath(feature.geometry, project)}
-                    className={`map-pro-country ${silent ? 'silent-country' : ''} ${layerKey === 'borders' ? 'borders-only' : ''} ${['countries', 'borders', 'population'].includes(layerKey) ? 'clickable' : ''} ${active ? 'highlighted' : ''}`}
+                    className={`map-pro-country ${silent ? 'silent-country' : ''} ${layerKey === 'borders' ? 'borders-only' : ''} ${['countries', 'borders', 'population'].includes(layerKey) ? 'clickable' : ''} ${active ? 'highlighted' : ''} ${basin ? 'basin-country' : ''}`}
                     fill={silent ? '#d9d6b8' : active ? '#d49a38' : countryFill(feature, featureIndex)}
                     style={{ '--country-fill': silent ? '#d9d6b8' : active ? '#d49a38' : countryFill(feature, featureIndex) }}
                     onClick={(event) => {
@@ -331,7 +380,34 @@ export default function ProfessionalMap({
               );
             })}
           </g>
-          {!silent && layerKey !== 'countries' && items.map((item) => {
+          {!silent && mapStyle === 'relief' && (
+            <g className="map-pro-terrain-wash" aria-hidden="true">
+              {countries.map((feature, featureIndex) => <path key={`terrain:${getCountryFeatureId(feature, featureIndex)}`} d={geometryPath(feature.geometry, project)} />)}
+            </g>
+          )}
+          {!silent && lineFeatures.length > 0 && (
+            <g className="map-pro-river-lines" aria-label="الأنهار والمجاري المائية">
+              {lineFeatures.map((line) => (
+                <g key={line.id} className={`map-pro-river-line kind-${line.kind || 'river'}`} onClick={(event) => { event.stopPropagation(); onFeatureClick?.(line.id, line.name, line, event); }}>
+                  <path d={polylinePath(line.coords, project)} />
+                  <path className="river-highlight" d={polylinePath(line.coords, project)} />
+                </g>
+              ))}
+            </g>
+          )}
+          {!silent && pointFeatures.length > 0 && (
+            <g className="map-pro-hydro-points" aria-label="عناصر نهر النيل">
+              {pointFeatures.map((item) => {
+                const point = project(...item.coord);
+                const active = selectedId === item.id || highlightedId === item.id;
+                return <g key={item.id} className={`map-pro-hydro-point kind-${item.kind || 'point'} ${active ? 'highlighted' : ''}`} onClick={(event) => { event.stopPropagation(); onFeatureClick?.(item.id, item.name, item, event); }}>
+                  <circle cx={point[0]} cy={point[1]} r={item.kind === 'lake' ? 10 : 8}/>
+                  <text x={point[0] + 13} y={point[1] + 5}>{item.name}</text>
+                </g>;
+              })}
+            </g>
+          )}
+          {!silent && !['countries', 'latitude', 'longitude'].includes(layerKey) && items.map((item) => {
             const point = project(...item.coord);
             const active = highlightedId === item.id || selectedId === item.id;
             return (
@@ -349,8 +425,8 @@ export default function ProfessionalMap({
           {placements.map((placement) => (
             <div
               key={placement.id}
-              className={`map-pro-placement geography-placement ${(placement.showLabel || placement.type === 'custom-label') ? 'with-label' : 'shape-only'}`}
-              style={{ left: `${placement.x}%`, top: `${placement.y}%`, '--placement-color': placement.color }}
+              className={`map-pro-placement geography-placement ${(placement.showLabel || placement.type === 'custom-label') ? 'with-label' : 'shape-only'} ${selectedPlacementId === placement.id ? 'selected' : ''}`}
+              style={{ left: `${placement.x}%`, top: `${placement.y}%`, '--placement-color': placement.color, '--placement-scale': Number(placement.size || 1) }}
               draggable={Boolean(onMovePlacement)}
               onDragStart={(event) => {
                 event.stopPropagation();
@@ -360,6 +436,7 @@ export default function ProfessionalMap({
                 if (!onMovePlacement) return;
                 event.preventDefault();
                 event.stopPropagation();
+                onSelectPlacement?.(placement.id);
                 draggingPlacementRef.current = String(placement.id);
                 event.currentTarget.setPointerCapture?.(event.pointerId);
               }}
@@ -386,6 +463,13 @@ export default function ProfessionalMap({
               }}
               title={onMovePlacement ? 'اسحب لتغيير المكان — اضغط مرتين للحذف' : ''}
             >
+              {selectedPlacementId === placement.id && (
+                <div className="map-pro-placement-actions" role="toolbar" aria-label={`التحكم في ${placement.label || 'الرمز'}`}>
+                  <button type="button" aria-label="تصغير الرمز" title="تصغير" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onResizePlacement?.(placement.id, -0.2); }}>−</button>
+                  <button type="button" aria-label="تكبير الرمز" title="تكبير" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onResizePlacement?.(placement.id, 0.2); }}>+</button>
+                  <button type="button" className="danger" aria-label="حذف الرمز" title="حذف" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onRemovePlacement?.(placement.id); }}>×</button>
+                </div>
+              )}
               <b className="geography-placement-glyph"><GeographyGlyph type={placement.type} symbol={placement.symbol} /></b>
               {(placement.showLabel || placement.type === 'custom-label') && <strong>{placement.label}</strong>}
               {(placement.showLabel || placement.type === 'custom-label') && placement.hint && <small>{placement.hint}</small>}

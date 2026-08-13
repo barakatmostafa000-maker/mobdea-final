@@ -1,0 +1,22 @@
+V13 Full Cumulative — تشغيل على Codespace
+
+1) ارفع الملف mobdea-r18-v13-full-cumulative-source.zip إلى /workspaces/mobdea-final
+
+2) نفّذ:
+cd /workspaces/mobdea-final
+rm -rf /tmp/mobdea-v13
+mkdir -p /tmp/mobdea-v13
+unzip -o mobdea-r18-v13-full-cumulative-source.zip -d /tmp/mobdea-v13
+cp -a /tmp/mobdea-v13/v13work/. /workspaces/mobdea-final/
+
+3) اختبارات السورس:
+node scripts/lint-source.mjs
+node scripts/check-format.mjs
+node scripts/verify-project.mjs
+node --test tests/map-symbol-library-v13.test.mjs
+
+4) تشغيل المتصفح:
+pkill -f vite || true
+npm run dev -- --host 0.0.0.0
+
+بعد اعتماد المتصفح، يمكن تنفيذ build/Capacitor/Android كمرحلة منفصلة.

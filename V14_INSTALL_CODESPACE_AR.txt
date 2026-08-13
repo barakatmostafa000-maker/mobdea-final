@@ -1,0 +1,36 @@
+V14 FULL CUMULATIVE — تعليمات Codespace
+
+هذه نسخة كاملة تراكمية، وليست Patch.
+
+بعد رفع ملف mobdea-r18-v14-full-cumulative-source.zip إلى جذر /workspaces/mobdea-final:
+
+1) لا تفك الملف قبل التأكد من سلامة الرفع:
+   ls -lh mobdea-r18-v14-full-cumulative-source.zip
+   unzip -t mobdea-r18-v14-full-cumulative-source.zip | tail -n 3
+
+2) بعد نجاح الفحص:
+   rm -rf /tmp/mobdea-v14
+   mkdir -p /tmp/mobdea-v14
+   unzip -o mobdea-r18-v14-full-cumulative-source.zip -d /tmp/mobdea-v14
+   cp -a /tmp/mobdea-v14/v14work/. /workspaces/mobdea-final/
+
+3) تحقق المصدر:
+   node scripts/lint-source.mjs
+   node scripts/check-format.mjs
+   node scripts/verify-project.mjs
+   node --test tests/board-country-cards-v14.test.mjs tests/map-symbol-library-v13.test.mjs tests/board-card-drawer-v12.test.mjs
+
+4) ثبّت الحزم وابنِ الويب عندما يكون Codespace متاحًا:
+   npm ci
+   npm run build
+
+5) اختبار المتصفح:
+   pkill -f vite || true
+   npm run dev -- --host 0.0.0.0
+
+6) بعد قبول المتصفح فقط:
+   npx cap sync android
+   cd android
+   ./gradlew assembleDebug
+
+ملاحظة: ML Kit Digital Ink يحتاج تنزيل نموذج العربية مرة واحدة على الجهاز عند أول استخدام للتصحيح اليدوي.

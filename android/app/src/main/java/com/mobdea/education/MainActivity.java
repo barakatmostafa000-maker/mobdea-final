@@ -27,6 +27,7 @@ import com.mobdea.education.document.MobdeaDocumentViewerPlugin;
 import com.mobdea.education.printing.MobdeaPrintPlugin;
 import com.mobdea.education.recording.MobdeaScreenRecorderPlugin;
 import com.mobdea.education.assets.MobdeaNativeAssetPlugin;
+import com.mobdea.education.handwriting.MobdeaDigitalInkPlugin;
 
 public class MainActivity extends BridgeActivity {
     private static final String PREFS_NAME = "mobdea_native_boot";
@@ -44,6 +45,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(MobdeaPrintPlugin.class);
         registerPlugin(MobdeaScreenRecorderPlugin.class);
         registerPlugin(MobdeaNativeAssetPlugin.class);
+        registerPlugin(MobdeaDigitalInkPlugin.class);
         super.onCreate(savedInstanceState);
 
         configureSystemBarInsets();

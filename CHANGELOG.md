@@ -1,3 +1,23 @@
+# V14 Full Cumulative — Country Cards, New Board and Handwriting
+
+- Preserved V13 in full and added 35 country cards plus one editable default card inside the whiteboard.
+- Organized country cards into four Arabic categories with a fixed default card and alphabetical country lists.
+- Replaced the historical board background with the exact user-supplied 1536×1024 asset without cover cropping.
+- Added four fixed writing presets: رئيسي، عنوان، شرح، ملاحظة.
+- Added five real Arabic web-font families with runtime font-load status instead of label-only font choices.
+- Expanded the whiteboard coordinate system to 1536×1024 and smoothed pen strokes with Pointer Events/coalesced events.
+- Added Android vector handwriting recognition using ML Kit Digital Ink Recognition with Arabic model and browser OCR fallback.
+- Kept original handwriting available through undo and on uncertain OCR results.
+
+# V13 Full Cumulative — Map Symbol Library
+
+- Added 181 user-supplied map symbol assets across 19 Arabic categories.
+- Added category-based symbol drawer with touch scrolling.
+- Added drag/place, move, select, resize, and delete controls for map symbols.
+- Wired the same placement controls into Map Challenge build mode.
+- Preserved V12 whiteboard cards and kept map symbols out of whiteboard tools.
+- Added catalog/asset integrity tests and manifest verification.
+
 # سجل التغييرات
 
 ## 10.13.0 — R18 إغلاق فجوات التسجيل والحصة الأونلاين واختبار PPTX حقيقي

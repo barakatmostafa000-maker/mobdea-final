@@ -30,10 +30,10 @@
     "@tesseract.js-data/ara": "^1.0.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "lucide-react": "^0.468.0",
-    "pdfjs-dist": "4.10.38",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "tesseract.js": "5.1.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",

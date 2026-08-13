@@ -66,25 +66,14 @@ export function useAssetSource(assetId, fallbackUrl = '', studentSession = null)
           }
         }
         if (!cancelled) {
-          if (fallback) {
-            setState({
-              url: fallback,
-              blob: null,
-              loading: false,
-              error: '',
-              fromAssetStore: false,
-              fromStudentCloud: false,
-            });
-          } else {
-            setState({
-              url: '',
-              blob: null,
-              loading: false,
-              error: 'تعذر قراءة الملف الحقيقي من ذاكرة المنصة أو حساب الطالب السحابي.',
-              fromAssetStore: true,
-              fromStudentCloud: false,
-            });
-          }
+          setState({
+            url: '',
+            blob: null,
+            loading: false,
+            error: 'تعذر قراءة الملف الحقيقي من ذاكرة المنصة أو حساب الطالب السحابي.',
+            fromAssetStore: true,
+            fromStudentCloud: false,
+          });
         }
       } catch (error) {
         if (cancelled) return;

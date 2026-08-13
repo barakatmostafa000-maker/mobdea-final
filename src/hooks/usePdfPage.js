@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { renderNativePdfBlob, renderNativePdfPage } from '../services/pdfRenderer';
-import { renderWebPdfBlob, renderWebPdfPage } from '../services/webPdfRenderer';
 
 const initialState = { dataUrl: '', pageCount: 0, loading: false, error: '' };
 
@@ -12,20 +11,19 @@ export function usePdfPage(source, page = 1) {
 
   useEffect(() => {
     let cancelled = false;
+    if (!globalThis.Capacitor?.isNativePlatform?.()) {
+      setState(initialState);
+      return () => { cancelled = true; };
+    }
     if (!blob && !url) {
       setState(initialState);
       return () => { cancelled = true; };
     }
 
     setState((current) => ({ ...current, loading: true, error: '' }));
-    const native = Boolean(globalThis.Capacitor?.isNativePlatform?.());
-    const task = native
-      ? (blob
-          ? renderNativePdfBlob(blob, page, 1800, cacheKey)
-          : renderNativePdfPage(url, page, 1800))
-      : (blob
-          ? renderWebPdfBlob(blob, page, 1800, cacheKey)
-          : renderWebPdfPage(url, page, 1800, cacheKey));
+    const task = blob
+      ? renderNativePdfBlob(blob, page, 1800, cacheKey)
+      : renderNativePdfPage(url, page, 1800);
     task
       .then((result) => {
         if (!cancelled) {

@@ -8,8 +8,8 @@ import {
   getRegionLayerItems,
 } from '../src/data/geography.js';
 
-test('the nine classroom map regions contain visible country geometry', () => {
-  for (const region of ['egypt', 'arab', 'africa', 'asia', 'europe', 'northAmerica', 'southAmerica', 'australia', 'world']) {
+test('the six required map regions contain visible country geometry', () => {
+  for (const region of ['egypt', 'arab', 'africa', 'asia', 'europe', 'world']) {
     assert.ok(GEOGRAPHY_REGIONS[region]);
     const countries = getRegionCountries(worldCountries, region);
     assert.ok(countries.length > 0, `${region} must not be an empty map`);

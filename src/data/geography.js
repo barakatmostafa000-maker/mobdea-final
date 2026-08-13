@@ -1,3 +1,6 @@
+import { COUNTRY_AR_NAMES } from './mapEnrichment.js';
+import { MAP_SYMBOL_GROUPS } from './mapSymbolCatalog.js';
+
 const arabIso = ['DZA', 'BHR', 'COM', 'DJI', 'EGY', 'IRQ', 'JOR', 'KWT', 'LBN', 'LBY', 'MRT', 'MAR', 'OMN', 'PSE', 'QAT', 'SAU', 'SOM', 'SDN', 'SYR', 'TUN', 'ARE', 'YEM'];
 
 // Natural Earth 110m omits a few small island states. These compact, real-world
@@ -43,6 +46,7 @@ export function getCountryName(featureOrIso, fallback = '') {
   const iso = typeof featureOrIso === 'string' ? featureOrIso : featureOrIso?.properties?.iso_a3;
   const name = typeof featureOrIso === 'string' ? fallback : featureOrIso?.properties?.name;
   if (countryNameOverrides[iso]) return countryNameOverrides[iso];
+  if (COUNTRY_AR_NAMES[iso]) return COUNTRY_AR_NAMES[iso];
   try {
     return arabicRegionNames?.of(iso) || name || iso || 'موقع غير مسمى';
   } catch {
@@ -167,85 +171,7 @@ export const GEOGRAPHY_FEATURES = Object.freeze({
   },
 });
 
-export const GEOGRAPHY_SYMBOL_GROUPS = Object.freeze([
-  {
-    id: 'surface', label: 'مظاهر السطح', items: [
-      { id: 'mountains', label: 'جبال', hint: 'سلاسل جبلية', symbol: '▲', color: '#8d6e4c' },
-      { id: 'plateaus', label: 'هضاب', hint: 'سطوح مرتفعة', symbol: '▰', color: '#c38f5a' },
-      { id: 'plains', label: 'سهول', hint: 'أراضٍ منبسطة', symbol: '▬', color: '#7aa46f' },
-      { id: 'depression', label: 'منخفضات', hint: 'أرض أقل من محيطها', symbol: '▽', color: '#8b6f8f' },
-      { id: 'desert', label: 'صحارى', hint: 'مناطق جافة', symbol: '◌', color: '#d6ae38' },
-      { id: 'valley', label: 'أودية', hint: 'ممرات بين المرتفعات', symbol: '∨', color: '#8d7356' },
-      { id: 'delta', label: 'دلتا', hint: 'تفرعات مصب النهر', symbol: 'Δ', color: '#4d9e6f' },
-      { id: 'volcano', label: 'بركان', hint: 'نشاط بركاني', symbol: '♨', color: '#c94b3c' },
-      { id: 'oasis', label: 'واحة', hint: 'مياه ونبات في الصحراء', symbol: '✺', color: '#2f9d78' },
-      { id: 'island', label: 'جزيرة', hint: 'يابس تحيط به المياه', symbol: '◐', color: '#8aa56c' },
-      { id: 'peninsula', label: 'شبه جزيرة', hint: 'يابس تحيط به المياه من ثلاث جهات', symbol: '◒', color: '#9a8a5b' },
-      { id: 'basin', label: 'حوض', hint: 'منطقة منخفضة لتجمع المياه', symbol: '⌣', color: '#7c718e' },
-      { id: 'coast', label: 'ساحل', hint: 'منطقة التقاء اليابس بالماء', symbol: '⌇', color: '#4b91a8' },
-    ],
-  },
-  {
-    id: 'water', label: 'المياه', items: [
-      { id: 'river', label: 'نهر', hint: 'مجرى مائي', symbol: '≈', color: '#2f80ed' },
-      { id: 'lake', label: 'بحيرة', hint: 'مسطح مائي داخلي', symbol: '⬭', color: '#3a9ad9' },
-      { id: 'sea', label: 'بحر', hint: 'مسطح مائي', symbol: '≋', color: '#2979b8' },
-      { id: 'ocean', label: 'محيط', hint: 'مسطح مائي واسع', symbol: '◉', color: '#155a91' },
-      { id: 'canal', label: 'قناة', hint: 'مجرى مائي صناعي', symbol: '║', color: '#55a8d8' },
-      { id: 'waterfall', label: 'شلال', hint: 'سقوط مياه', symbol: '⇊', color: '#4fa7cf' },
-      { id: 'fish', label: 'ثروة سمكية', hint: 'سواحل وبحيرات', symbol: '◈', color: '#2f80ed' },
-      { id: 'gulf', label: 'خليج', hint: 'امتداد مائي داخل اليابس', symbol: '⊂', color: '#2e78b7' },
-      { id: 'strait', label: 'مضيق', hint: 'ممر مائي ضيق', symbol: '⇆', color: '#357fa9' },
-      { id: 'bay', label: 'خور/خليج صغير', hint: 'تجويف ساحلي', symbol: '◡', color: '#4a8fb5' },
-      { id: 'spring', label: 'عين ماء', hint: 'مياه جوفية تظهر على السطح', symbol: '⊙', color: '#4ab5b4' },
-      { id: 'dam', label: 'سد', hint: 'حاجز للتحكم في المياه', symbol: '▥', color: '#617c91' },
-      { id: 'groundwater', label: 'مياه جوفية', hint: 'مخزون مائي تحت سطح الأرض', symbol: '◉', color: '#4a8bb7' },
-    ],
-  },
-  {
-    id: 'resources', label: 'الثروات', items: [
-      { id: 'minerals', label: 'معادن', hint: 'ثروات معدنية', symbol: '◆', color: '#b85c9e' },
-      { id: 'petroleum', label: 'بترول', hint: 'حقول النفط', symbol: '●', color: '#1e1e22' },
-      { id: 'gas', label: 'غاز طبيعي', hint: 'حقول الغاز', symbol: '◍', color: '#df8d32' },
-      { id: 'coal', label: 'فحم', hint: 'مناجم الفحم', symbol: '■', color: '#343434' },
-      { id: 'iron', label: 'حديد', hint: 'خام الحديد', symbol: 'Fe', color: '#8f5f55' },
-      { id: 'gold', label: 'ذهب', hint: 'مناجم الذهب', symbol: 'Au', color: '#d5aa22' },
-      { id: 'phosphate', label: 'فوسفات', hint: 'مناجم الفوسفات', symbol: 'P', color: '#a779b8' },
-      { id: 'agriculture', label: 'زراعة', hint: 'مناطق زراعية', symbol: '✦', color: '#4d9e6f' },
-      { id: 'animal', label: 'ثروة حيوانية', hint: 'مناطق الرعي', symbol: '♞', color: '#5d8f57' },
-      { id: 'salt', label: 'ملح', hint: 'ملاحات ومناجم الملح', symbol: '◇', color: '#d8d1c0' },
-      { id: 'solar', label: 'طاقة شمسية', hint: 'مناطق الطاقة الشمسية', symbol: '☀', color: '#e5aa2c' },
-      { id: 'wind', label: 'طاقة رياح', hint: 'مزارع الرياح', symbol: '✤', color: '#6aa9b7' },
-    ],
-  },
-  {
-    id: 'human', label: 'ظواهر بشرية', items: [
-      { id: 'capital', label: 'عاصمة', hint: 'عاصمة دولة', symbol: '★', color: '#d64545' },
-      { id: 'city', label: 'مدينة', hint: 'مدينة مهمة', symbol: '●', color: '#e26d5a' },
-      { id: 'port', label: 'ميناء', hint: 'ميناء بحري', symbol: '⚓', color: '#376c9d' },
-      { id: 'industry', label: 'صناعة', hint: 'مركز صناعي', symbol: '⚙', color: '#6f7783' },
-      { id: 'population', label: 'سكان', hint: 'منطقة كثافة سكانية', symbol: '♟', color: '#8c5a9e' },
-      { id: 'tourism', label: 'سياحة', hint: 'مركز سياحي', symbol: '✹', color: '#d17a35' },
-      { id: 'border', label: 'حدود سياسية', hint: 'خط فاصل بين الدول', symbol: '┄', color: '#d59a46' },
-      { id: 'road', label: 'طريق', hint: 'محور نقل بري', symbol: '═', color: '#a47855' },
-      { id: 'railway', label: 'سكة حديد', hint: 'خط نقل بالقطارات', symbol: '╫', color: '#606b76' },
-      { id: 'airport', label: 'مطار', hint: 'مطار أو محور جوي', symbol: '✈', color: '#657ca8' },
-      { id: 'archaeology', label: 'أثر تاريخي', hint: 'موقع أثري أو حضاري', symbol: '⌂', color: '#b27a42' },
-    ],
-  },  {
-    id: 'reference', label: 'علامات وبيانات', items: [
-      { id: 'pin', label: 'دبوس', hint: 'علامة بدون اسم أو مع ملاحظة', symbol: '📍', color: '#d64545' },
-      { id: 'country', label: 'دولة', hint: 'تحديد دولة أو إقليم', symbol: '▱', color: '#d6ae38' },
-      { id: 'latitude', label: 'دائرة عرض', hint: 'خط عرض مرجعي', symbol: '↔', color: '#5b8fb9' },
-      { id: 'longitude', label: 'خط طول', hint: 'خط طول مرجعي', symbol: '↕', color: '#5b8fb9' },
-      { id: 'grid', label: 'شبكة إحداثيات', hint: 'خطوط الطول ودوائر العرض', symbol: '▦', color: '#628ca4' },
-      { id: 'population-low', label: 'سكان قليل', hint: 'كثافة سكانية منخفضة', symbol: '●', color: '#8cc78b' },
-      { id: 'population-medium', label: 'سكان متوسط', hint: 'كثافة سكانية متوسطة', symbol: '●', color: '#e2b34f' },
-      { id: 'population-high', label: 'سكان كثيف', hint: 'كثافة سكانية مرتفعة', symbol: '●', color: '#d6534d' },
-      { id: 'note', label: 'ملاحظة', hint: 'معلومة أو شرح على الخريطة', symbol: '✎', color: '#8c5a9e' },
-    ],
-  },
-]);
+export const GEOGRAPHY_SYMBOL_GROUPS = MAP_SYMBOL_GROUPS;
 
 export const GEOGRAPHY_SYMBOLS = GEOGRAPHY_SYMBOL_GROUPS.flatMap((group) => group.items.map((item) => ({ ...item, groupId: group.id, groupLabel: group.label })));
 
@@ -306,18 +232,10 @@ export function featureCenter(feature) {
 
 export function createMapProjector(regionKey, width = 1000, height = 620) {
   const region = GEOGRAPHY_REGIONS[regionKey] || GEOGRAPHY_REGIONS.world;
-  const [minX, minY, maxX, maxY] = region.bounds;
-  const midLon = (minX + maxX) / 2;
-  const midLat = (minY + maxY) / 2;
-  const latitudeCorrection = Math.max(0.42, Math.cos((midLat * Math.PI) / 180));
-  const projectedWidth = Math.max(1, (maxX - minX) * latitudeCorrection);
-  const projectedHeight = Math.max(1, maxY - minY);
-  const padding = regionKey === 'world' ? 24 : 34;
-  const scale = Math.min((width - padding * 2) / projectedWidth, (height - padding * 2) / projectedHeight);
-  return (longitude, latitude) => [
-    width / 2 + (longitude - midLon) * latitudeCorrection * scale,
-    height / 2 + (midLat - latitude) * scale,
-  ];
+  return (longitude, latitude) => {
+    const [minX, minY, maxX, maxY] = region.bounds;
+    return [((longitude - minX) / (maxX - minX)) * width, ((maxY - latitude) / (maxY - minY)) * height];
+  };
 }
 
 export function getRegionCountries(geo, regionKey) {

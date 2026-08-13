@@ -2,20 +2,12 @@ function Slot({ className, children }) {
   return <div className={className}>{children}</div>;
 }
 
-/**
- * Classroom owns one real root element.
- *
- * R18 previously put `classmode-v103` on a display:contents wrapper while
- * `classmode-final-layout` lived on the parent. A large part of the existing
- * classroom CSS intentionally targets `.classmode-v103.classmode-final-layout`,
- * so those rules could never match. Keeping both contracts on the same root
- * restores the visual/interaction skin while v111.css (loaded last) remains the
- * single owner of viewport geometry and safe-area overrides.
- */
 function ClassModeViewport({ className = '', sceneRef, children }) {
   return (
-    <section className={`classmode-viewport classmode-v103 ${className}`.trim()} ref={sceneRef}>
-      {children}
+    <section className={`classmode-viewport ${className}`.trim()} ref={sceneRef}>
+      <div className="classmode-viewport-skin classmode-v103">
+        {children}
+      </div>
     </section>
   );
 }

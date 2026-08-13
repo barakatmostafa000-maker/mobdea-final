@@ -2713,3 +2713,690 @@
   will-change: transform !important;
   transform-origin: center center !important;
 }
+
+/* =========================================================
+   R18 Browser P0 V11 — map teaching system + stable focus mode
+   ========================================================= */
+
+/* No instructional/status modal is allowed to cover teaching content. */
+.classmode-viewport-overlays > .spoken-banner.is-notice,
+.classmode-v103 .spoken-banner.is-notice { display:none !important; }
+
+/* ---------- Professional lesson map ---------- */
+.lesson-map-studio-v5 {
+  --map-panel-bg: rgba(5,15,20,.94);
+  --map-gold: #e5bb59;
+  --map-gold-soft: #f2d98e;
+  --map-blue: #3aa8d4;
+}
+.lesson-map-main-v5 { position:relative !important; }
+.lesson-map-canvas-shell-v5 { position:relative !important; overflow:hidden !important; }
+
+/* Keep the two map launchers visible below Class Mode's focus/fullscreen control. */
+.lesson-map-floating-drawers {
+  top: 64px !important;
+  right: 12px !important;
+  left: auto !important;
+  z-index: 82 !important;
+  display:flex !important;
+  gap:8px !important;
+  align-items:center !important;
+}
+.lesson-map-drawer-toggle {
+  min-height:42px !important;
+  border-radius:14px !important;
+  padding:8px 13px !important;
+  background:linear-gradient(145deg,rgba(18,28,31,.96),rgba(5,9,13,.97)) !important;
+  border:1px solid rgba(232,190,87,.72) !important;
+  color:#f7e4a7 !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.4),inset 0 1px rgba(255,255,255,.06) !important;
+  backdrop-filter:blur(12px) !important;
+}
+.lesson-map-drawer-toggle.active { background:linear-gradient(145deg,#815112,#291907) !important; }
+
+/* Drawing tools live outside the map-selection drawer. */
+.lesson-map-quick-drawbar {
+  position:absolute !important;
+  left:50% !important;
+  bottom:12px !important;
+  transform:translateX(-50%) !important;
+  z-index:84 !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:5px !important;
+  max-width:min(760px,84%) !important;
+  min-height:43px !important;
+  padding:5px 8px !important;
+  border:1px solid rgba(235,194,92,.66) !important;
+  border-radius:15px !important;
+  background:rgba(4,10,14,.88) !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.44) !important;
+  backdrop-filter:blur(12px) !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  scrollbar-width:none !important;
+}
+.lesson-map-quick-drawbar::-webkit-scrollbar { display:none !important; }
+.lesson-map-quick-drawbar button {
+  flex:0 0 36px !important;
+  width:36px !important;
+  min-width:36px !important;
+  height:34px !important;
+  display:grid !important;
+  place-items:center !important;
+  padding:0 !important;
+  border:1px solid rgba(232,195,102,.34) !important;
+  border-radius:10px !important;
+  background:#0b151b !important;
+  color:#efd583 !important;
+}
+.lesson-map-quick-drawbar button.active { background:#a56d1c !important; color:#fff6d0 !important; border-color:#ffe49a !important; }
+.lesson-map-quick-drawbar input[type="color"] { flex:0 0 34px !important; width:34px !important; height:31px !important; padding:1px !important; border-radius:9px !important; background:#081117 !important; border:1px solid rgba(232,195,102,.34) !important; }
+.lesson-map-quick-drawbar .lesson-map-stroke-range { flex:0 0 90px !important; width:90px !important; }
+
+/* Country / feature teaching card. It floats over unused map space and never resizes the map. */
+.lesson-map-info-card {
+  position:absolute !important;
+  left:14px !important;
+  top:70px !important;
+  z-index:83 !important;
+  width:clamp(218px,24vw,310px) !important;
+  max-height:calc(100% - 136px) !important;
+  display:grid !important;
+  grid-template-columns:72px minmax(0,1fr) !important;
+  gap:10px !important;
+  padding:12px !important;
+  border:1px solid rgba(237,199,105,.64) !important;
+  border-radius:18px !important;
+  background:linear-gradient(145deg,rgba(4,17,23,.95),rgba(8,29,35,.91)) !important;
+  color:#f7e8b5 !important;
+  box-shadow:0 18px 42px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.05) !important;
+  backdrop-filter:blur(14px) !important;
+  overflow:auto !important;
+}
+.lesson-map-info-close {
+  position:absolute !important; top:7px !important; left:7px !important; z-index:2 !important;
+  width:28px !important; height:28px !important; border-radius:50% !important;
+  background:#0c171b !important; color:#fff2bf !important; border:1px solid rgba(236,196,91,.5) !important;
+}
+.lesson-map-info-visual {
+  width:72px !important; height:72px !important; display:grid !important; place-items:center !important;
+  border-radius:17px !important; overflow:hidden !important;
+  background:radial-gradient(circle at 40% 30%,rgba(255,239,177,.2),transparent 50%),#0b2028 !important;
+  border:1px solid rgba(235,198,105,.28) !important;
+}
+.lesson-map-country-flag { font-size:44px !important; line-height:1 !important; filter:drop-shadow(0 4px 7px rgba(0,0,0,.35)) !important; }
+.lesson-map-info-visual .geography-glyph-svg { width:66px !important; height:58px !important; }
+.lesson-map-info-copy { min-width:0 !important; display:grid !important; gap:4px !important; padding-inline-end:3px !important; }
+.lesson-map-info-copy > small { color:#9dc7d0 !important; font-size:.66rem !important; }
+.lesson-map-info-copy > strong { font-size:1rem !important; color:#ffe69b !important; }
+.lesson-map-info-copy > span { font-size:.75rem !important; color:#d9e7e4 !important; }
+.lesson-map-info-copy p { grid-column:1/-1 !important; margin:3px 0 0 !important; color:#d8e3df !important; line-height:1.65 !important; font-size:.74rem !important; }
+.lesson-map-info-speak {
+  grid-column:1/-1 !important; justify-self:start !important; display:inline-flex !important; align-items:center !important; gap:6px !important;
+  min-height:33px !important; padding:0 11px !important; border-radius:10px !important;
+  color:#0c1b20 !important; background:linear-gradient(145deg,#f4d77e,#c99731) !important; border:0 !important; font-weight:900 !important;
+}
+.lesson-map-nile-badge {
+  position:absolute !important; left:16px !important; bottom:64px !important; z-index:82 !important;
+  display:flex !important; align-items:center !important; gap:6px !important; padding:7px 10px !important;
+  border-radius:999px !important; border:1px solid rgba(115,216,255,.55) !important;
+  background:rgba(4,35,52,.9) !important; color:#bdeeff !important; box-shadow:0 7px 18px rgba(0,0,0,.35) !important;
+}
+.lesson-map-nile-toggle {
+  width:100% !important; min-height:56px !important; display:flex !important; align-items:center !important; gap:10px !important;
+  padding:10px !important; border-radius:13px !important; border:1px solid rgba(91,188,230,.4) !important;
+  background:linear-gradient(145deg,#0c2732,#07151d) !important; color:#d8f4ff !important; text-align:right !important;
+}
+.lesson-map-nile-toggle.active { border-color:#7fe1ff !important; box-shadow:inset 0 0 0 1px rgba(127,225,255,.22),0 0 18px rgba(41,169,214,.15) !important; }
+.lesson-map-nile-toggle span { display:grid !important; gap:2px !important; }
+.lesson-map-nile-toggle small { color:#9bb9c2 !important; font-size:.65rem !important; }
+
+/* Natural map is intentionally filter-light: heavy SVG diffuse filters rendered blank on some Android browsers. */
+.map-pro-stage.map-style-relief {
+  background:
+    radial-gradient(ellipse at 18% 15%,rgba(130,225,242,.24),transparent 30%),
+    linear-gradient(180deg,#48b8d0 0%,#2c8db4 54%,#176186 100%) !important;
+}
+.map-pro-stage.map-style-relief .map-pro-ocean { filter:none !important; opacity:1 !important; }
+.map-pro-stage.map-style-relief .map-pro-country {
+  filter:none !important;
+  fill:var(--country-fill) !important;
+  stroke:rgba(249,245,211,.68) !important;
+  stroke-width:1.05 !important;
+  vector-effect:non-scaling-stroke !important;
+}
+.map-pro-stage.map-style-relief .map-pro-terrain-wash path {
+  fill:rgba(246,224,157,.12) !important;
+  stroke:none !important;
+  pointer-events:none !important;
+  mix-blend-mode:soft-light !important;
+}
+.map-pro-stage.map-style-relief .map-pro-country.basin-country,
+.map-pro-country.basin-country {
+  stroke:#87e7ff !important;
+  stroke-width:2.3 !important;
+  filter:drop-shadow(0 0 4px rgba(64,202,255,.45)) !important;
+}
+
+/* Full longitude / latitude lines, not point markers. */
+.map-pro-coordinate-focus line {
+  stroke:#ffea9e !important;
+  stroke-width:2.1 !important;
+  stroke-dasharray:none !important;
+  opacity:.8 !important;
+  vector-effect:non-scaling-stroke !important;
+}
+.map-pro-coordinate-focus text {
+  fill:#fff3bc !important; stroke:#06131a !important; stroke-width:3px !important;
+  paint-order:stroke fill !important; font-size:14px !important; font-weight:900 !important;
+}
+.map-pro-coordinate-focus.axis-latitude line { stroke:#ffcb64 !important; }
+.map-pro-coordinate-focus.axis-longitude line { stroke:#9ee7ff !important; }
+
+/* Fixed hydrography and Nile lesson. */
+.map-pro-river-line { cursor:pointer !important; }
+.map-pro-river-line > path:first-child {
+  fill:none !important; stroke:#0b557a !important; stroke-width:7 !important; stroke-linecap:round !important; stroke-linejoin:round !important;
+  vector-effect:non-scaling-stroke !important; opacity:.9 !important;
+}
+.map-pro-river-line > .river-highlight {
+  fill:none !important; stroke:#79ddff !important; stroke-width:3.1 !important; stroke-linecap:round !important; stroke-linejoin:round !important;
+  vector-effect:non-scaling-stroke !important; pointer-events:none !important;
+}
+.map-pro-river-line.kind-tributary > path:first-child { stroke-width:5.5 !important; }
+.map-pro-river-line.kind-tributary > .river-highlight { stroke:#a9eaff !important; stroke-width:2.3 !important; }
+.map-pro-hydro-point { cursor:pointer !important; }
+.map-pro-hydro-point circle { fill:#f6cb57 !important; stroke:#0a2d3d !important; stroke-width:3 !important; filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)) !important; }
+.map-pro-hydro-point.kind-lake circle { fill:#5cd0ef !important; }
+.map-pro-hydro-point.kind-dam circle { fill:#f29d4b !important; }
+.map-pro-hydro-point text { fill:#fff5c4 !important; stroke:#06151b !important; stroke-width:3px !important; paint-order:stroke fill !important; font-size:14px !important; font-weight:900 !important; }
+
+/* Drawer content remains independently scrollable even while symbol dragging is enabled. */
+.lesson-map-drawer-symbols { display:grid !important; grid-template-rows:auto auto minmax(0,1fr) !important; }
+.lesson-map-symbol-scroll { min-height:0 !important; height:100% !important; max-height:none !important; overflow-y:auto !important; touch-action:pan-y !important; }
+.lesson-map-symbol-list { padding-bottom:180px !important; }
+
+/* ---------- Map Challenge v11: map-first, compact and readable ---------- */
+.map-challenge-pro.map-game-v11 {
+  background:radial-gradient(circle at 50% 32%,#112b37 0%,#07131b 48%,#03080d 100%) !important;
+}
+.map-challenge-pro.map-game-v11 .map-game-topbar {
+  background:linear-gradient(90deg,rgba(6,14,20,.97),rgba(19,31,34,.96),rgba(6,14,20,.97)) !important;
+  border-bottom:1px solid rgba(229,187,89,.32) !important;
+}
+.map-challenge-pro.map-game-v11 .map-game-layout { gap:6px !important; padding:6px !important; }
+.map-challenge-pro.map-game-v11 .map-game-main {
+  border:1px solid rgba(228,186,86,.32) !important; border-radius:18px !important; overflow:hidden !important;
+  background:#07131a !important; box-shadow:0 14px 40px rgba(0,0,0,.34) !important;
+}
+.map-challenge-pro.map-game-v11 .map-game-canvas-shell { border:0 !important; border-radius:0 !important; }
+.map-challenge-pro.map-game-v11 .map-game-toolbar,
+.map-challenge-pro.map-game-v11 .map-layer-dock {
+  background:rgba(5,13,18,.92) !important; border-color:rgba(230,189,91,.24) !important;
+}
+.map-challenge-pro.map-game-v11 .map-game-nav,
+.map-challenge-pro.map-game-v11 .map-game-question-panel {
+  background:linear-gradient(180deg,rgba(8,17,22,.98),rgba(3,9,13,.98)) !important;
+  border:1px solid rgba(229,188,91,.3) !important; border-radius:18px !important;
+  box-shadow:0 12px 30px rgba(0,0,0,.32) !important;
+}
+.map-challenge-pro.map-game-v11 .map-question-copy { padding:12px !important; min-height:110px !important; }
+.map-challenge-pro.map-game-v11 .map-question-copy h3 { font-size:clamp(.9rem,1.35vw,1.12rem) !important; line-height:1.55 !important; }
+.map-challenge-pro.map-game-v11 .map-game-message { position:static !important; max-height:58px !important; overflow:auto !important; font-size:.72rem !important; }
+
+@media (orientation:landscape) and (max-height:760px) {
+  .map-challenge-pro.map-game-v11 { height:calc(100dvh - 2px) !important; min-height:0 !important; }
+  .map-challenge-pro.map-game-v11 .map-game-topbar { height:38px !important; min-height:38px !important; padding:2px 8px !important; }
+  .map-challenge-pro.map-game-v11 .map-player-profile small,
+  .map-challenge-pro.map-game-v11 .map-game-title small { display:none !important; }
+  .map-challenge-pro.map-game-v11 .map-game-layout { inset:38px 0 0 !important; padding:4px !important; }
+  .map-challenge-pro.map-game-v11 .map-game-main { inset:0 214px 0 58px !important; border-radius:13px !important; }
+  .map-challenge-pro.map-game-v11 .map-game-canvas-shell { inset:38px 0 38px !important; }
+  .map-challenge-pro.map-game-v11 .map-game-toolbar { top:0 !important; left:0 !important; right:0 !important; height:38px !important; max-height:38px !important; border-radius:0 !important; }
+  .map-challenge-pro.map-game-v11 .map-layer-dock { left:0 !important; right:0 !important; bottom:0 !important; height:38px !important; border-radius:0 !important; }
+  .map-challenge-pro.map-game-v11 .map-game-nav { top:4px !important; left:4px !important; bottom:4px !important; width:50px !important; border-radius:13px !important; }
+  .map-challenge-pro.map-game-v11 .map-game-nav .map-game-brand { display:none !important; }
+  .map-challenge-pro.map-game-v11 .map-game-nav nav button,
+  .map-challenge-pro.map-game-v11 .map-game-secondary-nav button { width:42px !important; min-width:42px !important; height:42px !important; min-height:42px !important; }
+  .map-challenge-pro.map-game-v11 .map-game-question-panel { top:4px !important; right:4px !important; bottom:4px !important; width:206px !important; border-radius:13px !important; padding:8px !important; }
+  .map-challenge-pro.map-game-v11 .map-question-progress { margin-bottom:5px !important; }
+  .map-challenge-pro.map-game-v11 .map-question-copy { min-height:84px !important; padding:6px !important; }
+  .map-challenge-pro.map-game-v11 .map-question-copy svg { width:22px !important; height:22px !important; }
+  .map-challenge-pro.map-game-v11 .map-question-stats { gap:4px !important; }
+  .map-challenge-pro.map-game-v11 .map-question-stats > div { min-height:48px !important; padding:5px !important; }
+  .map-challenge-pro.map-game-v11 .map-xp-reward { display:none !important; }
+  .map-challenge-pro.map-game-v11 .map-region-tabs-core > button { min-width:78px !important; flex-basis:78px !important; height:34px !important; }
+}
+
+/* ---------- Stage focus: true full-screen board, fixed in place ---------- */
+.classmode-viewport.stage-focus-mode .board-template-history .class-board-canvas-shell.board-theme-history:not(.has-resource-head),
+.classmode-viewport.stage-focus-mode .class-board-canvas-shell:not(.has-resource-head) {
+  position:absolute !important;
+  inset:0 !important;
+  width:100% !important;
+  height:100% !important;
+  min-width:100% !important;
+  min-height:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  margin:0 !important;
+  transform:none !important;
+}
+.classmode-viewport.stage-focus-mode .board-theme-history .classmode-board-reference-image {
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  transform:none !important;
+}
+.classmode-viewport.stage-focus-mode .class-board-canvas { transform:none !important; }
+
+/* Avoid the historical board toolbar being mistaken for a modal overlay. */
+.classmode-viewport.stage-focus-mode .classmode-toolbar:not(.media-annotation-toolbar) {
+  max-width:calc(100vw - 150px) !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  white-space:nowrap !important;
+}
+.lesson-map-info-visual > img { width:100% !important; height:100% !important; object-fit:cover !important; display:block !important; }
+.geography-glyph-image.geography-glyph-asset { width:100% !important; height:100% !important; object-fit:contain !important; display:block !important; filter:drop-shadow(0 8px 7px rgba(0,0,0,.42)) !important; }
+
+/* ===== R18 browser V12: teacher-designed whiteboard cards ===== */
+.classmode-card-drawer-toggle {
+  position:absolute !important; z-index:48 !important; top:12px !important; left:148px !important;
+  min-height:44px !important; padding:0 14px !important; border-radius:14px !important;
+  display:flex !important; align-items:center !important; gap:7px !important;
+  border:1px solid rgba(229,187,89,.62) !important; color:#f4d77e !important;
+  background:linear-gradient(180deg,rgba(27,21,13,.97),rgba(7,10,14,.97)) !important;
+  box-shadow:0 8px 22px rgba(0,0,0,.33) !important;
+}
+.classmode-card-drawer-toggle.active { background:linear-gradient(180deg,#b77d20,#6d430e) !important; color:#fff7df !important; }
+.classmode-card-drawer {
+  position:absolute !important; z-index:90 !important; top:64px !important; left:10px !important; bottom:10px !important;
+  width:min(340px,42vw) !important; display:flex !important; flex-direction:column !important; overflow:hidden !important;
+  border:1px solid rgba(228,186,86,.48) !important; border-radius:20px !important;
+  background:linear-gradient(180deg,rgba(10,15,20,.98),rgba(4,8,12,.98)) !important;
+  box-shadow:0 20px 55px rgba(0,0,0,.55) !important; backdrop-filter:blur(12px) !important;
+}
+.classmode-card-drawer-head { flex:0 0 auto !important; min-height:64px !important; padding:10px 12px !important; display:flex !important; align-items:center !important; justify-content:space-between !important; gap:10px !important; border-bottom:1px solid rgba(228,186,86,.22) !important; }
+.classmode-card-drawer-head > div { min-width:0 !important; display:grid !important; gap:2px !important; }
+.classmode-card-drawer-head strong { color:#f5d77f !important; font-size:1rem !important; }
+.classmode-card-drawer-head small { color:#c9baa0 !important; font-size:.72rem !important; line-height:1.4 !important; }
+.classmode-card-drawer-head button { width:36px !important; height:36px !important; min-width:36px !important; border-radius:10px !important; border:1px solid rgba(255,255,255,.12) !important; background:#fff !important; color:#111827 !important; display:grid !important; place-items:center !important; }
+.classmode-card-drawer-list { flex:1 1 auto !important; min-height:0 !important; overflow-y:auto !important; overscroll-behavior:contain !important; touch-action:pan-y !important; -webkit-overflow-scrolling:touch !important; padding:10px !important; display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:9px !important; align-content:start !important; }
+.classmode-card-template-item { min-width:0 !important; padding:7px !important; border:1px solid rgba(229,187,89,.23) !important; border-radius:14px !important; background:rgba(255,255,255,.035) !important; color:#f6e8ca !important; display:grid !important; gap:5px !important; cursor:grab !important; }
+.classmode-card-template-item:active { cursor:grabbing !important; }
+.classmode-card-template-item:hover,.classmode-card-template-item:focus-visible { border-color:#d7ad35 !important; background:rgba(215,173,53,.10) !important; }
+.classmode-card-template-item img { width:100% !important; height:82px !important; object-fit:contain !important; display:block !important; pointer-events:none !important; filter:drop-shadow(0 6px 8px rgba(0,0,0,.38)) !important; }
+.classmode-card-template-item span { font-size:.75rem !important; font-weight:800 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+
+.board-card-layer { position:absolute !important; inset:0 !important; z-index:9 !important; pointer-events:none !important; overflow:visible !important; }
+.board-card-overlay { position:absolute !important; pointer-events:auto !important; user-select:none !important; touch-action:none !important; transform-origin:top left !important; cursor:grab !important; }
+.board-card-overlay:active { cursor:grabbing !important; }
+.board-card-overlay > img { position:absolute !important; inset:0 !important; width:100% !important; height:100% !important; object-fit:contain !important; pointer-events:none !important; filter:drop-shadow(0 12px 16px rgba(0,0,0,.28)) !important; }
+.board-card-overlay.selected::after { content:""; position:absolute; inset:-5px; border:2px dashed #f1c65e; border-radius:12px; pointer-events:none; box-shadow:0 0 0 2px rgba(10,15,20,.5); }
+.board-card-field { position:absolute !important; z-index:3 !important; direction:rtl !important; text-align:center !important; display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; overflow:hidden !important; line-height:1.35 !important; font-family:'Noto Naskh Arabic','Amiri','Traditional Arabic',serif !important; font-weight:800 !important; pointer-events:none !important; white-space:pre-wrap !important; }
+.board-card-field span { display:block !important; max-width:100% !important; }
+.board-card-field.tone-ink { color:#2e1609 !important; text-shadow:0 1px rgba(255,255,255,.32) !important; }
+.board-card-field.tone-brown { color:#612f0d !important; text-shadow:0 1px #fff4cf !important; }
+.board-card-field.tone-cream { color:#fff4c8 !important; text-shadow:0 2px 3px rgba(0,0,0,.72) !important; }
+.board-card-field.tone-gold { color:#ffe68c !important; text-shadow:0 2px 4px rgba(0,0,0,.82) !important; }
+.board-card-field.tone-navy { color:#fff3b7 !important; text-shadow:0 2px 4px rgba(17,30,50,.8) !important; }
+.board-card-actions { position:absolute !important; z-index:10 !important; top:-42px !important; right:0 !important; display:flex !important; gap:6px !important; align-items:center !important; padding:4px !important; border-radius:10px !important; background:rgba(5,10,15,.95) !important; border:1px solid rgba(229,187,89,.45) !important; box-shadow:0 8px 20px rgba(0,0,0,.38) !important; }
+.board-card-actions button { min-height:30px !important; padding:0 10px !important; border-radius:8px !important; border:0 !important; background:#d7ad35 !important; color:#201405 !important; font-weight:900 !important; font-size:.72rem !important; }
+.board-card-resize-handle { width:30px !important; height:30px !important; border-radius:8px !important; display:grid !important; place-items:center !important; background:#fff !important; color:#111827 !important; font-weight:900 !important; cursor:nwse-resize !important; }
+.classmode-open-card-drawer { border-color:rgba(229,187,89,.55) !important; color:#f5d77f !important; }
+.classmode-open-card-drawer.active { background:#d7ad35 !important; color:#191006 !important; }
+
+@media (orientation:landscape) and (max-height:760px) {
+  .classmode-card-drawer-toggle { top:8px !important; left:130px !important; min-height:38px !important; height:38px !important; padding:0 10px !important; }
+  .classmode-card-drawer { top:52px !important; bottom:6px !important; width:min(300px,39vw) !important; border-radius:15px !important; }
+  .classmode-card-drawer-head { min-height:52px !important; padding:7px 9px !important; }
+  .classmode-card-drawer-list { padding:7px !important; gap:6px !important; }
+  .classmode-card-template-item { padding:5px !important; }
+  .classmode-card-template-item img { height:65px !important; }
+  .classmode-card-template-item span { font-size:.66rem !important; }
+}
+.board-card-user-media { position:absolute !important; z-index:2 !important; object-fit:cover !important; pointer-events:none !important; box-shadow:inset 0 0 0 1px rgba(95,54,19,.34) !important; }
+.board-card-media-button { min-height:30px !important; padding:0 10px !important; border-radius:8px !important; background:#fff7df !important; color:#5b350a !important; display:flex !important; align-items:center !important; font-size:.72rem !important; font-weight:900 !important; cursor:pointer !important; white-space:nowrap !important; }
+.board-card-field.tone-ink { background:rgba(255,246,220,.82) !important; border-radius:8px !important; padding:3px 5px !important; }
+.board-card-field.tone-brown { background:rgba(115,61,14,.88) !important; border-radius:999px !important; padding:2px 8px !important; color:#fff4c8 !important; }
+.board-card-field.tone-cream { background:rgba(84,43,10,.86) !important; border-radius:999px !important; padding:2px 8px !important; }
+.board-card-field.tone-gold { background:rgba(39,26,18,.82) !important; border-radius:10px !important; padding:3px 7px !important; }
+.board-card-field.tone-navy { background:rgba(31,48,72,.92) !important; border-radius:999px !important; padding:2px 8px !important; }
+
+/* ===== R18 browser V13: 181 real map symbols / 19 categories ===== */
+.lesson-map-drawer-symbols {
+  grid-template-rows:auto auto auto minmax(0,1fr) !important;
+}
+.lesson-map-group-tabs {
+  display:flex !important;
+  gap:6px !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  padding:7px 8px 5px !important;
+  scroll-snap-type:x proximity !important;
+  scrollbar-width:thin !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-x !important;
+}
+.lesson-map-group-tabs > button {
+  flex:0 0 auto !important;
+  min-height:34px !important;
+  padding:0 11px !important;
+  border-radius:999px !important;
+  scroll-snap-align:start !important;
+  white-space:nowrap !important;
+}
+.lesson-map-active-group-heading {
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+  min-height:38px !important;
+  padding:5px 11px !important;
+  border-top:1px solid rgba(229,187,89,.13) !important;
+  border-bottom:1px solid rgba(229,187,89,.13) !important;
+  background:rgba(215,173,53,.06) !important;
+}
+.lesson-map-active-group-heading strong { color:#f3d475 !important; font-size:.88rem !important; }
+.lesson-map-active-group-heading small { color:#b9c6ca !important; font-size:.72rem !important; }
+.lesson-map-symbol-preview {
+  width:70px !important;
+  height:62px !important;
+  min-width:70px !important;
+  display:grid !important;
+  place-items:center !important;
+  border-radius:12px !important;
+  background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.08),rgba(255,255,255,.015)) !important;
+  overflow:visible !important;
+}
+.lesson-map-symbol-preview .geography-glyph-image.geography-glyph-asset {
+  width:68px !important;
+  height:58px !important;
+  object-fit:contain !important;
+}
+.lesson-map-symbol-list button {
+  grid-template-columns:76px minmax(0,1fr) !important;
+  min-height:76px !important;
+  align-items:center !important;
+}
+.lesson-map-symbol-list button > span { min-width:0 !important; }
+.lesson-map-symbol-list button > span > strong { font-size:.84rem !important; }
+.lesson-map-symbol-list button > span > small { opacity:.72 !important; }
+
+.map-pro-placement.geography-placement {
+  transform:translate(-50%,-55%) scale(var(--placement-scale,1)) !important;
+  transform-origin:center center !important;
+  min-width:clamp(54px,6.4vw,90px) !important;
+  min-height:clamp(50px,5.8vw,82px) !important;
+  cursor:grab !important;
+  touch-action:none !important;
+  z-index:4 !important;
+}
+.map-pro-placement.geography-placement.selected {
+  z-index:12 !important;
+  filter:drop-shadow(0 9px 8px rgba(0,0,0,.5)) !important;
+}
+.map-pro-placement.geography-placement.selected::after {
+  content:"" !important;
+  position:absolute !important;
+  inset:-5px !important;
+  border:1.5px dashed rgba(255,223,132,.92) !important;
+  border-radius:12px !important;
+  pointer-events:none !important;
+}
+.map-pro-placement.geography-placement > .geography-placement-glyph {
+  width:clamp(64px,7vw,104px) !important;
+  height:clamp(58px,6.4vw,94px) !important;
+  display:grid !important;
+  place-items:center !important;
+}
+.map-pro-placement.geography-placement .geography-glyph-image.geography-glyph-asset {
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain !important;
+  filter:drop-shadow(0 7px 5px rgba(0,0,0,.42)) !important;
+}
+.map-pro-placement-actions {
+  position:absolute !important;
+  z-index:30 !important;
+  top:-39px !important;
+  left:50% !important;
+  transform:translateX(-50%) !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:4px !important;
+  padding:4px !important;
+  border-radius:10px !important;
+  border:1px solid rgba(229,187,89,.54) !important;
+  background:rgba(5,12,17,.96) !important;
+  box-shadow:0 8px 20px rgba(0,0,0,.42) !important;
+  direction:ltr !important;
+}
+.map-pro-placement-actions button {
+  width:29px !important;
+  height:29px !important;
+  min-width:29px !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:7px !important;
+  background:#d7ad35 !important;
+  color:#1d1307 !important;
+  font-size:1.05rem !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  display:grid !important;
+  place-items:center !important;
+  cursor:pointer !important;
+  touch-action:manipulation !important;
+}
+.map-pro-placement-actions button.danger { background:#7e3028 !important; color:#fff4e4 !important; }
+
+@media (orientation:landscape) and (max-height:760px) {
+  .lesson-map-symbol-preview { width:60px !important; height:52px !important; min-width:60px !important; }
+  .lesson-map-symbol-preview .geography-glyph-image.geography-glyph-asset { width:58px !important; height:49px !important; }
+  .lesson-map-symbol-list button { grid-template-columns:66px minmax(0,1fr) !important; min-height:64px !important; }
+  .lesson-map-active-group-heading { min-height:32px !important; padding:3px 8px !important; }
+}
+
+/* ===== V14: exact 3:2 history board, country cards, real writing presets ===== */
+.classmode-v103 .classmode-board-stage.board-template-history {
+  display:flex !important;
+  align-items:stretch !important;
+  justify-content:center !important;
+  background:#0b0d0f !important;
+}
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
+  inset:0 auto auto 50% !important;
+  width:auto !important;
+  height:calc(100% / var(--board-zoom, 1)) !important;
+  max-width:calc(100% / var(--board-zoom, 1)) !important;
+  aspect-ratio:3 / 2 !important;
+  transform:translateX(-50%) scale(var(--board-zoom, 1)) !important;
+  transform-origin:top center !important;
+  background:#090b0d !important;
+}
+.classmode-v103 .board-theme-history .classmode-board-reference-image {
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain !important;
+  object-position:center !important;
+}
+.classmode-v103 .board-theme-history .class-board-canvas {
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain !important;
+}
+.classmode-viewport.stage-focus-mode .board-template-history .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
+  inset:0 auto auto 50% !important;
+  width:auto !important;
+  height:calc(100% / var(--board-zoom, 1)) !important;
+  max-width:calc(100% / var(--board-zoom, 1)) !important;
+  max-height:none !important;
+  margin:0 !important;
+  aspect-ratio:3 / 2 !important;
+  transform:translateX(-50%) scale(var(--board-zoom, 1)) !important;
+}
+
+.classmode-card-drawer-tabs,
+.country-card-category-tabs {
+  flex:0 0 auto !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:6px !important;
+  padding:7px 9px !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  scrollbar-width:thin !important;
+  touch-action:pan-x !important;
+  -webkit-overflow-scrolling:touch !important;
+  border-bottom:1px solid rgba(229,187,89,.16) !important;
+}
+.classmode-card-drawer-tabs button,
+.country-card-category-tabs button {
+  flex:0 0 auto !important;
+  min-height:34px !important;
+  padding:0 10px !important;
+  border:1px solid rgba(229,187,89,.25) !important;
+  border-radius:999px !important;
+  color:#f4dfae !important;
+  background:rgba(255,255,255,.035) !important;
+  font-size:.72rem !important;
+  font-weight:850 !important;
+  white-space:nowrap !important;
+}
+.classmode-card-drawer-tabs button.active,
+.country-card-category-tabs button.active {
+  color:#1b1207 !important;
+  background:#d7ad35 !important;
+  border-color:#f2cf72 !important;
+}
+.country-card-drawer-list {
+  grid-template-columns:1fr !important;
+}
+.country-card-template-item {
+  grid-template-columns:108px minmax(0,1fr) !important;
+  align-items:center !important;
+  text-align:right !important;
+}
+.country-card-template-item img {
+  width:108px !important;
+  height:80px !important;
+  object-fit:contain !important;
+}
+.country-card-template-item.default {
+  border-color:rgba(89,202,220,.55) !important;
+  background:rgba(37,119,139,.12) !important;
+}
+.country-card-overlay > img {
+  object-fit:contain !important;
+}
+.country-card-field-text,
+.country-card-field-editor {
+  position:absolute !important;
+  z-index:5 !important;
+  margin:0 !important;
+  padding:0 4px !important;
+  border:0 !important;
+  outline:0 !important;
+  resize:none !important;
+  overflow:hidden !important;
+  direction:rtl !important;
+  text-align:right !important;
+  line-height:1.05 !important;
+  font-family:'Noto Naskh Arabic','Amiri','Traditional Arabic',serif !important;
+  font-weight:800 !important;
+  color:#f8e7b0 !important;
+  text-shadow:0 2px 3px rgba(0,0,0,.9) !important;
+  background:transparent !important;
+  white-space:nowrap !important;
+  display:flex !important;
+  align-items:center !important;
+}
+.country-card-field-editor {
+  pointer-events:auto !important;
+  border-bottom:1px dashed rgba(248,231,176,.45) !important;
+  background:rgba(6,19,29,.16) !important;
+  border-radius:5px !important;
+}
+.country-card-field-editor::placeholder {
+  color:rgba(248,231,176,.42) !important;
+}
+.country-card-field-text.title,
+.country-card-field-editor.title {
+  text-align:center !important;
+  justify-content:center !important;
+  font-weight:900 !important;
+  color:#ffe7a3 !important;
+}
+.country-card-actions {
+  position:absolute !important;
+  z-index:12 !important;
+  top:-40px !important;
+  right:0 !important;
+  min-height:34px !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:7px !important;
+  padding:3px 5px 3px 10px !important;
+  border:1px solid rgba(229,187,89,.42) !important;
+  border-radius:10px !important;
+  color:#f7e7bd !important;
+  background:rgba(5,10,15,.96) !important;
+  box-shadow:0 8px 20px rgba(0,0,0,.38) !important;
+  font-size:.72rem !important;
+}
+.country-card-resize-handle {
+  width:28px !important;
+  height:28px !important;
+  display:grid !important;
+  place-items:center !important;
+  border-radius:8px !important;
+  color:#111827 !important;
+  background:#fff !important;
+  cursor:nwse-resize !important;
+  touch-action:none !important;
+}
+
+.classmode-font-status {
+  flex:0 0 auto !important;
+  min-height:30px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  padding:0 8px !important;
+  border-radius:999px !important;
+  font-size:.68rem !important;
+  font-weight:850 !important;
+  white-space:nowrap !important;
+}
+.classmode-font-status.ready {
+  color:#b9f2c6 !important;
+  border:1px solid rgba(77,190,111,.35) !important;
+  background:rgba(77,190,111,.10) !important;
+}
+.classmode-font-status.loading {
+  color:#f4d88c !important;
+  border:1px solid rgba(215,173,53,.32) !important;
+  background:rgba(215,173,53,.08) !important;
+}
+.classmode-text-style-row > button {
+  min-width:max-content !important;
+}
+.classmode-text-style-row > button.active {
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.22) !important;
+}
+
+@media (orientation:landscape) and (max-height:760px) {
+  .country-card-template-item { grid-template-columns:90px minmax(0,1fr) !important; }
+  .country-card-template-item img { width:90px !important; height:66px !important; }
+  .classmode-card-drawer-tabs,.country-card-category-tabs { padding:5px 7px !important; }
+  .classmode-card-drawer-tabs button,.country-card-category-tabs button { min-height:30px !important; font-size:.66rem !important; }
+}
+.classmode-font-status.failed {
+  color:#ffcf9b !important;
+  border:1px solid rgba(223,133,61,.42) !important;
+  background:rgba(223,133,61,.10) !important;
+}

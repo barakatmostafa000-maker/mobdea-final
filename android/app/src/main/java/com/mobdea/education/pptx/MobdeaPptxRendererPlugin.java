@@ -76,12 +76,7 @@ public class MobdeaPptxRendererPlugin extends Plugin {
                     Matcher matcher = SLIDE_PATTERN.matcher(name);
                     if (matcher.matches()) slideEntries.add(new SlideEntry(name, Integer.parseInt(matcher.group(1))));
                 }
-                Collections.sort(slideEntries, new Comparator<SlideEntry>() {
-                    @Override
-                    public int compare(SlideEntry left, SlideEntry right) {
-                        return Integer.compare(left.number, right.number);
-                    }
-                });
+                Collections.sort(slideEntries, Comparator.comparingInt(item -> item.number));
                 if (slideEntries.isEmpty()) throw new IllegalArgumentException("لم يتم العثور على شرائح داخل ملف PowerPoint.");
 
                 JSArray slides = new JSArray();
@@ -160,8 +155,7 @@ public class MobdeaPptxRendererPlugin extends Plugin {
         while (shapeMatcher.find()) {
             String block = shapeMatcher.group(1);
             String text = joinTexts(block);
-            String inheritedBlock = layoutPlaceholders.get(placeholderKey(block));
-            if (inheritedBlock == null) inheritedBlock = "";
+            String inheritedBlock = layoutPlaceholders.getOrDefault(placeholderKey(block), "");
             Matcher shapePropsMatcher = SHAPE_PROPS_PATTERN.matcher(block);
             String shapeProps = shapePropsMatcher.find() ? shapePropsMatcher.group(1) : "";
             Matcher inheritedShapePropsMatcher = SHAPE_PROPS_PATTERN.matcher(inheritedBlock);
@@ -359,7 +353,7 @@ public class MobdeaPptxRendererPlugin extends Plugin {
             String text = unescapeXml(matcher.group(1)).trim();
             if (!text.isEmpty()) parts.add(text);
         }
-        return joinParts(parts, " ").trim();
+        return String.join(" ", parts).trim();
     }
 
     private String attribute(String attrs, String name) {
@@ -406,16 +400,7 @@ public class MobdeaPptxRendererPlugin extends Plugin {
                 if (!normalized.isEmpty()) normalized.remove(normalized.size() - 1);
             } else normalized.add(part);
         }
-        return joinParts(normalized, "/");
-    }
-
-    private String joinParts(List<String> parts, String delimiter) {
-        StringBuilder result = new StringBuilder();
-        for (String part : parts) {
-            if (result.length() > 0) result.append(delimiter);
-            result.append(part);
-        }
-        return result.toString();
+        return String.join("/", normalized);
     }
 
     private String imageMime(String path) {

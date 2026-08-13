@@ -62,13 +62,14 @@ import {
 } from '../services/screenRecording';
 import { buildShareLink, copyToClipboard } from '../services/share';
 import { questionBank } from '../data/questionBank';
+import { COUNTRY_CARD_CATEGORIES, COUNTRY_CARD_MAP, DEFAULT_COUNTRY_CARD, countryCardsForCategory } from '../data/countryCards';
 import { queueAbsenceNotification } from '../services/notifications';
 import { deleteAsset, importAssetBlob, importLegacyDataUrl } from '../services/assetStore';
 import { useAssetUrl } from '../hooks/useAssetUrl';
 import { useAssetSource } from '../hooks/useAssetSource';
 import { usePdfPage } from '../hooks/usePdfPage';
 import { todayISO, formatDateAr } from '../utils/time';
-import { recognizeHandwritingDataUrl } from '../services/handwritingRecognition';
+import { recognizeHandwritingStrokes } from '../services/handwritingRecognition';
 import LessonMapStudio from '../components/maps/LessonMapStudio';
 import MediaRenderer from '../components/classmode/MediaRenderer';
 import LessonRecordingItem from '../components/classmode/LessonRecordingItem';
@@ -106,15 +107,7 @@ const toolOptions = [
   { key: 'select', label: 'تحديد', icon: MousePointer2 },
   { key: 'pen', label: 'قلم', icon: PenTool },
   { key: 'normal-text', label: 'كتابة عادية', icon: Type },
-  { key: 'historical-term', label: 'مصطلح تاريخي', icon: BookOpen },
-  { key: 'geographical-term', label: 'مصطلح جغرافي', icon: MapIcon },
-  { key: 'important-event', label: 'حدث مهم', icon: Clock },
-  { key: 'date-term', label: 'تاريخ', icon: CircleDot },
-  { key: 'person-term', label: 'شخصية', icon: Users },
-  { key: 'place-term', label: 'مكان', icon: MapIcon },
   { key: 'shape', label: 'أشكال', icon: Shapes },
-  { key: 'historical-symbol', label: 'رموز تاريخية', icon: Sparkles },
-  { key: 'geographical-symbol', label: 'رموز جغرافية', icon: MapIcon },
   { key: 'eraser', label: 'ممحاة', icon: Eraser },
   { key: 'highlighter', label: 'هايلايتر', icon: Highlighter },
   { key: 'arrow', label: 'سهم', icon: ArrowUpRight },
@@ -160,12 +153,84 @@ const geographicalSymbolOptions = [
   { key: 'map-sheet', label: 'خريطة مطوية' },
 ];
 const boardFontOptions = [
-  { value: "'Noto Naskh Arabic', 'Traditional Arabic', serif", label: 'نسخ حقيقي — واضح وسلس' },
-  { value: "'Aref Ruqaa', 'Arabic Typesetting', serif", label: 'رقعة حقيقي — كتابة سريعة' },
-  { value: "'Amiri', 'Traditional Arabic', serif", label: 'أميري — تاريخي أنيق' },
-  { value: "'Noto Kufi Arabic', Tahoma, sans-serif", label: 'كوفي حقيقي — عناوين قوية' },
-  { value: "'Reem Kufi', 'Noto Kufi Arabic', sans-serif", label: 'ريم كوفي — عرض مميز' },
+  { value: "'Noto Naskh Arabic', 'Traditional Arabic', serif", probe: 'Noto Naskh Arabic', label: 'نسخ حقيقي — واضح وسلس' },
+  { value: "'Aref Ruqaa', 'Arabic Typesetting', serif", probe: 'Aref Ruqaa', label: 'رقعة حقيقي — كتابة سريعة' },
+  { value: "'Amiri', 'Traditional Arabic', serif", probe: 'Amiri', label: 'أميري — تاريخي أنيق' },
+  { value: "'Noto Kufi Arabic', Tahoma, sans-serif", probe: 'Noto Kufi Arabic', label: 'كوفي حقيقي — عناوين قوية' },
+  { value: "'Reem Kufi', 'Noto Kufi Arabic', sans-serif", probe: 'Reem Kufi', label: 'ريم كوفي — عرض مميز' },
 ];
+
+const BOARD_CANVAS_WIDTH = 1536;
+const BOARD_CANVAS_HEIGHT = 1024;
+const BOARD_TEXT_PRESETS = Object.freeze([
+  { key: 'main', label: 'رئيسي', size: 60, weight: 900, lineHeight: 1.22 },
+  { key: 'heading', label: 'عنوان', size: 44, weight: 800, lineHeight: 1.28 },
+  { key: 'explanation', label: 'شرح', size: 31, weight: 700, lineHeight: 1.4 },
+  { key: 'note', label: 'ملاحظة', size: 23, weight: 700, lineHeight: 1.35 },
+]);
+const BOARD_TEXT_PRESET_MAP = Object.freeze(Object.fromEntries(BOARD_TEXT_PRESETS.map((item) => [item.key, item])));
+
+
+const BOARD_CARD_TEMPLATES = Object.freeze([
+  { key: 'geographical-term', label: 'مصطلح جغرافي', asset: '/whiteboard/cards/geographical-term.png', ratio: 1.5, fields: [
+    { key: 'title', label: 'اسم المصطلح', placeholder: 'اسم المصطلح', x: 25, y: 7, w: 50, h: 13, tone: 'navy', size: 34 },
+    { key: 'body', label: 'التعريف', placeholder: 'اكتب التعريف هنا…', x: 24, y: 43, w: 58, h: 30, tone: 'ink', size: 27 },
+  ]},
+  { key: 'historical-term', label: 'مصطلح تاريخي', asset: '/whiteboard/cards/historical-term.png', ratio: 1.5, fields: [
+    { key: 'title', label: 'اسم المصطلح', placeholder: 'اسم المصطلح', x: 31, y: 16, w: 38, h: 11, tone: 'brown', size: 32 },
+    { key: 'body', label: 'التعريف', placeholder: 'اكتب التعريف هنا…', x: 24, y: 46, w: 54, h: 29, tone: 'ink', size: 27 },
+  ]},
+  { key: 'event', label: 'حدث مهم', asset: '/whiteboard/cards/event.png', ratio: 0.667, fields: [
+    { key: 'title', label: 'اسم الحدث', placeholder: 'اسم الحدث', x: 13, y: 18, w: 74, h: 13, tone: 'gold', size: 35 },
+    { key: 'date', label: 'التاريخ', placeholder: 'التاريخ', x: 28, y: 32, w: 44, h: 8, tone: 'gold', size: 24 },
+    { key: 'body', label: 'الوصف/النتيجة', placeholder: 'اكتب وصف الحدث ونتيجته…', x: 17, y: 51, w: 66, h: 28, tone: 'ink', size: 25 },
+  ]},
+  { key: 'date', label: 'تاريخ / سنة', asset: '/whiteboard/cards/date.png', ratio: 1.5, fields: [
+    { key: 'date', label: 'التاريخ أو السنة', placeholder: 'التاريخ / السنة', x: 27, y: 25, w: 46, h: 18, tone: 'gold', size: 42 },
+    { key: 'body', label: 'الحدث المرتبط', placeholder: 'الحدث المرتبط', x: 27, y: 69, w: 46, h: 11, tone: 'cream', size: 25 },
+  ]},
+  { key: 'place', label: 'مكان', asset: '/whiteboard/cards/place.png', ratio: 1.5, imageZone: { x: 9, y: 31, w: 34, h: 50, radius: 16 }, fields: [
+    { key: 'title', label: 'اسم المكان', placeholder: 'اسم المكان', x: 34, y: 10, w: 35, h: 10, tone: 'cream', size: 31 },
+    { key: 'subtitle', label: 'الوصف/الأهمية', placeholder: 'الوصف / الأهمية', x: 47, y: 30, w: 39, h: 9, tone: 'cream', size: 24 },
+    { key: 'body', label: 'معلومات', placeholder: 'اكتب أهم المعلومات هنا…', x: 49, y: 43, w: 38, h: 36, tone: 'ink', size: 22 },
+  ]},
+  { key: 'timeline', label: 'تسلسل أحداث', asset: '/whiteboard/cards/timeline.png', ratio: 1.5, fields: [
+    { key: 'title', label: 'العنوان', placeholder: 'العنوان', x: 37, y: 8, w: 26, h: 10, tone: 'brown', size: 30 },
+    { key: 'one', label: 'الحدث الأول', placeholder: 'الحدث الأول', x: 10, y: 54, w: 18, h: 10, tone: 'brown', size: 20 },
+    { key: 'two', label: 'الحدث الثاني', placeholder: 'الحدث الثاني', x: 31, y: 54, w: 18, h: 10, tone: 'brown', size: 20 },
+    { key: 'three', label: 'الحدث الثالث', placeholder: 'الحدث الثالث', x: 52, y: 54, w: 18, h: 10, tone: 'brown', size: 20 },
+    { key: 'four', label: 'الحدث الرابع', placeholder: 'الحدث الرابع', x: 73, y: 54, w: 18, h: 10, tone: 'brown', size: 20 },
+  ]},
+  { key: 'note', label: 'ملاحظة', asset: '/whiteboard/cards/note.png', ratio: 1.5, fields: [
+    { key: 'body', label: 'نص الملاحظة', placeholder: 'نص الملاحظة', x: 18, y: 42, w: 64, h: 27, tone: 'ink', size: 31 },
+  ]},
+  { key: 'historical-witness', label: 'شاهد تاريخي', asset: '/whiteboard/cards/historical-witness.png', ratio: 1.5, imageZone: { x: 9, y: 27, w: 38, h: 57, radius: 8 }, fields: [
+    { key: 'type', label: 'نوع الشاهد', placeholder: 'نوع الشاهد', x: 58, y: 31, w: 29, h: 9, tone: 'cream', size: 22 },
+    { key: 'evidence', label: 'الدليل/التحليل', placeholder: 'اكتب الدليل أو التحليل…', x: 55, y: 61, w: 34, h: 20, tone: 'ink', size: 21 },
+  ]},
+  { key: 'person', label: 'شخصية', asset: '/whiteboard/cards/person.png', ratio: 1.5, imageZone: { x: 10, y: 24, w: 31, h: 53, radius: 50 }, fields: [
+    { key: 'title', label: 'اسم الشخصية', placeholder: 'اسم الشخصية', x: 47, y: 11, w: 39, h: 13, tone: 'brown', size: 32 },
+    { key: 'role', label: 'الدور/أهم المعلومات', placeholder: 'الدور / أهم المعلومات', x: 51, y: 36, w: 35, h: 9, tone: 'cream', size: 22 },
+    { key: 'body', label: 'التفاصيل', placeholder: 'اكتب أهم المعلومات هنا…', x: 53, y: 53, w: 35, h: 28, tone: 'ink', size: 21 },
+  ]},
+  { key: 'cause-result', label: 'سبب ونتيجة', asset: '/whiteboard/cards/cause-result.png', ratio: 1.5, fields: [
+    { key: 'cause', label: 'السبب', placeholder: 'اكتب السبب', x: 55, y: 35, w: 34, h: 24, tone: 'ink', size: 25 },
+    { key: 'result', label: 'النتيجة', placeholder: 'اكتب النتيجة', x: 10, y: 35, w: 34, h: 24, tone: 'ink', size: 25 },
+    { key: 'summary', label: 'التفسير المختصر', placeholder: 'التفسير المختصر', x: 19, y: 76, w: 62, h: 10, tone: 'ink', size: 21 },
+  ]},
+  { key: 'thinking-question', label: 'سؤال تفكير', asset: '/whiteboard/cards/thinking-question.png', ratio: 1.5, fields: [
+    { key: 'question', label: 'السؤال', placeholder: 'اكتب السؤال هنا', x: 18, y: 42, w: 62, h: 28, tone: 'ink', size: 31 },
+  ]},
+  { key: 'comparison', label: 'مقارنة', asset: '/whiteboard/cards/comparison.png', ratio: 1.5, fields: [
+    { key: 'title', label: 'وجه المقارنة', placeholder: 'وجه المقارنة', x: 35, y: 8, w: 30, h: 10, tone: 'cream', size: 27 },
+    { key: 'first', label: 'العنصر الأول', placeholder: 'العنصر الأول', x: 64, y: 24, w: 26, h: 10, tone: 'brown', size: 25 },
+    { key: 'second', label: 'العنصر الثاني', placeholder: 'العنصر الثاني', x: 10, y: 24, w: 26, h: 10, tone: 'cream', size: 25 },
+    { key: 'firstBody', label: 'تفاصيل العنصر الأول', placeholder: '• ...\\n• ...\\n• ...', x: 61, y: 42, w: 31, h: 33, tone: 'ink', size: 21 },
+    { key: 'secondBody', label: 'تفاصيل العنصر الثاني', placeholder: '• ...\\n• ...\\n• ...', x: 8, y: 42, w: 31, h: 33, tone: 'ink', size: 21 },
+    { key: 'summary', label: 'أوجه الشبه/الاختلاف', placeholder: 'أوجه الشبه / الاختلاف', x: 30, y: 87, w: 40, h: 8, tone: 'brown', size: 20 },
+  ]},
+]);
+const BOARD_CARD_TEMPLATE_MAP = Object.freeze(Object.fromEntries(BOARD_CARD_TEMPLATES.map((item) => [item.key, item])));
 
 const boardTemplates = [
   { key: 'history', label: 'تاريخي', icon: BookOpen },
@@ -375,21 +440,11 @@ async function drawBoardIdentity(ctx, template, width, height, meta = {}) {
   if (!['history', 'geography', 'manuscript'].includes(template)) return;
   if (template === 'history') {
     try {
-      const reference = await dataUrlToImage('/identity/class-board-history-reference.jpg');
-      const sourceRatio = reference.width / Math.max(1, reference.height);
-      const targetRatio = width / Math.max(1, height);
-      let sourceX = 0;
-      let sourceY = 0;
-      let sourceWidth = reference.width;
-      let sourceHeight = reference.height;
-      if (sourceRatio > targetRatio) {
-        sourceWidth = reference.height * targetRatio;
-        sourceX = (reference.width - sourceWidth) / 2;
-      } else if (sourceRatio < targetRatio) {
-        sourceHeight = reference.width / targetRatio;
-        sourceY = (reference.height - sourceHeight) / 2;
-      }
-      ctx.drawImage(reference, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
+      const reference = await dataUrlToImage('/identity/class-board-history-v14.jpg');
+      const ratio = Math.min(width / reference.width, height / reference.height);
+      const drawWidth = reference.width * ratio;
+      const drawHeight = reference.height * ratio;
+      ctx.drawImage(reference, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
       return;
     } catch {
       // Fall through to the vector parchment only if the supplied reference is unavailable.
@@ -500,7 +555,7 @@ function drawStamp(ctx, stamp) {
   if (stamp.kind === 'text') {
     const lines = String(stamp.text || '').split('\n').slice(0, 5);
     const style = stamp.textStyle || 'plain';
-    const lineHeight = Math.max(31, Number(stamp.fontSize || 22) * 1.35);
+    const lineHeight = Math.max(31, Number(stamp.fontSize || 22) * Number(stamp.lineHeight || 1.35));
     const measuredWidth = Math.max(...lines.map((line) => ctx.measureText(line || ' ').width), 0);
     const boxWidth = Math.min(620, Math.max(230, measuredWidth + 48));
     const boxHeight = Math.max(62, lines.length * lineHeight + 22);
@@ -743,6 +798,7 @@ function drawStamp(ctx, stamp) {
   ctx.restore();
 }
 function boardActionBounds(action) {
+  if (action.kind === 'board-card' || action.kind === 'country-card') return { x: action.x || 0, y: action.y || 0, width: action.width || 620, height: action.height || 414 };
   if (action.kind === 'stroke') {
     const points = action.points || [];
     if (!points.length) return { x: 0, y: 0, width: 0, height: 0 };
@@ -754,13 +810,13 @@ function boardActionBounds(action) {
     const lines = String(action.text || '').split('\n').slice(0, 5);
     const fontSize = Number(action.fontSize || 22);
     const width = Math.min(620, Math.max(230, Math.max(...lines.map((line) => line.length), 1) * fontSize * 0.72 + 48));
-    return { x: action.x - width, y: action.y - 12, width, height: Math.max(62, lines.length * Math.max(31, fontSize * 1.35) + 22) };
+    return { x: action.x - width, y: action.y - 12, width, height: Math.max(62, lines.length * Math.max(31, fontSize * Number(action.lineHeight || 1.35)) + 22) };
   }
   return { x: action.x, y: action.y, width: 170, height: 115 };
 }
 
 function moveBoardAction(action, dx, dy) {
-  if (action.kind === 'stroke') return { ...action, points: (action.points || []).map((point) => ({ x: point.x + dx, y: point.y + dy })) };
+  if (action.kind === 'stroke') return { ...action, points: (action.points || []).map((point) => ({ ...point, x: point.x + dx, y: point.y + dy })) };
   return { ...action, x: action.x + dx, y: action.y + dy };
 }
 
@@ -827,6 +883,7 @@ function handwritingSnapshot(strokes = []) {
 }
 
 function drawBoardAction(ctx, action, selected = false) {
+  if (action.kind === 'board-card' || action.kind === 'country-card') return;
   if (action.kind === 'stroke') {
     ctx.save();
     ctx.lineCap = 'round';
@@ -835,12 +892,24 @@ function drawBoardAction(ctx, action, selected = false) {
     ctx.globalCompositeOperation = action.tool === 'eraser' ? 'destination-out' : 'source-over';
     ctx.strokeStyle = action.tool === 'eraser' ? 'rgba(0,0,0,1)' : action.color || '#111827';
     ctx.lineWidth = action.tool === 'eraser' ? 22 : action.tool === 'highlighter' ? 16 : action.width || 4;
-    ctx.beginPath();
-    (action.points || []).forEach((point, index) => {
-      if (index === 0) ctx.moveTo(point.x, point.y);
-      else ctx.lineTo(point.x, point.y);
-    });
-    ctx.stroke();
+    const points = action.points || [];
+    if (points.length === 1) {
+      ctx.beginPath();
+      ctx.arc(points[0].x, points[0].y, Math.max(1.5, ctx.lineWidth / 2), 0, Math.PI * 2);
+      ctx.fillStyle = action.tool === 'eraser' ? '#000' : action.color || '#111827';
+      ctx.fill();
+    } else if (points.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let index = 1; index < points.length - 1; index += 1) {
+        const point = points[index];
+        const next = points[index + 1];
+        ctx.quadraticCurveTo(point.x, point.y, (point.x + next.x) / 2, (point.y + next.y) / 2);
+      }
+      const last = points[points.length - 1];
+      ctx.lineTo(last.x, last.y);
+      ctx.stroke();
+    }
     ctx.restore();
   } else {
     drawStamp(ctx, action);
@@ -856,7 +925,247 @@ function drawBoardAction(ctx, action, selected = false) {
   }
 }
 
-function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, selectedActionId, template, zoom, boardRef, tool, selectedColor, strokeWidth, shapeKind, historicalSymbol, geographicalSymbol, arrowMode, textValue, textStyle, fontFamily, fontSize, boardReady, setBoardReady, hasResourceHeader = false }) {
+
+function BoardCardOverlay({ action, selected, onSelect, onChange }) {
+  const template = BOARD_CARD_TEMPLATE_MAP[action.templateKey];
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+  if (!template) return null;
+  const updateFields = () => {
+    const next = { ...(action.fields || {}) };
+    for (const field of template.fields) {
+      const current = String(next[field.key] ?? '');
+      const value = window.prompt(field.label, current);
+      if (value === null) return;
+      next[field.key] = value;
+    }
+    onChange({ ...action, fields: next });
+  };
+  const changeMedia = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange({ ...action, mediaDataUrl: String(reader.result || '') });
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+  const onMoveStart = (event) => {
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation(); onSelect(action.id);
+    const point = event.touches?.[0] || event;
+    dragRef.current = { x: point.clientX, y: point.clientY, startX: action.x, startY: action.y };
+    const onMove = (moveEvent) => {
+      if (!dragRef.current) return;
+      const p = moveEvent.touches?.[0] || moveEvent;
+      const host = event.currentTarget.parentElement?.getBoundingClientRect?.();
+      if (!host?.width || !host?.height) return;
+      const dx = ((p.clientX - dragRef.current.x) / host.width) * BOARD_CANVAS_WIDTH;
+      const dy = ((p.clientY - dragRef.current.y) / host.height) * BOARD_CANVAS_HEIGHT;
+      onChange({ ...action, x: Math.max(0, Math.min(BOARD_CANVAS_WIDTH - action.width, dragRef.current.startX + dx)), y: Math.max(0, Math.min(BOARD_CANVAS_HEIGHT - action.height, dragRef.current.startY + dy)) });
+    };
+    const onEnd = () => { dragRef.current = null; window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onEnd); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onEnd, { once: true });
+  };
+  const onResizeStart = (event) => {
+    event.preventDefault(); event.stopPropagation(); onSelect(action.id);
+    const host = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect?.();
+    const point = event.touches?.[0] || event;
+    resizeRef.current = { x: point.clientX, width: action.width };
+    const onMove = (moveEvent) => {
+      const p = moveEvent.touches?.[0] || moveEvent;
+      if (!resizeRef.current || !host?.width) return;
+      const delta = ((p.clientX - resizeRef.current.x) / host.width) * BOARD_CANVAS_WIDTH;
+      const width = Math.max(280, Math.min(1050, resizeRef.current.width + delta));
+      onChange({ ...action, width, height: width / template.ratio });
+    };
+    const onEnd = () => { resizeRef.current = null; window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onEnd); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onEnd, { once: true });
+  };
+  return (
+    <div
+      className={`board-card-overlay ${selected ? 'selected' : ''}`}
+      style={{ left: `${(action.x / BOARD_CANVAS_WIDTH) * 100}%`, top: `${(action.y / BOARD_CANVAS_HEIGHT) * 100}%`, width: `${(action.width / BOARD_CANVAS_WIDTH) * 100}%`, aspectRatio: String(template.ratio) }}
+      onPointerDown={onMoveStart}
+      onDoubleClick={(event) => { event.stopPropagation(); updateFields(); }}
+    >
+      <img src={template.asset} alt={template.label} draggable="false" />
+      {template.imageZone && action.mediaDataUrl && <img className="board-card-user-media" src={action.mediaDataUrl} alt="" draggable="false" style={{ left:`${template.imageZone.x}%`, top:`${template.imageZone.y}%`, width:`${template.imageZone.w}%`, height:`${template.imageZone.h}%`, borderRadius:`${template.imageZone.radius || 8}%` }} />}
+      {template.fields.map((field) => {
+        const value = String(action.fields?.[field.key] || '');
+        if (!value) return null;
+        return <div key={field.key} className={`board-card-field tone-${field.tone || 'ink'}`} style={{ left:`${field.x}%`, top:`${field.y}%`, width:`${field.w}%`, height:`${field.h}%`, fontSize:`clamp(10px, ${(field.size || 24) / BOARD_CANVAS_WIDTH * 100}vw, ${field.size || 24}px)` }}>{value.split('\\n').map((line, index) => <span key={index}>{line}</span>)}</div>;
+      })}
+      {selected && <div className="board-card-actions" onPointerDown={(event) => event.stopPropagation()}><button type="button" onClick={updateFields}>تعديل النص</button>{template.imageZone && <label className="board-card-media-button">تغيير الصورة<input type="file" accept="image/*" hidden onChange={changeMedia}/></label>}<span className="board-card-resize-handle" onPointerDown={onResizeStart} title="تغيير الحجم">↘</span></div>}
+    </div>
+  );
+}
+
+
+async function drawBoardCardToCanvas(ctx, action) {
+  const template = BOARD_CARD_TEMPLATE_MAP[action.templateKey];
+  if (!template) return;
+  const x = Number(action.x || 0); const y = Number(action.y || 0);
+  const width = Number(action.width || 650); const height = Number(action.height || width / template.ratio);
+  try {
+    const frame = await dataUrlToImage(template.asset);
+    ctx.drawImage(frame, x, y, width, height);
+  } catch { return; }
+  if (template.imageZone && action.mediaDataUrl) {
+    try {
+      const media = await dataUrlToImage(action.mediaDataUrl);
+      const z = template.imageZone;
+      const mx=x+width*z.x/100, my=y+height*z.y/100, mw=width*z.w/100, mh=height*z.h/100;
+      const scale=Math.max(mw/media.width,mh/media.height); const dw=media.width*scale, dh=media.height*scale;
+      ctx.save(); ctx.beginPath(); ctx.rect(mx,my,mw,mh); ctx.clip(); ctx.drawImage(media,mx+(mw-dw)/2,my+(mh-dh)/2,dw,dh); ctx.restore();
+    } catch { /* optional media */ }
+  }
+  ctx.save(); ctx.direction='rtl'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for (const field of template.fields) {
+    const value=String(action.fields?.[field.key] || '').trim(); if (!value) continue;
+    const fx=x+width*(field.x+field.w/2)/100; const fy=y+height*(field.y+field.h/2)/100;
+    const fw=width*field.w/100; const fh=height*field.h/100; const size=Math.max(12,(field.size||24)*(width/650));
+    if (field.tone==='ink') { ctx.fillStyle='rgba(255,246,220,.82)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#2e1609'; }
+    else if (field.tone==='brown') { ctx.fillStyle='rgba(115,61,14,.90)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#fff4c8'; }
+    else if (field.tone==='navy') { ctx.fillStyle='rgba(31,48,72,.94)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#fff3b7'; }
+    else if (field.tone==='gold') { ctx.fillStyle='rgba(39,26,18,.86)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#ffe68c'; }
+    else { ctx.fillStyle='rgba(84,43,10,.88)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#fff4c8'; }
+    ctx.font=`800 ${size}px 'Noto Naskh Arabic','Amiri','Traditional Arabic',serif`;
+    const lines=value.split(/\\n/).slice(0,6); const lineHeight=size*1.22; const startY=fy-((lines.length-1)*lineHeight)/2;
+    lines.forEach((line,index)=>ctx.fillText(line,fx,startY+index*lineHeight,fw-10));
+  }
+  ctx.restore();
+}
+
+
+const COUNTRY_CARD_STANDARD_FIELDS = Object.freeze([
+  { key: 'info1', label: 'المعلومة الأولى', x: 45, y: 32.5, w: 32, h: 9 },
+  { key: 'info2', label: 'المعلومة الثانية', x: 45, y: 43.0, w: 32, h: 9 },
+  { key: 'info3', label: 'المعلومة الثالثة', x: 45, y: 53.5, w: 32, h: 9 },
+  { key: 'info4', label: 'المعلومة الرابعة', x: 45, y: 64.0, w: 32, h: 9 },
+]);
+const COUNTRY_CARD_DEFAULT_FIELDS = Object.freeze([
+  { key: 'title', label: 'اسم الدولة', x: 29, y: 28, w: 43, h: 10, title: true },
+  { key: 'info1', label: 'المعلومة الأولى', x: 54, y: 47.5, w: 31, h: 8 },
+  { key: 'info2', label: 'المعلومة الثانية', x: 54, y: 57.5, w: 31, h: 8 },
+  { key: 'info3', label: 'المعلومة الثالثة', x: 54, y: 67.5, w: 31, h: 8 },
+  { key: 'info4', label: 'المعلومة الرابعة', x: 54, y: 77.2, w: 31, h: 8 },
+]);
+
+function countryCardFields(card) {
+  return card?.isDefault ? COUNTRY_CARD_DEFAULT_FIELDS : COUNTRY_CARD_STANDARD_FIELDS;
+}
+
+function countryCardFontSize(action, value, title = false) {
+  const width = Number(action.width || 650);
+  const base = title ? width * 0.052 : width * 0.036;
+  const length = String(value || '').trim().length;
+  const shrink = length > 42 ? 0.66 : length > 30 ? 0.76 : length > 20 ? 0.86 : 1;
+  return Math.max(title ? 16 : 13, Math.min(title ? 38 : 27, base * shrink));
+}
+
+function CountryCardOverlay({ action, selected, onSelect, onChange }) {
+  const card = COUNTRY_CARD_MAP[action.cardKey];
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+  if (!card) return null;
+  const fields = countryCardFields(card);
+  const onMoveStart = (event) => {
+    if (event.target?.closest?.('textarea,input,button,.country-card-resize-handle')) return;
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation(); onSelect(action.id);
+    const point = event.touches?.[0] || event;
+    dragRef.current = { x: point.clientX, y: point.clientY, startX: action.x, startY: action.y };
+    const host = event.currentTarget.parentElement?.getBoundingClientRect?.();
+    const onMove = (moveEvent) => {
+      if (!dragRef.current || !host?.width || !host?.height) return;
+      const p = moveEvent.touches?.[0] || moveEvent;
+      const dx = ((p.clientX - dragRef.current.x) / host.width) * BOARD_CANVAS_WIDTH;
+      const dy = ((p.clientY - dragRef.current.y) / host.height) * BOARD_CANVAS_HEIGHT;
+      onChange({
+        ...action,
+        x: Math.max(0, Math.min(BOARD_CANVAS_WIDTH - action.width, dragRef.current.startX + dx)),
+        y: Math.max(0, Math.min(BOARD_CANVAS_HEIGHT - action.height, dragRef.current.startY + dy)),
+      });
+    };
+    const onEnd = () => { dragRef.current = null; window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onEnd); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onEnd, { once: true });
+  };
+  const onResizeStart = (event) => {
+    event.preventDefault(); event.stopPropagation(); onSelect(action.id);
+    const host = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect?.();
+    resizeRef.current = { x: event.clientX, width: action.width };
+    const onMove = (moveEvent) => {
+      if (!resizeRef.current || !host?.width) return;
+      const delta = ((moveEvent.clientX - resizeRef.current.x) / host.width) * BOARD_CANVAS_WIDTH;
+      const width = Math.max(360, Math.min(1120, resizeRef.current.width + delta));
+      onChange({ ...action, width, height: width * 0.75 });
+    };
+    const onEnd = () => { resizeRef.current = null; window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onEnd); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onEnd, { once: true });
+  };
+  return (
+    <div
+      className={`board-card-overlay country-card-overlay ${selected ? 'selected' : ''}`}
+      style={{ left: `${(action.x / BOARD_CANVAS_WIDTH) * 100}%`, top: `${(action.y / BOARD_CANVAS_HEIGHT) * 100}%`, width: `${(action.width / BOARD_CANVAS_WIDTH) * 100}%`, aspectRatio: '4 / 3' }}
+      onPointerDown={onMoveStart}
+    >
+      <img src={card.asset} alt={card.name} draggable="false" />
+      {fields.map((field) => {
+        const value = String(action.fields?.[field.key] || '');
+        const style = { left:`${field.x}%`, top:`${field.y}%`, width:`${field.w}%`, height:`${field.h}%`, fontSize:`${countryCardFontSize(action, value || field.label, field.title)}px` };
+        if (selected) return <textarea key={field.key} className={`country-card-field-editor ${field.title ? 'title' : ''}`} dir="rtl" rows={1} value={value} placeholder={field.label} style={style} onPointerDown={(event) => event.stopPropagation()} onChange={(event) => onChange({ ...action, fields: { ...(action.fields || {}), [field.key]: event.target.value } })} />;
+        if (!value) return null;
+        return <div key={field.key} className={`country-card-field-text ${field.title ? 'title' : ''}`} style={style}>{value}</div>;
+      })}
+      {selected && <div className="country-card-actions" onPointerDown={(event) => event.stopPropagation()}><strong>{card.name}</strong><span className="country-card-resize-handle" onPointerDown={onResizeStart} title="تغيير الحجم">↘</span></div>}
+    </div>
+  );
+}
+
+function fitCountryCanvasText(ctx, value, maxWidth, requestedSize, fontFamily, weight = 800) {
+  let size = requestedSize;
+  const text = String(value || '').trim();
+  while (size > 11) {
+    ctx.font = `${weight} ${size}px ${fontFamily}`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size -= 1;
+  }
+  return size;
+}
+
+async function drawCountryCardToCanvas(ctx, action) {
+  const card = COUNTRY_CARD_MAP[action.cardKey];
+  if (!card) return;
+  const x = Number(action.x || 0); const y = Number(action.y || 0);
+  const width = Number(action.width || 690); const height = Number(action.height || width * 0.75);
+  try {
+    const image = await dataUrlToImage(card.asset);
+    ctx.drawImage(image, x, y, width, height);
+  } catch { return; }
+  ctx.save();
+  ctx.direction = 'rtl';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f8e7b0';
+  ctx.shadowColor = 'rgba(0,0,0,.78)';
+  ctx.shadowBlur = 3;
+  const family = "'Noto Naskh Arabic','Amiri','Traditional Arabic',serif";
+  for (const field of countryCardFields(card)) {
+    const value = String(action.fields?.[field.key] || '').trim();
+    if (!value) continue;
+    const fx = x + width * field.x / 100; const fy = y + height * field.y / 100;
+    const fw = width * field.w / 100; const fh = height * field.h / 100;
+    const requested = countryCardFontSize(action, value, field.title);
+    const size = fitCountryCanvasText(ctx, value, fw - 10, requested, family, field.title ? 900 : 800);
+    ctx.font = `${field.title ? 900 : 800} ${size}px ${family}`;
+    ctx.textAlign = field.title ? 'center' : 'right';
+    ctx.fillStyle = field.title ? '#ffe7a3' : '#f7e5ad';
+    const textX = field.title ? fx + fw / 2 : fx + fw - 4;
+    ctx.fillText(value, textX, fy + fh / 2, fw - 8);
+  }
+  ctx.restore();
+}
+
+function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, selectedActionId, template, zoom, boardRef, tool, selectedColor, strokeWidth, shapeKind, historicalSymbol, geographicalSymbol, arrowMode, textValue, textStyle, fontFamily, fontSize, fontWeight = 700, textPreset = 'explanation', boardReady, setBoardReady, hasResourceHeader = false, onAddCard, onAddCountryCard }) {
   const canvasRef = useRef(null);
   const currentStroke = useRef(null);
   const drawing = useRef(false);
@@ -908,6 +1217,7 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
   const onPointerDown = (event) => {
     if (!canvasRef.current) return;
     event.preventDefault();
+    try { event.currentTarget?.setPointerCapture?.(event.pointerId); } catch { /* Pointer capture is optional. */ }
     const point = getPoint(event);
     if (tool === 'select' || tool === 'move') {
       const action = findAction(point);
@@ -942,7 +1252,7 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
       tool,
       color: selectedColor,
       width: tool === 'highlighter' ? (strokeWidth || 4) * 2.5 : (strokeWidth || 4),
-      points: [point],
+      points: [{ ...point, pressure: Number(event.pressure || 0.5), t: Math.max(1, Math.round(Number(event.timeStamp || performance.now()))) }],
     };
   };
 
@@ -955,11 +1265,20 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
     }
     if (!drawing.current || !currentStroke.current) return;
     event.preventDefault();
-    currentStroke.current.points.push(getPoint(event));
+    const nativeEvent = event.nativeEvent || event;
+    const samples = nativeEvent.getCoalescedEvents?.() || [nativeEvent];
+    for (const sample of samples) {
+      const point = getPoint(sample);
+      const previous = currentStroke.current.points[currentStroke.current.points.length - 1];
+      if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) >= 1.2) {
+        currentStroke.current.points.push({ ...point, pressure: Number(sample.pressure || 0.5), t: Math.max(1, Math.round(Number(sample.timeStamp || performance.now()))) });
+      }
+    }
     render(currentStroke.current);
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (event) => {
+    try { event?.currentTarget?.releasePointerCapture?.(event.pointerId); } catch { /* Pointer capture may already be released. */ }
     if (moving.current) {
       moving.current = null;
       return;
@@ -984,16 +1303,37 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
       textStyle,
       fontFamily,
       fontSize,
-      fontWeight: 700,
+      fontWeight,
+      lineHeight: BOARD_TEXT_PRESET_MAP[textPreset]?.lineHeight || 1.35,
+      textPreset,
     });
     setTextEditor(null);
   };
 
   return (
-    <div ref={boardRef} className={`class-board-canvas-shell tool-${tool} board-theme-${template} ${hasResourceHeader ? 'has-resource-head' : ''}`} style={{ '--board-zoom': zoom }}>
+    <div
+      ref={boardRef}
+      className={`class-board-canvas-shell tool-${tool} board-theme-${template} ${hasResourceHeader ? 'has-resource-head' : ''}`}
+      style={{ '--board-zoom': zoom }}
+      onDragOver={(event) => {
+        const types = event.dataTransfer?.types || [];
+        if (types.includes('application/x-mobdea-board-card') || types.includes('application/x-mobdea-country-card')) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        const templateKey = event.dataTransfer?.getData('application/x-mobdea-board-card');
+        const countryKey = event.dataTransfer?.getData('application/x-mobdea-country-card');
+        if (!templateKey && !countryKey) return;
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * BOARD_CANVAS_WIDTH;
+        const y = ((event.clientY - rect.top) / rect.height) * BOARD_CANVAS_HEIGHT;
+        if (countryKey && onAddCountryCard) onAddCountryCard(countryKey, x, y);
+        else if (templateKey && onAddCard) onAddCard(templateKey, x, y);
+      }}
+    >
       {!hasResourceHeader && template === 'history' && (
         <div className="classmode-board-identity classmode-board-reference-identity" aria-hidden="true">
-          <img className="classmode-board-reference-image" src="/identity/class-board-history-reference.jpg" alt="" />
+          <img className="classmode-board-reference-image" src="/identity/class-board-history-v14.jpg" alt="" />
         </div>
       )}
       {!hasResourceHeader && ['geography', 'manuscript'].includes(template) && (
@@ -1006,22 +1346,24 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
       )}
       <canvas
         ref={canvasRef}
-        width={1536}
-        height={864}
+        width={BOARD_CANVAS_WIDTH}
+        height={BOARD_CANVAS_HEIGHT}
         className="class-board-canvas"
         style={hasResourceHeader || ['history', 'geography', 'manuscript'].includes(template) ? undefined : { ...boardBackground(template) }}
-        onMouseDown={onPointerDown}
-        onMouseMove={onPointerMove}
-        onMouseUp={onPointerUp}
-        onMouseLeave={onPointerUp}
-        onTouchStart={onPointerDown}
-        onTouchMove={onPointerMove}
-        onTouchEnd={onPointerUp}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onPointerLeave={(event) => { if (drawing.current) onPointerUp(event); }}
       />
+      <div className="board-card-layer" aria-label="البطاقات على السبورة">
+        {actions.filter((action) => action.kind === 'board-card').map((action) => <BoardCardOverlay key={action.id} action={action} selected={action.id === selectedActionId} onSelect={onSelectAction} onChange={onMoveAction} />)}
+        {actions.filter((action) => action.kind === 'country-card').map((action) => <CountryCardOverlay key={action.id} action={action} selected={action.id === selectedActionId} onSelect={onSelectAction} onChange={onMoveAction} />)}
+      </div>
       {textEditor && (
         <div
           className="classmode-inline-text-editor"
-          style={{ left: `${(textEditor.x / 1536) * 100}%`, top: `${(textEditor.y / 864) * 100}%` }}
+          style={{ left: `${(textEditor.x / BOARD_CANVAS_WIDTH) * 100}%`, top: `${(textEditor.y / BOARD_CANVAS_HEIGHT) * 100}%` }}
           onPointerDown={(event) => event.stopPropagation()}
         >
           <textarea
@@ -1034,7 +1376,7 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
               if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); commitTextEditor(); }
             }}
             placeholder="اكتب هنا…"
-            style={{ fontFamily, fontSize: `${Math.max(18, fontSize * .72)}px` }}
+            style={{ fontFamily, fontSize: `${Math.max(18, fontSize * .72)}px`, fontWeight }}
           />
           <div><button type="button" onClick={commitTextEditor}>إضافة</button><button type="button" onClick={() => setTextEditor(null)}>إلغاء</button></div>
         </div>
@@ -1235,7 +1577,8 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [boardText, setBoardText] = useState('');
   const [textStyle, setTextStyle] = useState('plain');
   const [fontFamily, setFontFamily] = useState(boardFontOptions[0].value);
-  const [fontSize, setFontSize] = useState(24);
+  const [fontSize, setFontSize] = useState(BOARD_TEXT_PRESET_MAP.explanation.size);
+  const [textPreset, setTextPreset] = useState('explanation');
   const [zoom, setZoom] = useState(1);
   const [mediaZoom, setMediaZoom] = useState(1);
   const resourcePageMemoryRef = useRef(new Map());
@@ -1243,14 +1586,84 @@ export default function ClassMode({ data, updateData, navigate }) {
   const appliedPreferredResourceRef = useRef('');
   const [boardReady, setBoardReady] = useState(false);
   const [handwritingBusy, setHandwritingBusy] = useState(false);
+  const [cardsDrawerOpen, setCardsDrawerOpen] = useState(false);
+  const [cardDrawerSection, setCardDrawerSection] = useState('education');
+  const [countryCategory, setCountryCategory] = useState('arab');
+  const [fontReady, setFontReady] = useState(true);
+  const [fontLoadFailed, setFontLoadFailed] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
   const canvasTool = TEXT_TOOL_STYLES[tool] ? 'text' : tool;
+  const activeTextPreset = BOARD_TEXT_PRESET_MAP[textPreset] || BOARD_TEXT_PRESET_MAP.explanation;
+  const fontWeight = activeTextPreset.weight;
+  const activeFontOption = boardFontOptions.find((item) => item.value === fontFamily) || boardFontOptions[0];
 
   useEffect(() => {
     if (!shareNotice) return undefined;
     const timer = window.setTimeout(() => setShareNotice(''), 4500);
     return () => window.clearTimeout(timer);
   }, [shareNotice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fonts = globalThis.document?.fonts;
+    if (!fonts?.load) return undefined;
+    const exactFamily = `"${activeFontOption.probe}"`;
+    const fontSpec = `${fontWeight} ${fontSize}px ${exactFamily}`;
+    setFontReady(false);
+    setFontLoadFailed(false);
+    Promise.resolve(fonts.load(fontSpec, 'المبدع تاريخ وجغرافيا'))
+      .then((loadedFaces) => {
+        if (cancelled) return;
+        const loaded = (Array.isArray(loadedFaces) ? loadedFaces.length > 0 : true) && Boolean(fonts.check?.(fontSpec) ?? true);
+        setFontReady(loaded);
+        setFontLoadFailed(!loaded);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFontReady(false);
+          setFontLoadFailed(true);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [activeFontOption.probe, fontFamily, fontSize, fontWeight]);
+
+  const updateSelectedTextFormatting = (patch) => {
+    if (!selectedBoardActionId) return;
+    setBoardActions((currentActions) => currentActions.map((action) =>
+      action.id === selectedBoardActionId && action.kind === 'text' ? { ...action, ...patch } : action
+    ));
+    setRedoStack([]);
+  };
+
+  const selectTextPreset = (key) => {
+    const preset = BOARD_TEXT_PRESET_MAP[key] || BOARD_TEXT_PRESET_MAP.explanation;
+    setTextPreset(preset.key);
+    setFontSize(preset.size);
+    updateSelectedTextFormatting({
+      textPreset: preset.key,
+      fontSize: preset.size,
+      fontWeight: preset.weight,
+      lineHeight: preset.lineHeight,
+    });
+  };
+
+  const selectBoardFont = (value) => {
+    setFontFamily(value);
+    updateSelectedTextFormatting({ fontFamily: value });
+  };
+
+  const selectBoardAction = (id) => {
+    setSelectedBoardActionId(id);
+    if (!id) return;
+    const action = boardActions.find((item) => item.id === id);
+    if (action?.kind !== 'text') return;
+    if (action.fontFamily) setFontFamily(action.fontFamily);
+    const preset = BOARD_TEXT_PRESET_MAP[action.textPreset] || BOARD_TEXT_PRESETS.find((item) => item.size === Number(action.fontSize));
+    if (preset) {
+      setTextPreset(preset.key);
+      setFontSize(preset.size);
+    }
+  };
 
   useEffect(() => {
     if (!lastPraise) return undefined;
@@ -1513,9 +1926,10 @@ export default function ClassMode({ data, updateData, navigate }) {
   };
 
   const composeBoardImage = async () => {
+    try { await document.fonts?.ready; } catch { /* Export still works with the declared fallback fonts. */ }
     const canvas = document.createElement('canvas');
     canvas.width = 1200;
-    canvas.height = 720;
+    canvas.height = contentMode === 'board' ? 800 : 720;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#f6f0e1';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1540,11 +1954,13 @@ export default function ClassMode({ data, updateData, navigate }) {
     // Draw ink on a transparent layer so the eraser removes annotations only;
     // it must never punch transparent holes through the PDF/image/board base.
     const inkCanvas = document.createElement('canvas');
-    inkCanvas.width = canvas.width;
-    inkCanvas.height = canvas.height;
+    inkCanvas.width = BOARD_CANVAS_WIDTH;
+    inkCanvas.height = BOARD_CANVAS_HEIGHT;
     const inkContext = inkCanvas.getContext('2d');
-    boardActions.forEach((action) => drawBoardAction(inkContext, action, false));
-    ctx.drawImage(inkCanvas, 0, 0);
+    boardActions.filter((action) => !['board-card', 'country-card'].includes(action.kind)).forEach((action) => drawBoardAction(inkContext, action, false));
+    for (const card of boardActions.filter((action) => action.kind === 'board-card')) await drawBoardCardToCanvas(inkContext, card);
+    for (const card of boardActions.filter((action) => action.kind === 'country-card')) await drawCountryCardToCanvas(inkContext, card);
+    ctx.drawImage(inkCanvas, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/png');
   };
 
@@ -2344,6 +2760,9 @@ export default function ClassMode({ data, updateData, navigate }) {
       const last = currentActions[currentActions.length - 1];
       setRedoStack((redo) => [last, ...redo]);
       setSelectedBoardActionId(null);
+      if (last.kind === 'text' && Array.isArray(last.handwritingSourceStrokes) && last.handwritingSourceStrokes.length) {
+        return [...currentActions.slice(0, -1), ...last.handwritingSourceStrokes];
+      }
       return currentActions.slice(0, -1);
     });
   };
@@ -2352,7 +2771,13 @@ export default function ClassMode({ data, updateData, navigate }) {
     setRedoStack((currentRedo) => {
       if (!currentRedo.length) return currentRedo;
       const [next, ...rest] = currentRedo;
-      setBoardActions((currentActions) => [...currentActions, next]);
+      setBoardActions((currentActions) => {
+        if (next.kind === 'text' && Array.isArray(next.handwritingSourceStrokes) && next.handwritingSourceStrokes.length) {
+          const sourceIds = new Set(next.handwritingSourceStrokes.map((stroke) => stroke.id));
+          return [...currentActions.filter((action) => !sourceIds.has(action.id)), next];
+        }
+        return [...currentActions, next];
+      });
       return rest;
     });
   };
@@ -2367,7 +2792,7 @@ export default function ClassMode({ data, updateData, navigate }) {
     if (handwritingBusy) return;
     const strokes = recentHandwritingStrokes(boardActions);
     if (!strokes.length) {
-      setShareNotice('اكتب كلمة أو جملة بالقلم أولًا، ثم اضغط «تنسيق خط اليد».');
+      setShareNotice('اكتب كلمة أو جملة بالقلم أولًا، ثم اضغط «تصحيح خط اليد».');
       return;
     }
     const snapshot = handwritingSnapshot(strokes);
@@ -2376,38 +2801,37 @@ export default function ClassMode({ data, updateData, navigate }) {
       return;
     }
     setHandwritingBusy(true);
-    setShareNotice('جارٍ قراءة خط اليد وتحويله إلى نص…');
+    setShareNotice('جارٍ قراءة خط اليد وتنظيمه…');
     try {
-      const result = await recognizeHandwritingDataUrl(snapshot.dataUrl, {
+      const result = await recognizeHandwritingStrokes(strokes, snapshot.dataUrl, {
         onProgress: (progress) => {
           if (progress?.status === 'recognizing text' && Number.isFinite(progress.progress)) {
             setShareNotice(`جارٍ قراءة خط اليد… ${Math.round(progress.progress * 100)}%`);
           }
         },
       });
-      const initial = String(result?.text || '').replace(/\s+/g, ' ').trim();
-      const reviewed = window.prompt('راجع النص الذي تم التعرف عليه قبل وضعه على السبورة:', initial);
-      if (reviewed === null) {
-        setShareNotice('تم إلغاء تحويل خط اليد.');
+      const text = String(result?.text || '').replace(/\s+/g, ' ').trim();
+      const confidence = result?.confidence == null ? null : Number(result.confidence);
+      if (!text || (Number.isFinite(confidence) && confidence < 22)) {
+        setShareNotice('التعرّف لم يكن واضحًا بما يكفي؛ أبقيت خط اليد كما هو حتى لا يضيع كلامك.');
         return;
       }
-      const text = String(reviewed || '').trim();
-      if (!text) {
-        setShareNotice('لم يتعرف المحرك على نص واضح. جرّب كتابة أكبر أو أوضح.');
-        return;
-      }
-      try { await document.fonts?.load?.(`700 ${fontSize}px ${fontFamily}`); } catch { /* browser will use the declared fallback */ }
+      try { await document.fonts?.load?.(`${fontWeight} ${fontSize}px ${fontFamily}`, text); } catch { /* keep the declared fallback */ }
       const nextAction = {
         id: Date.now() + Math.random(),
         kind: 'text',
         text,
-        x: Math.min(1510, snapshot.bounds.maxX),
+        x: Math.min(BOARD_CANVAS_WIDTH - 24, snapshot.bounds.maxX),
         y: Math.max(20, snapshot.bounds.minY),
         color: annotationColor,
         fontSize,
         fontFamily,
-        fontWeight: 700,
+        fontWeight,
+        lineHeight: activeTextPreset.lineHeight,
+        textPreset,
         textStyle: 'plain',
+        handwritingConfidence: Number.isFinite(confidence) ? confidence : null,
+        handwritingSourceStrokes: strokes.map((stroke) => ({ ...stroke, points: (stroke.points || []).map((point) => ({ ...point })) })),
       };
       setBoardActions((current) => [
         ...current.filter((action) => !snapshot.ids.has(action.id)),
@@ -2416,25 +2840,12 @@ export default function ClassMode({ data, updateData, navigate }) {
       setSelectedBoardActionId(null);
       setRedoStack([]);
       setTextStyle('plain');
-      setTool('normal-text');
-      setShareNotice(`تم تحويل خط اليد إلى نص منسق بخط «${boardFontOptions.find((item) => item.value === fontFamily)?.label || 'الخط المختار'}».`);
+      setTool('pen');
+      const presetLabel = activeTextPreset.label;
+      const fontLabel = boardFontOptions.find((item) => item.value === fontFamily)?.label || 'الخط المختار';
+      setShareNotice(`تم تنسيق خط اليد كنمط «${presetLabel}» بخط «${fontLabel}»${Number.isFinite(confidence) ? ` — دقة ${Math.round(confidence)}%` : ''}.`);
     } catch (error) {
-      const manual = window.prompt('تعذر التعرف التلقائي على المتصفح. اكتب النص مرة واحدة ليتم تنسيقه بالخط المختار:', '');
-      if (manual?.trim()) {
-        const text = manual.trim();
-        const nextAction = {
-          id: Date.now() + Math.random(), kind: 'text', text,
-          x: Math.min(1510, snapshot.bounds.maxX), y: Math.max(20, snapshot.bounds.minY),
-          color: annotationColor, fontSize, fontFamily, fontWeight: 700, textStyle: 'plain',
-        };
-        setBoardActions((current) => [...current.filter((action) => !snapshot.ids.has(action.id)), nextAction]);
-        setSelectedBoardActionId(null);
-        setRedoStack([]);
-        setTool('normal-text');
-        setShareNotice('تم تنسيق النص بالخط المختار.');
-      } else {
-        setShareNotice(error?.message || 'تعذر تحويل خط اليد.');
-      }
+      setShareNotice(error?.message || 'تعذر تحويل خط اليد. أبقيت الكتابة الأصلية كما هي.');
     } finally {
       setHandwritingBusy(false);
     }
@@ -2451,6 +2862,50 @@ export default function ClassMode({ data, updateData, navigate }) {
     setTextStyle(style);
     setTool(TEXT_STYLE_TO_TOOL[style] || 'normal-text');
     setSelectedBoardActionId(null);
+  };
+
+  const addBoardCard = (templateKey, dropX = BOARD_CANVAS_WIDTH / 2, dropY = BOARD_CANVAS_HEIGHT / 2) => {
+    const template = BOARD_CARD_TEMPLATE_MAP[templateKey];
+    if (!template) return;
+    const width = template.ratio < 1 ? 390 : 650;
+    const height = width / template.ratio;
+    const fields = Object.fromEntries(template.fields.map((field) => [field.key, '']));
+    const next = {
+      id: Date.now() + Math.random(), kind: 'board-card', templateKey, fields,
+      width, height,
+      x: Math.max(0, Math.min(BOARD_CANVAS_WIDTH - width, dropX - width / 2)),
+      y: Math.max(0, Math.min(BOARD_CANVAS_HEIGHT - height, dropY - height / 2)),
+    };
+    setBoardActions((current) => [...current, next]);
+    setSelectedBoardActionId(next.id);
+    setRedoStack([]);
+    setTool('select');
+    setTextStyle('plain');
+    setCardsDrawerOpen(false);
+  };
+
+  const addCountryCard = (cardKey, dropX = BOARD_CANVAS_WIDTH / 2, dropY = BOARD_CANVAS_HEIGHT / 2) => {
+    const card = COUNTRY_CARD_MAP[cardKey];
+    if (!card) return;
+    const width = 690;
+    const height = width * 0.75;
+    const fields = { info1: '', info2: '', info3: '', info4: '' };
+    if (card.isDefault) fields.title = '';
+    const next = {
+      id: Date.now() + Math.random(),
+      kind: 'country-card',
+      cardKey,
+      fields,
+      width,
+      height,
+      x: Math.max(0, Math.min(BOARD_CANVAS_WIDTH - width, dropX - width / 2)),
+      y: Math.max(0, Math.min(BOARD_CANVAS_HEIGHT - height, dropY - height / 2)),
+    };
+    setBoardActions((current) => [...current, next]);
+    setSelectedBoardActionId(next.id);
+    setRedoStack([]);
+    setTool('select');
+    setCardsDrawerOpen(false);
   };
 
   const handleBoardAction = (action) => {
@@ -2615,6 +3070,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                 <LayoutGrid size={17} /><span>{boardControlsOpen ? 'إخفاء الأدوات' : 'أدوات السبورة'}</span>
               </button>
             )}
+            {contentMode === 'board' && <button type="button" className={`classmode-card-drawer-toggle ${cardsDrawerOpen ? 'active' : ''}`} onClick={() => setCardsDrawerOpen((value) => !value)} title="البطاقات التعليمية"><StickyNote size={17}/><span>البطاقات</span></button>}
             <button
               type="button"
               className={`classmode-board-focus-toggle classmode-stage-focus-toggle ${stageFocus ? 'active' : ''}`}
@@ -2623,15 +3079,44 @@ export default function ClassMode({ data, updateData, navigate }) {
             >
               <Maximize2 size={17} /><span>{stageFocus ? 'عودة للحصة' : contentMode === 'board' ? 'ملء السبورة' : 'ملء العرض'}</span>
             </button>
+            {contentMode === 'board' && cardsDrawerOpen && <aside className="classmode-card-drawer" aria-label="قائمة بطاقات السبورة">
+              <div className="classmode-card-drawer-head"><div><strong>{cardDrawerSection === 'countries' ? 'بطاقات الدول' : 'البطاقات التعليمية'}</strong><small>اسحب البطاقة إلى السبورة أو اضغط لإضافتها في المنتصف</small></div><button type="button" onClick={() => setCardsDrawerOpen(false)} aria-label="إغلاق"><X size={18}/></button></div>
+              <div className="classmode-card-drawer-tabs" role="tablist" aria-label="نوع البطاقات">
+                <button type="button" className={cardDrawerSection === 'education' ? 'active' : ''} onClick={() => setCardDrawerSection('education')}>بطاقات تعليمية</button>
+                <button type="button" className={cardDrawerSection === 'countries' ? 'active' : ''} onClick={() => setCardDrawerSection('countries')}>بطاقات الدول</button>
+              </div>
+              {cardDrawerSection === 'education' ? (
+                <div className="classmode-card-drawer-list">
+                  {BOARD_CARD_TEMPLATES.map((card) => <button
+                    key={card.key}
+                    type="button"
+                    className="classmode-card-template-item"
+                    draggable
+                    onDragStart={(event) => { event.dataTransfer.setData('application/x-mobdea-board-card', card.key); event.dataTransfer.effectAllowed = 'copy'; }}
+                    onClick={() => addBoardCard(card.key)}
+                  ><img src={card.asset} alt=""/><span>{card.label}</span></button>)}
+                </div>
+              ) : (
+                <>
+                  <div className="country-card-category-tabs" role="tablist" aria-label="تصنيفات بطاقات الدول">
+                    {COUNTRY_CARD_CATEGORIES.map((category) => <button key={category.key} type="button" className={countryCategory === category.key ? 'active' : ''} onClick={() => setCountryCategory(category.key)}>{category.label}</button>)}
+                  </div>
+                  <div className="classmode-card-drawer-list country-card-drawer-list">
+                    <button type="button" className="classmode-card-template-item country-card-template-item default" draggable onDragStart={(event) => { event.dataTransfer.setData('application/x-mobdea-country-card', DEFAULT_COUNTRY_CARD.key); event.dataTransfer.effectAllowed = 'copy'; }} onClick={() => addCountryCard(DEFAULT_COUNTRY_CARD.key)}><img src={DEFAULT_COUNTRY_CARD.asset} alt=""/><span>بطاقة افتراضية</span></button>
+                    {countryCardsForCategory(countryCategory).map((card) => <button key={card.key} type="button" className="classmode-card-template-item country-card-template-item" draggable onDragStart={(event) => { event.dataTransfer.setData('application/x-mobdea-country-card', card.key); event.dataTransfer.effectAllowed = 'copy'; }} onClick={() => addCountryCard(card.key)}><img src={card.asset} alt=""/><span>{card.name}</span></button>)}
+                  </div>
+                </>
+              )}
+            </aside>}
             <div className={`classmode-board-surface ${boardToolsVisible ? 'with-tools' : ''}`}>
               {boardToolsVisible && <div className={`classmode-board-sidebar-left ${contentMode !== 'board' ? 'media-annotation-tools' : ''}`}>
                 {toolOptions.map(({ key, label, icon: Icon }) => (
                   <button key={key} type="button" className={tool === key ? 'active' : ''} onClick={() => activateBoardTool(key)} title={label}><Icon size={19} /><span>{label}</span></button>
                 ))}
-                {contentMode === 'board' && <button type="button" className="classmode-handwriting-polish" onClick={convertRecentHandwriting} disabled={handwritingBusy} title="حوّل آخر كتابة بالقلم إلى نص منسق بالخط المختار"><Sparkles size={19}/><span>{handwritingBusy ? 'جارٍ التحويل…' : 'تنسيق خط اليد'}</span></button>}
+                {contentMode === 'board' && <button type="button" className="classmode-handwriting-polish" onClick={convertRecentHandwriting} disabled={handwritingBusy} title="حوّل آخر كتابة بالقلم إلى نص منسق بالخط المختار"><Sparkles size={19}/><span>{handwritingBusy ? 'جارٍ التحويل…' : 'تصحيح خط اليد'}</span></button>}
                 <div className="classmode-left-toolbar-divider" />
                 <button type="button" onClick={() => contentMode === 'board' ? setZoom((value) => Math.min(2, value + 0.15)) : setMediaZoom((value) => Math.min(2.5, Number((value + 0.15).toFixed(2))))} title="تكبير"><ZoomIn size={19} /><span>تكبير</span></button>
-                <button type="button" onClick={() => contentMode === 'board' ? setZoom((value) => Math.max(1, value - 0.15)) : setMediaZoom((value) => Math.max(1, Number((value - 0.15).toFixed(2))))} title="تصغير"><ZoomOut size={19} /><span>تصغير</span></button>
+                <button type="button" onClick={() => contentMode === 'board' ? setZoom((value) => Math.max(0.75, Number((value - 0.15).toFixed(2)))) : setMediaZoom((value) => Math.max(1, Number((value - 0.15).toFixed(2))))} title="تصغير"><ZoomOut size={19} /><span>تصغير</span></button>
                 <button type="button" onClick={undoBoard} title="تراجع"><Undo2 size={19} /><span>تراجع</span></button>
                 <button type="button" onClick={redoBoard} title="إعادة"><Redo2 size={19} /><span>إعادة</span></button>
                 <button type="button" onClick={saveBoard} title="حفظ"><Save size={19} /><span>حفظ</span></button>
@@ -2736,7 +3221,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                   actions={boardActions}
                   onDrawAction={handleBoardAction}
                   onMoveAction={moveBoardActionHandler}
-                  onSelectAction={setSelectedBoardActionId}
+                  onSelectAction={selectBoardAction}
                   selectedActionId={selectedBoardActionId}
                   template={boardTemplate}
                   zoom={contentMode === 'board' ? zoom : 1}
@@ -2753,9 +3238,13 @@ export default function ClassMode({ data, updateData, navigate }) {
                   textStyle={textStyle}
                   fontFamily={fontFamily}
                   fontSize={fontSize}
+                  fontWeight={fontWeight}
+                  textPreset={textPreset}
                   boardReady={boardReady}
                   setBoardReady={setBoardReady}
                   hasResourceHeader={Boolean(displayResource)}
+                  onAddCard={addBoardCard}
+                  onAddCountryCard={addCountryCard}
                 />}
                 </>
                 )}              </div>
@@ -2775,38 +3264,16 @@ export default function ClassMode({ data, updateData, navigate }) {
                 <option value={6}>6px</option>
                 <option value={10}>10px</option>
               </select>
-              <select className="classmode-font-select" value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="نوع الخط العربي الحقيقي">
+              <select className="classmode-font-select" value={fontFamily} onChange={(e) => selectBoardFont(e.target.value)} title="نوع الخط العربي الحقيقي">
                 {boardFontOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
-              <select value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} title="حجم النص">
-                <option value={20}>20</option>
-                <option value={24}>24</option>
-                <option value={30}>30</option>
-                <option value={38}>38</option>
-                <option value={48}>48</option>
-              </select>
+              <span className={`classmode-font-status ${fontReady ? 'ready' : fontLoadFailed ? 'failed' : 'loading'}`} title={fontReady ? 'نوع الخط المحدد محمّل فعليًا' : fontLoadFailed ? 'تعذر تحميل نوع الخط؛ يظهر خط بديل مؤقتًا' : 'جارٍ تحميل نوع الخط المحدد'}>{fontReady ? '✓ الخط فعلي' : fontLoadFailed ? '⚠ خط بديل' : '… تحميل الخط'}</span>
             </div>
             <div className="classmode-tool-group compact classmode-text-style-row">
-              <button className={textStyle === 'plain' && tool === 'normal-text' ? 'active' : ''} onClick={() => activateStyledText('plain')} type="button"><Type size={15} /> كتابة عادية</button>
-              <button className="classmode-handwriting-polish" onClick={convertRecentHandwriting} disabled={handwritingBusy} type="button" title="تحويل آخر خط يد إلى كتابة مطبوعة"><Sparkles size={15}/>{handwritingBusy ? 'جارٍ القراءة…' : 'تنسيق خط اليد'}</button>
-              <button className={textStyle === 'historical' ? 'active' : ''} onClick={() => activateStyledText('historical')} type="button"><BookOpen size={15} /> مصطلح تاريخي</button>
-              <button className={textStyle === 'geography' ? 'active' : ''} onClick={() => activateStyledText('geography')} type="button"><MapIcon size={15} /> مصطلح جغرافي</button>
-              <button className={textStyle === 'event' ? 'active' : ''} onClick={() => activateStyledText('event')} type="button"><Clock size={15} /> حدث مهم</button>
-              <button className={textStyle === 'date' ? 'active' : ''} onClick={() => activateStyledText('date')} type="button"><CircleDot size={15} /> تاريخ</button>
-              <button className={textStyle === 'person' ? 'active' : ''} onClick={() => activateStyledText('person')} type="button"><Users size={15} /> شخصية</button>
-              <button className={textStyle === 'place' ? 'active' : ''} onClick={() => activateStyledText('place')} type="button"><MapIcon size={15} /> مكان</button>
-              <button className={textStyle === 'definition' ? 'active' : ''} onClick={() => activateStyledText('definition')} type="button"><BookOpen size={15} /> تعريف</button>
-              <button className={textStyle === 'note' ? 'active' : ''} onClick={() => activateStyledText('note')} type="button"><StickyNote size={15} /> ملاحظة</button>
-            </div>
-            <div className="classmode-tool-group compact classmode-historical-symbol-row" aria-label="رموز تاريخية مجسمة">
-              {historicalSymbolOptions.map((item) => (
-                <button key={item.key} className={tool === 'historical-symbol' && historicalSymbol === item.key ? 'active' : ''} onClick={() => { setHistoricalSymbol(item.key); activateBoardTool('historical-symbol'); }} type="button"><Sparkles size={14}/>{item.label}</button>
-              ))}
-            </div>
-            <div className="classmode-tool-group compact classmode-geographical-symbol-row" aria-label="رموز جغرافية مجسمة">
-              {geographicalSymbolOptions.map((item) => (
-                <button key={item.key} className={tool === 'geographical-symbol' && geographicalSymbol === item.key ? 'active' : ''} onClick={() => { setGeographicalSymbol(item.key); activateBoardTool('geographical-symbol'); }} type="button"><MapIcon size={14}/>{item.label}</button>
-              ))}
+              {BOARD_TEXT_PRESETS.map((preset) => <button key={preset.key} className={textPreset === preset.key ? 'active' : ''} onClick={() => selectTextPreset(preset.key)} type="button" title={`حجم ${preset.label}: ${preset.size}px`}>{preset.label}</button>)}
+              <button className={textStyle === 'plain' && tool === 'normal-text' ? 'active' : ''} onClick={() => activateStyledText('plain')} type="button"><Type size={15} /> كتابة نصية</button>
+              <button className="classmode-handwriting-polish" onClick={convertRecentHandwriting} disabled={handwritingBusy} type="button" title="تحويل آخر خط يد إلى نص منظم بالحجم والنوع المختارين"><Sparkles size={15}/>{handwritingBusy ? 'جارٍ القراءة…' : 'تصحيح خط اليد'}</button>
+              <button type="button" className={`classmode-open-card-drawer ${cardsDrawerOpen ? 'active' : ''}`} onClick={() => setCardsDrawerOpen(true)}><StickyNote size={15}/> البطاقات</button>
             </div>
             <div className="classmode-tool-group compact">
               {boardTemplates.map(({ key, label, icon: Icon }) => (
@@ -3123,9 +3590,9 @@ export default function ClassMode({ data, updateData, navigate }) {
         </div>
       </ClassModeViewport.Footer>
       <ClassModeViewport.Overlays>
-        {(lastPraise || shareNotice) && (
-          <div className={`spoken-banner ${lastPraise ? 'is-voice' : 'is-notice'}`} role="status" aria-live="polite">
-            <span>{lastPraise ? `🔊 ${lastPraise}` : shareNotice}</span>
+        {lastPraise && (
+          <div className="spoken-banner is-voice" role="status" aria-live="polite">
+            <span>{`🔊 ${lastPraise}`}</span>
             <button type="button" onClick={() => { setLastPraise(''); setShareNotice(''); }} aria-label="إغلاق الرسالة"><X size={15} /></button>
           </div>
         )}

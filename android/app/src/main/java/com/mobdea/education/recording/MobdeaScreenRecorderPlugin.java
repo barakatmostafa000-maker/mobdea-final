@@ -73,15 +73,7 @@ public class MobdeaScreenRecorderPlugin extends Plugin {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             getContext().registerReceiver(resultReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-            getContext().registerReceiver(
-                resultReceiver,
-                filter,
-                android.content.Context.RECEIVER_NOT_EXPORTED
-            );
-        } else {
             getContext().registerReceiver(resultReceiver, filter);
-        }
         }
         receiverRegistered = true;
     }

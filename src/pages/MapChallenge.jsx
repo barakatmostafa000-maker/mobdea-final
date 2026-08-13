@@ -36,6 +36,7 @@ import { identity } from '../config/identity';
 import { encourageStudent } from '../services/voice';
 import { calculateMapReward, normalizeMapAnswer, shuffleMapItems } from '../utils/mapChallenge';
 import ProfessionalMap, { GeographyGlyph } from '../components/maps/ProfessionalMap';
+import { MAP_RIVER_LINES } from '../data/mapEnrichment';
 import {
   GEOGRAPHY_REGIONS,
   GEOGRAPHY_LAYERS,
@@ -76,7 +77,7 @@ const modeConfig = {
   contest: { label: 'البطولات', icon: Trophy, seconds: 20, lives: 2, multiplier: 1.5, description: 'أقصى سرعة ومكافآت أعلى' },
 };
 
-const buildPaletteIds = new Set(['mountains', 'plateaus', 'plains', 'river', 'desert', 'capital', 'city', 'pin', 'latitude', 'longitude', 'population-low', 'population-medium', 'population-high']);
+const buildPaletteIds = new Set(['terrain-single-mountain', 'terrain-mountain-range', 'terrain-plateau', 'water-river', 'terrain-desert', 'human-capital', 'human-city', 'map-marker', 'map-direction-arrow', 'population-low-density', 'population-medium-density', 'population-high-density', 'border-international']);
 const buildPalette = GEOGRAPHY_SYMBOLS.filter((item) => buildPaletteIds.has(item.id));
 
 export default function MapChallenge({ data, updateData, navigate }) {
@@ -103,6 +104,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const [mapDrawColor, setMapDrawColor] = useState('#ef4444');
   const [mapStrokes, setMapStrokes] = useState([]);
   const [selectedBuildItem, setSelectedBuildItem] = useState(null);
+  const [selectedBuildPlacementId, setSelectedBuildPlacementId] = useState('');
   const [nameAnswer, setNameAnswer] = useState('');
   const mapCanvasRef = useRef(null);
   const mapDrawing = useRef(false);
@@ -116,6 +118,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const project = useMemo(() => createMapProjector(regionKey), [regionKey]);
   const countries = useMemo(() => getRegionCountries(geo, regionKey), [geo, regionKey]);
   const items = useMemo(() => getRegionLayerItems(geo, regionKey, layerKey), [geo, countries, layerKey, regionKey]);
+  const riverLines = useMemo(() => MAP_RIVER_LINES[regionKey] || [], [regionKey]);
   const activeConfig = modeConfig[mode];
   const target = order[index] || null;
   const progress = mode === 'build'
@@ -283,8 +286,9 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
   const addBuildPlacement = (item, x, y) => {
     if (!item) return;
-    const placement = { ...item, id: `${item.id}-${Date.now()}`, showLabel: false, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+    const placement = { ...item, id: `${item.id}-${Date.now()}`, showLabel: false, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)), size: 1 };
     setPlacements((current) => [...current, placement]);
+    setSelectedBuildPlacementId(placement.id);
     setSelectedBuildItem(null);
     setScore((value) => value + 25);
     setMessage(`تم وضع ${item.label} على الخريطة`);
@@ -367,7 +371,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const recentBest = Math.max(0, ...(data?.mapResults || []).map((result) => Number(result.score || 0)));
 
   return (
-    <section className="page map-challenge-pro map-game-v103">
+    <section className="page map-challenge-pro map-game-v103 map-game-v11">
       <header className="map-game-topbar">
         <div className="map-player-profile"><img src={identity.portrait} alt={identity.teacherName}/><div><strong>{identity.teacherName}</strong><small>مستوى الجغرافيا 12</small></div></div>
         <div className="map-game-counters"><span>🪙 <b>{score}</b></span><span>⭐ <b>{streak * 5}</b></span><span>⚡ <b>{Math.max(0, Math.round((lives / activeConfig.lives) * 100))}/100</b></span></div>
@@ -377,7 +381,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
       <div className="map-game-layout">
         <aside className="map-game-nav">
           <div className="map-game-brand"><img src={identity.logo || identity.icon} alt={identity.schoolName}/><strong>تحدي الخرائط</strong></div>
-          <nav>{modeNav.map(([key, item]) => { const Icon = item.icon; return <button type="button" key={key} className={mode === key ? 'active' : ''} onClick={() => { setMode(key); setStarted(false); setSelectedBuildItem(null); setMessage(''); }}><Icon size={19}/><span>{item.label}</span></button>; })}</nav>
+          <nav>{modeNav.map(([key, item]) => { const Icon = item.icon; return <button type="button" key={key} className={mode === key ? 'active' : ''} onClick={() => { setMode(key); setStarted(false); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage(''); }}><Icon size={19}/><span>{item.label}</span></button>; })}</nav>
           <div className="map-game-secondary-nav">
             <button type="button" onClick={() => setMessage(`أفضل نتيجة مسجلة: ${recentBest} نقطة`)}><Medal size={18}/>الإنجازات</button>
             <button type="button" onClick={() => navigate?.('studentCards')}><BadgeCheck size={18}/>كروت الطلاب</button>
@@ -388,7 +392,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
         <main className="map-game-main">
           <div className="map-game-toolbar">
-            <div className="map-region-tabs map-region-tabs-core">{coreRegionKeys.map((key) => { const item = regions[key]; return <button key={key} type="button" className={regionKey === key ? 'active' : ''} onClick={() => { setRegionKey(key); setStarted(false); setSelectedBuildItem(null); setMessage(''); }}><span className={`region-mini-map region-${key}`} aria-hidden="true"/><b>{item.title}</b></button>; })}</div>
+            <div className="map-region-tabs map-region-tabs-core">{coreRegionKeys.map((key) => { const item = regions[key]; return <button key={key} type="button" className={regionKey === key ? 'active' : ''} onClick={() => { setRegionKey(key); setStarted(false); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage(''); }}><span className={`region-mini-map region-${key}`} aria-hidden="true"/><b>{item.title}</b></button>; })}</div>
             <div className="map-view-tools">
               <button type="button" className={silentMap ? 'active' : ''} onClick={() => { setSilentMap((value) => !value); setLabels(false); }} title="خريطة صماء">صماء</button>
               <button type="button" className={!silentMap && mapStyle === 'relief' ? 'active' : ''} onClick={() => { setSilentMap(false); setMapStyle('relief'); }} title="مظهر طبيعي مجسم">طبيعية</button>
@@ -402,7 +406,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
           <div className="map-game-canvas-shell">
             {!geo && <div className="map-game-loading">جارٍ تحميل حدود الخريطة الاحترافية…</div>}
-            <ProfessionalMap region={region} countries={countries} items={items} layerKey={layerKey} labels={labels} showActiveLabel={mode !== 'naming' || labels} highlightedId={hintId} selectedId={selectedId} project={project} zoom={zoom} placements={placements} onCountryClick={answer} onFeatureClick={answer} onDropPlacement={handleDropPlacement} onMovePlacement={(id, x, y) => setPlacements((current) => current.map((item) => item.id === id ? { ...item, x, y } : item))} onRemovePlacement={(id) => setPlacements((current) => current.filter((item) => item.id !== id))} onStageClick={handleMapStageClick} canvasRef={mapCanvasRef} drawTool={mapTool} onPointerDown={onMapPointerDown} onPointerMove={onMapPointerMove} onPointerUp={onMapPointerUp} mapStyle={mapStyle} silent={silentMap}/>
+            <ProfessionalMap region={region} countries={countries} items={items} layerKey={layerKey} labels={labels} showActiveLabel={mode !== 'naming' || labels} highlightedId={hintId} selectedId={selectedId} project={project} zoom={zoom} placements={placements} selectedPlacementId={selectedBuildPlacementId} onSelectPlacement={setSelectedBuildPlacementId} onCountryClick={answer} onFeatureClick={answer} onDropPlacement={handleDropPlacement} onMovePlacement={(id, x, y) => { setPlacements((current) => current.map((item) => item.id === id ? { ...item, x, y } : item)); setSelectedBuildPlacementId(id); }} onResizePlacement={(id, delta) => { setPlacements((current) => current.map((item) => item.id === id ? { ...item, size: Math.max(0.5, Math.min(2.5, Number(((item.size || 1) + delta).toFixed(2)))) } : item)); setSelectedBuildPlacementId(id); }} onRemovePlacement={(id) => { setPlacements((current) => current.filter((item) => item.id !== id)); setSelectedBuildPlacementId((current) => current === id ? '' : current); }} onStageClick={handleMapStageClick} canvasRef={mapCanvasRef} drawTool={mapTool} onPointerDown={onMapPointerDown} onPointerMove={onMapPointerMove} onPointerUp={onMapPointerUp} mapStyle={mapStyle} silent={silentMap} lineFeatures={riverLines}/>
             <div className="map-drawing-tools">
               <button type="button" className={mapTool === 'select' ? 'active' : ''} onClick={() => setMapTool('select')}><MapPin size={16}/></button>
               <button type="button" className={mapTool === 'pen' ? 'active' : ''} onClick={() => setMapTool('pen')}><PenLine size={16}/></button>
@@ -412,7 +416,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
             </div>
           </div>
 
-          <div className="map-layer-dock">{Object.entries(layers).map(([key, item]) => { const Icon = item.icon; return <button key={key} type="button" className={layerKey === key ? 'active' : ''} onClick={() => { setLayerKey(key); setStarted(false); setSelectedBuildItem(null); setMessage(''); }}><Icon size={18}/><span>{item.title}</span></button>; })}</div>
+          <div className="map-layer-dock">{Object.entries(layers).map(([key, item]) => { const Icon = item.icon; return <button key={key} type="button" className={layerKey === key ? 'active' : ''} onClick={() => { setLayerKey(key); setStarted(false); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage(''); }}><Icon size={18}/><span>{item.title}</span></button>; })}</div>
         </main>
 
         <aside className="map-game-question-panel">
@@ -431,7 +435,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
               {mode === 'naming' && <div className="map-name-answer"><input value={nameAnswer} onChange={(event) => setNameAnswer(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void submitNameAnswer(); }} placeholder="اكتب اسم الدولة أو الظاهرة" autoComplete="off"/><button type="button" onClick={() => void submitNameAnswer()}>تحقق</button></div>}
               {!['build', 'explore'].includes(mode) && <button type="button" onClick={useHint}><Lightbulb size={18}/>تلميح</button>}
               {!['build', 'explore'].includes(mode) && <button type="button" onClick={skipQuestion}><SkipForward size={18}/>تخطي</button>}
-              {mode === 'build' && <button type="button" onClick={() => { setPlacements([]); setSelectedBuildItem(null); setMessage('تم مسح عناصر البناء.'); }}><RotateCcw size={18}/>مسح البناء</button>}
+              {mode === 'build' && <button type="button" onClick={() => { setPlacements([]); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage('تم مسح عناصر البناء.'); }}><RotateCcw size={18}/>مسح البناء</button>}
               <button type="button" onClick={() => finish(mode === 'build' ? 'completed' : mode === 'explore' ? 'explored' : 'stopped')}><TimerReset size={18}/>{mode === 'build' ? 'حفظ البناء' : mode === 'explore' ? 'إنهاء الاستكشاف' : 'إنهاء الجولة'}</button>
             </>}
           </div>

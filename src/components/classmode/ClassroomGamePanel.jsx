@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, Copy, Gamepad2, RefreshCw, Trophy, Users, XCircle } from 'lucide-react';
 import { selectQuestionRound } from '../../services/questionRotation';
 
-function answerOptions(question) {
-  if (!question || typeof question !== 'object') return [];
+function answerOptions(question = {}) {
   if (Array.isArray(question.options) && question.options.length) return question.options;
   if (question.type === 'tf') return ['صح', 'خطأ'];
   return [];
@@ -33,9 +32,7 @@ export default function ClassroomGamePanel({
   const reportedQuestionIdsRef = useRef(new Set());
 
   const compatible = useMemo(() => questions.filter((question) => (
-    question && typeof question === 'object' && (
-      ['mcq', 'tf'].includes(question.type) || (Array.isArray(question.options) && question.options.length)
-    )
+    ['mcq', 'tf'].includes(question.type) || (Array.isArray(question.options) && question.options.length)
   )), [questions]);
 
   const startRound = () => {

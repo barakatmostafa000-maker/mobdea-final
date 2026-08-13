@@ -57,7 +57,9 @@ assert(!classMode.includes('<MapChallenge'), 'Lesson mode must use the shared te
 assert(classMode.includes('boardToolsVisible'), 'Inactive drawing toolbars must be hidden for media and maps.');
 const geography = read('src/data/geography.js');
 assert(geography.includes("defaultRegion: 'egypt'") && geography.includes("defaultRegion: 'arab'") && geography.includes("defaultRegion: 'africa'"), 'Curriculum map recommendations are incomplete.');
-assert(geography.includes('ثروة سمكية') && geography.includes('هضاب') && geography.includes('منخفضات') && geography.includes('مضيق'), 'Geographic explanation symbols are incomplete.');
+const mapSymbolCatalog = read('src/data/mapSymbolCatalog.js');
+assert(mapSymbolCatalog.includes('جبل منفرد') && mapSymbolCatalog.includes('هضبة') && mapSymbolCatalog.includes('منخفض') && mapSymbolCatalog.includes('مضيق') && mapSymbolCatalog.includes('الثروة السمكية'), 'Geographic explanation symbols are incomplete.');
+assert(exists('public/map-symbols/manifest.json'), 'V13 map-symbol manifest is missing.');
 const lessonMap = read('src/components/maps/LessonMapStudio.jsx');
 assert(lessonMap.includes('regionStates') && lessonMap.includes('onSaveState'), 'Per-region lesson map persistence is missing.');
 assert(read('src/services/cloudSync.js').includes('collectLibraryAssetIds'), 'Cloud sync does not include all library assets.');

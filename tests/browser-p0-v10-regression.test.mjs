@@ -8,11 +8,11 @@ const css = await readFile(new URL('../src/styles/v111.css', import.meta.url), '
 const handwriting = await readFile(new URL('../src/services/handwritingRecognition.js', import.meta.url), 'utf8');
 
 test('historical board uses the exact supplied reference image', () => {
-  assert.match(classMode, /class-board-history-reference\.jpg/);
-  assert.match(classMode, /width=\{1536\}/);
-  assert.match(classMode, /height=\{864\}/);
+  assert.match(classMode, /class-board-history-v14\.jpg/);
+  assert.match(classMode, /const BOARD_CANVAS_WIDTH = 1536/);
+  assert.match(classMode, /const BOARD_CANVAS_HEIGHT = 1024/);
   assert.match(css, /classmode-board-reference-image/);
-  assert.match(css, /object-fit:\s*cover/);
+  assert.match(css, /board-theme-history[\s\S]*object-fit:\s*contain/);
 });
 
 test('PDF renderer keeps a high-resolution backing image as zoom increases', () => {
@@ -33,9 +33,9 @@ test('real Arabic font families are exposed in the board toolbar', () => {
   assert.match(css, /fonts\.googleapis\.com/);
 });
 
-test('handwriting conversion has an automatic recognition path with review', () => {
+test('handwriting conversion has an automatic recognition path with safe correction', () => {
   assert.match(classMode, /convertRecentHandwriting/);
-  assert.match(classMode, /تنسيق خط اليد/);
+  assert.match(classMode, /تصحيح خط اليد/);
   assert.match(handwriting, /TextDetector/);
   assert.match(handwriting, /tesseract\.js/);
 });
