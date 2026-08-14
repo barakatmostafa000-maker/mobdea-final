@@ -1,0 +1,256 @@
+name: V14 Final Repair
+
+on:
+  push:
+    branches:
+      - v14-working
+    paths:
+      - .github/workflows/v14-final-repair.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout v14-working
+        uses: actions/checkout@v4
+        with:
+          ref: v14-working
+          fetch-depth: 0
+
+      - name: Repair the five known regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # 1) ContentLibrary: preserve native JavaScript Map.
+          path = Path('src/pages/ContentLibrary.jsx')
+          source = path.read_text(encoding='utf-8')
+
+          if 'Map as MapIcon' not in source:
+              source, count = re.subn(
+                  r'(?m)^(\s*)Map,\s*$',
+                  r'\1Map as MapIcon,',
+                  source,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit('Could not repair lucide Map import.')
+
+          source = re.sub(r'<Map(?=[\s/>])', '<MapIcon', source)
+          source = source.replace('</Map>', '</MapIcon>')
+          path.write_text(source, encoding='utf-8')
+
+          # 2) ClassroomGamePanel: tolerate initial null question.
+          path = Path('src/components/classmode/ClassroomGamePanel.jsx')
+          source = path.read_text(encoding='utf-8')
+          guard = "  if (!question || typeof question !== 'object') return [];"
+
+          if guard not in source:
+              needle = "function answerOptions(question = {}) {\n"
+              if needle not in source:
+                  raise SystemExit('answerOptions() was not found.')
+              source = source.replace(needle, needle + guard + "\n", 1)
+
+          path.write_text(source, encoding='utf-8')
+
+          # 3) usePdfPage: native renderer on Android, pdfjs renderer on web.
+          pdf_hook = """import { useEffect, useState } from 'react';
+import { renderNativePdfBlob, renderNativePdfPage } from '../services/pdfRenderer';
+import { renderWebPdfBlob, renderWebPdfPage } from '../services/webPdfRenderer';
+
+const initialState = { dataUrl: '', pageCount: 0, loading: false, error: '' };
+
+export function usePdfPage(source, page = 1) {
+  const [state, setState] = useState(initialState);
+  const url = typeof source === 'string' ? source : source?.url || '';
+  const blob = typeof source === 'object' ? source?.blob || null : null;
+  const cacheKey = typeof source === 'object' ? source?.cacheKey || '' : url;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!blob && !url) {
+      setState(initialState);
+      return () => { cancelled = true; };
+    }
+
+    setState((current) => ({ ...current, loading: true, error: '' }));
+
+    const isNative = Boolean(globalThis.Capacitor?.isNativePlatform?.());
+    const task = isNative
+      ? (blob
+        ? renderNativePdfBlob(blob, page, 1800, cacheKey)
+        : renderNativePdfPage(url, page, 1800))
+      : (blob
+        ? renderWebPdfBlob(blob, page, 1800, cacheKey)
+        : renderWebPdfPage(url, page, 1800, cacheKey || url));
+
+    task
+      .then((result) => {
+        if (cancelled) return;
+        setState({
+          dataUrl: result?.dataUrl || '',
+          pageCount: Number(result?.pageCount || 0),
+          loading: false,
+          error: '',
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setState({
+          dataUrl: '',
+          pageCount: 0,
+          loading: false,
+          error: error?.message || 'تعذر عرض صفحة PDF.',
+        });
+      });
+
+    return () => { cancelled = true; };
+  }, [blob, cacheKey, page, url]);
+
+  return state;
+}
+"""
+          Path('src/hooks/usePdfPage.js').write_text(pdf_hook, encoding='utf-8')
+
+          web_renderer = Path('src/services/webPdfRenderer.js')
+          if not web_renderer.exists():
+              raise SystemExit('webPdfRenderer.js is missing.')
+          renderer_source = web_renderer.read_text(encoding='utf-8')
+          if 'pdfjs-dist/build/pdf.mjs' not in renderer_source or 'canvas.toDataURL' not in renderer_source:
+              raise SystemExit('webPdfRenderer.js is not the expected renderer.')
+
+          # 4) Map drawer: closed state = one full map row.
+          path = Path('src/styles/v107.css')
+          source = path.read_text(encoding='utf-8')
+          wanted_rule = (
+              '.classmode-v103 .lesson-map-studio.tools-closed .lesson-map-main {\n'
+              '  grid-template-rows: minmax(0, 1fr) !important;\n'
+              '}'
+          )
+          pattern = re.compile(
+              r'\.classmode-v103 \.lesson-map-studio\.tools-closed \.lesson-map-main \{\s*'
+              r'grid-template-rows:\s*[^;]+!important;\s*\}',
+              re.S,
+          )
+          if not pattern.search(source):
+              raise SystemExit('Closed lesson-map grid rule was not found.')
+          source = pattern.sub(wanted_rule, source, count=1)
+          path.write_text(source, encoding='utf-8')
+
+          # 5) Historical relief symbols: restore a real selectable toolbar row.
+          path = Path('src/pages/ClassMode.jsx')
+          source = path.read_text(encoding='utf-8')
+          marker = 'classmode-historical-symbol-row'
+
+          prerequisites = [
+              'historicalSymbolOptions',
+              "stamp.kind === 'historical-symbol'",
+              'setHistoricalSymbol',
+              'activateBoardTool',
+          ]
+          missing = [item for item in prerequisites if item not in source]
+          if missing:
+              raise SystemExit(f'Historical symbol prerequisites missing: {missing}')
+
+          if marker not in source:
+              anchor = '<div className="classmode-tool-group compact classmode-text-style-row">'
+              anchor_start = source.find(anchor)
+              if anchor_start < 0:
+                  raise SystemExit('Text-style toolbar row was not found.')
+
+              token_re = re.compile(r'<div\b|</div>', re.I)
+              depth = 0
+              anchor_end = None
+              for match in token_re.finditer(source, anchor_start):
+                  token = match.group(0).lower()
+                  if token.startswith('<div'):
+                      depth += 1
+                  else:
+                      depth -= 1
+                      if depth == 0:
+                          anchor_end = match.end()
+                          break
+
+              if anchor_end is None:
+                  raise SystemExit('Could not find toolbar row end.')
+
+              block = """
+            <div className="classmode-tool-group compact classmode-historical-symbol-row">
+              {historicalSymbolOptions.map((item) => (
+                <button
+                  key={item.key}
+                  className={tool === 'historical-symbol' && historicalSymbol === item.key ? 'active' : ''}
+                  onClick={() => {
+                    setHistoricalSymbol(item.key);
+                    activateBoardTool('historical-symbol');
+                  }}
+                  type="button"
+                  title={item.label}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>"""
+              source = source[:anchor_end] + block + source[anchor_end:]
+
+          if marker not in source or 'historicalSymbolOptions.map' not in source:
+              raise SystemExit('Historical symbol row repair failed.')
+
+          path.write_text(source, encoding='utf-8')
+
+          print('Applied all five source repairs.')
+          PY
+
+      - name: Install dependencies including browser PDF renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --ignore-scripts
+          npm install --save-exact --ignore-scripts pdfjs-dist@4.10.38
+
+      - name: Run focused regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test \
+            tests/browser-p0-regression.test.mjs \
+            tests/browser-p0-v5-regression.test.mjs
+
+      - name: Run complete project verification
+        run: npm run verify
+
+      - name: Commit only after all checks pass
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            src/pages/ContentLibrary.jsx \
+            src/components/classmode/ClassroomGamePanel.jsx \
+            src/hooks/usePdfPage.js \
+            src/styles/v107.css \
+            src/pages/ClassMode.jsx \
+            package.json \
+            package-lock.json
+
+          if git diff --cached --quiet; then
+            echo "No changes were needed."
+            exit 0
+          fi
+
+          git commit -m "Repair five V14 regressions"
+          git push origin HEAD:v14-working
