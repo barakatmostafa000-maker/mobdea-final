@@ -1,0 +1,243 @@
+name: Install V14 Progress and Country Metadata - Safe Repair
+
+on:
+  push:
+    branches:
+      - v14-working
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install-feature-update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout v14-working
+        uses: actions/checkout@v4
+        with:
+          ref: v14-working
+          fetch-depth: 0
+
+      - name: Verify V14 archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f mobdea-v14-feature-update.zip
+          echo "bad6622882a748171708b1c5dc48f7486e1fa47783e96e1f9da6d2dad6c20f3c  mobdea-v14-feature-update.zip" | sha256sum -c -
+
+      - name: Save known-good ClassMode
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp src/pages/ClassMode.jsx /tmp/ClassMode.before-v14.jsx
+
+      - name: Apply ONLY the intended V14 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/mobdea-v14-feature-update
+          mkdir -p /tmp/mobdea-v14-feature-update
+          unzip -q mobdea-v14-feature-update.zip -d /tmp/mobdea-v14-feature-update
+
+          PATCH_ROOT="/tmp/mobdea-v14-feature-update/v14-feature-update"
+
+          test -f "$PATCH_ROOT/src/pages/ClassMode.jsx"
+          test -f "$PATCH_ROOT/src/data/countryCards.js"
+          test -f "$PATCH_ROOT/tests/v14-progress-country-meta.test.mjs"
+
+          # IMPORTANT:
+          # Do not rsync the whole archive. That was overwriting newer,
+          # already-working files and caused the five regressions.
+          cp "$PATCH_ROOT/src/pages/ClassMode.jsx" src/pages/ClassMode.jsx
+          cp "$PATCH_ROOT/src/data/countryCards.js" src/data/countryCards.js
+          cp "$PATCH_ROOT/tests/v14-progress-country-meta.test.mjs" tests/v14-progress-country-meta.test.mjs
+
+      - name: Preserve historical relief-symbol row
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          baseline_path = Path('/tmp/ClassMode.before-v14.jsx')
+          patched_path = Path('src/pages/ClassMode.jsx')
+
+          baseline = baseline_path.read_text(encoding='utf-8')
+          patched = patched_path.read_text(encoding='utf-8')
+          marker = 'classmode-historical-symbol-row'
+
+          if marker in patched:
+              print('Historical symbol row already present in V14 ClassMode.')
+              raise SystemExit(0)
+
+          def nearest_open_div(text, pos, window=2400):
+              start = text.rfind('<div', max(0, pos - window), pos)
+              if start < 0:
+                  return None
+              end = text.find('>', start)
+              if end < 0 or end > pos:
+                  return None
+              return start, end + 1
+
+          # First choice: V14 still has the historical symbols; restore only
+          # the class marker expected by the regression suite.
+          map_pos = patched.find('historicalSymbolOptions.map')
+          if map_pos >= 0:
+              bounds = nearest_open_div(patched, map_pos)
+              if bounds:
+                  start, end = bounds
+                  tag = patched[start:end]
+                  if marker not in tag:
+                      class_match = re.search(r'className=(["\'])(.*?)\1', tag, re.S)
+                      if class_match:
+                          classes = class_match.group(2)
+                          new_classes = (classes + ' ' + marker).strip()
+                          tag = tag[:class_match.start(2)] + new_classes + tag[class_match.end(2):]
+                      else:
+                          tag = tag[:-1] + f' className="{marker}">'
+                      patched = patched[:start] + tag + patched[end:]
+                      patched_path.write_text(patched, encoding='utf-8')
+                      print('Restored historical-symbol class on V14 row.')
+
+          if marker in patched_path.read_text(encoding='utf-8'):
+              raise SystemExit(0)
+
+          # Second choice: if V14 removed the row, transplant the complete
+          # known-good row from the branch version.
+          idx = baseline.find(marker)
+          if idx < 0:
+              raise SystemExit('Known-good ClassMode does not contain historical symbol row.')
+
+          start = baseline.rfind('<div', 0, idx)
+          if start < 0:
+              raise SystemExit('Could not find historical row opening div in baseline.')
+
+          token_re = re.compile(r'<div\b|</div>', re.I)
+          depth = 0
+          end = None
+          for match in token_re.finditer(baseline, start):
+              token = match.group(0).lower()
+              if token.startswith('<div'):
+                  depth += 1
+              else:
+                  depth -= 1
+                  if depth == 0:
+                      end = match.end()
+                      break
+
+          if end is None:
+              raise SystemExit('Could not find historical row closing div in baseline.')
+
+          block = baseline[start:end]
+
+          # Prefer insertion beside the other board symbol rows.
+          candidates = [
+              'classmode-geographical-symbol-row',
+              'geographicalSymbolOptions.map',
+              'classmode-text-style-row',
+          ]
+
+          insert_at = -1
+          for candidate in candidates:
+              pos = patched.find(candidate)
+              if pos < 0:
+                  continue
+              bounds = nearest_open_div(patched, pos)
+              if bounds:
+                  insert_at = bounds[0]
+                  break
+
+          if insert_at < 0:
+              raise SystemExit('Could not find a safe location for historical symbol row.')
+
+          patched = patched[:insert_at] + block + '\n' + patched[insert_at:]
+          patched_path.write_text(patched, encoding='utf-8')
+
+          if marker not in patched:
+              raise SystemExit('Historical symbol row repair did not apply.')
+
+          print('Transplanted known-good historical symbol row.')
+          PY
+
+      - name: Guard the five previously failing regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # 1) Native JS Map must not be shadowed by the Lucide icon.
+          grep -q "Map as MapIcon" src/pages/ContentLibrary.jsx
+
+          # 2) Classroom game must tolerate the initial null question.
+          grep -Eq "if \(!question \|\| typeof question !== ['\"]object['\"]\) return \[\];" \
+            src/components/classmode/ClassroomGamePanel.jsx
+
+          # 3) Browser PDF renderer must still exist.
+          grep -q "renderWebPdfBlob" src/hooks/usePdfPage.js
+
+          # 4) Closed map drawer must leave one full-height map row.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          css = Path('src/styles/v107.css').read_text(encoding='utf-8')
+          if not re.search(
+              r'lesson-map-studio\.tools-closed\s+\.lesson-map-main\s*\{[^}]*'
+              r'grid-template-rows:\s*minmax\(0,\s*1fr\)\s*!important;',
+              css,
+              re.S,
+          ):
+              raise SystemExit('Closed lesson-map drawer regression is still present.')
+
+          class_mode = Path('src/pages/ClassMode.jsx').read_text(encoding='utf-8')
+          if 'classmode-historical-symbol-row' not in class_mode:
+              raise SystemExit('Historical-symbol row regression is still present.')
+
+          print('All five regression guards are present before test execution.')
+          PY
+
+      - name: Install exact dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verify requested V14 features
+        run: node --test tests/v14-progress-country-meta.test.mjs
+
+      - name: Run complete regression suite
+        run: npm test
+
+      - name: Lint source
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Verify project static checks
+        run: npm run verify:static
+
+      - name: Build production
+        run: npm run build
+
+      - name: Commit ONLY after every check passes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            src/pages/ClassMode.jsx \
+            src/data/countryCards.js \
+            tests/v14-progress-country-meta.test.mjs
+
+          if git diff --cached --quiet; then
+            echo "No verified V14 source changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Install V14 update without regressions"
+          git push origin HEAD:v14-working
