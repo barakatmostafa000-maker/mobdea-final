@@ -1,0 +1,121 @@
+name: Build V14 Android APK Final
+
+on:
+  push:
+    branches:
+      - v14-working
+    paths:
+      - .github/workflows/android-apk-final.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout v14-working
+        uses: actions/checkout@v4
+        with:
+          ref: v14-working
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Apply OCR and API23 compatibility repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKZGVmIHJlcGxhY2Vfb25jZShzb3VyY2UsIG9sZCwgbmV3LCBsYWJlbCk6CiAgICBpZiBvbGQgaW4gc291cmNlOgogICAgICAgIHJldHVybiBzb3VyY2UucmVwbGFjZShvbGQsIG5ldywgMSkKICAgIGlmIG5ldyBpbiBzb3VyY2U6CiAgICAgICAgcmV0dXJuIHNvdXJjZQogICAgcmFpc2UgU3lzdGVtRXhpdChmIkNvdWxkIG5vdCBsb2NhdGUgZXhwZWN0ZWQgY29kZSBmb3Ige2xhYmVsfS4iKQoKIyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIyBBKSBSZXBhaXIgQW5kcm9pZCBPQ1IgY29tcGlsYXRpb24gKGlkZW1wb3RlbnQpCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCm9jcl9wYXRoID0gUGF0aCgiYW5kcm9pZC9hcHAvc3JjL21haW4vamF2YS9jb20vbW9iZGVhL2VkdWNhdGlvbi9vY3IvTW9iZGVhUGRmT2NyUGx1Z2luLmphdmEiKQpvY3IgPSBvY3JfcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKCm9jciA9IHJlcGxhY2Vfb25jZSgKICAgIG9jciwKICAgICJib29sZWFuIGluaXRpYWxpemVkID0gdGVzcy5pbml0KGRhdGFSb290LmdldEFic29sdXRlUGF0aCgpLCBsYW5ndWFnZSwgVGVzc0Jhc2VBUEkuT0VNX0xTVE1fT05MWSk7IiwKICAgICJib29sZWFuIGluaXRpYWxpemVkID0gdGVzcy5pbml0KGRhdGFSb290LmdldEFic29sdXRlUGF0aCgpLCBsYW5ndWFnZSk7IiwKICAgICJUZXNzZXJhY3QgaW5pdCIsCikKCm9sZF9yZWplY3QgPSAiIiIgICAgcHJpdmF0ZSB2b2lkIHJlamVjdENhbGwoUGx1Z2luQ2FsbCBjYWxsLCBTdHJpbmcgbWVzc2FnZSwgVGhyb3dhYmxlIGVycm9yKSB7CiAgICAgICAgaWYgKGdldEFjdGl2aXR5KCkgIT0gbnVsbCkgZ2V0QWN0aXZpdHkoKS5ydW5PblVpVGhyZWFkKCgpIC0+IGNhbGwucmVqZWN0KG1lc3NhZ2UsIGVycm9yKSk7CiAgICAgICAgZWxzZSBjYWxsLnJlamVjdChtZXNzYWdlLCBlcnJvcik7CiAgICB9IiIiCm5ld19yZWplY3QgPSAiIiIgICAgcHJpdmF0ZSB2b2lkIHJlamVjdENhbGwoUGx1Z2luQ2FsbCBjYWxsLCBTdHJpbmcgbWVzc2FnZSwgVGhyb3dhYmxlIGVycm9yKSB7CiAgICAgICAgRXhjZXB0aW9uIGV4Y2VwdGlvbiA9IGVycm9yIGluc3RhbmNlb2YgRXhjZXB0aW9uID8gKEV4Y2VwdGlvbikgZXJyb3IgOiBuZXcgRXhjZXB0aW9uKGVycm9yKTsKICAgICAgICBpZiAoZ2V0QWN0aXZpdHkoKSAhPSBudWxsKSBnZXRBY3Rpdml0eSgpLnJ1bk9uVWlUaHJlYWQoKCkgLT4gY2FsbC5yZWplY3QobWVzc2FnZSwgZXhjZXB0aW9uKSk7CiAgICAgICAgZWxzZSBjYWxsLnJlamVjdChtZXNzYWdlLCBleGNlcHRpb24pOwogICAgfSIiIgpvY3IgPSByZXBsYWNlX29uY2Uob2NyLCBvbGRfcmVqZWN0LCBuZXdfcmVqZWN0LCAiQ2FwYWNpdG9yIHJlamVjdCBvdmVybG9hZCIpCgppZiAiVGVzc0Jhc2VBUEkuT0VNX0xTVE1fT05MWSIgaW4gb2NyOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiT0NSIHJlcGFpciBpbmNvbXBsZXRlOiBPRU1fTFNUTV9PTkxZIHJlbWFpbnMuIikKaWYgImNhbGwucmVqZWN0KG1lc3NhZ2UsIGVycm9yKSIgaW4gb2NyOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiT0NSIHJlcGFpciBpbmNvbXBsZXRlOiBUaHJvd2FibGUgcmVqZWN0IHJlbWFpbnMuIikKCm9jcl9wYXRoLndyaXRlX3RleHQob2NyLCBlbmNvZGluZz0idXRmLTgiKQoKIyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIyBCKSBNYWtlIFBQVFggcmVuZGVyZXIgc2FmZSBvbiBtaW5TZGsvQVBJIDIzCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCnBwdHhfcGF0aCA9IFBhdGgoImFuZHJvaWQvYXBwL3NyYy9tYWluL2phdmEvY29tL21vYmRlYS9lZHVjYXRpb24vcHB0eC9Nb2JkZWFQcHR4UmVuZGVyZXJQbHVnaW4uamF2YSIpCnBwdHggPSBwcHR4X3BhdGgucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCgojIDEpIENvbXBhcmF0b3IuY29tcGFyaW5nSW50IHJlcXVpcmVzIEFQSSAyNC4gVXNlIGEgY2xhc3NpYyBjb21wYXJhdG9yLgpvbGRfc29ydCA9ICIgICAgICAgICAgICAgICAgQ29sbGVjdGlvbnMuc29ydChzbGlkZUVudHJpZXMsIENvbXBhcmF0b3IuY29tcGFyaW5nSW50KGl0ZW0gLT4gaXRlbS5udW1iZXIpKTsiCm5ld19zb3J0ID0gIiIiICAgICAgICAgICAgICAgIENvbGxlY3Rpb25zLnNvcnQoc2xpZGVFbnRyaWVzLCBuZXcgQ29tcGFyYXRvcjxTbGlkZUVudHJ5PigpIHsKICAgICAgICAgICAgICAgICAgICBAT3ZlcnJpZGUKICAgICAgICAgICAgICAgICAgICBwdWJsaWMgaW50IGNvbXBhcmUoU2xpZGVFbnRyeSBsZWZ0LCBTbGlkZUVudHJ5IHJpZ2h0KSB7CiAgICAgICAgICAgICAgICAgICAgICAgIGlmIChsZWZ0Lm51bWJlciA8IHJpZ2h0Lm51bWJlcikgcmV0dXJuIC0xOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAobGVmdC5udW1iZXIgPiByaWdodC5udW1iZXIpIHJldHVybiAxOwogICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gMDsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9KTsiIiIKcHB0eCA9IHJlcGxhY2Vfb25jZShwcHR4LCBvbGRfc29ydCwgbmV3X3NvcnQsICJBUEkyMyBzbGlkZSBzb3J0aW5nIikKCiMgMikgTWFwLmdldE9yRGVmYXVsdCBpcyBBUEkgMjQuIFVzZSBNYXAuZ2V0ICsgbnVsbCBmYWxsYmFjay4Kb2xkX2xvb2t1cCA9ICcgICAgICAgICAgICBTdHJpbmcgaW5oZXJpdGVkQmxvY2sgPSBsYXlvdXRQbGFjZWhvbGRlcnMuZ2V0T3JEZWZhdWx0KHBsYWNlaG9sZGVyS2V5KGJsb2NrKSwgIiIpOycKbmV3X2xvb2t1cCA9ICIiIiAgICAgICAgICAgIFN0cmluZyBwbGFjZWhvbGRlciA9IHBsYWNlaG9sZGVyS2V5KGJsb2NrKTsKICAgICAgICAgICAgU3RyaW5nIGluaGVyaXRlZEJsb2NrID0gcGxhY2Vob2xkZXIuaXNFbXB0eSgpID8gIiIgOiBsYXlvdXRQbGFjZWhvbGRlcnMuZ2V0KHBsYWNlaG9sZGVyKTsKICAgICAgICAgICAgaWYgKGluaGVyaXRlZEJsb2NrID09IG51bGwpIGluaGVyaXRlZEJsb2NrID0gIiI7IiIiCnBwdHggPSByZXBsYWNlX29uY2UocHB0eCwgb2xkX2xvb2t1cCwgbmV3X2xvb2t1cCwgIkFQSTIzIG1hcCBsb29rdXAiKQoKIyAzKSBTdHJpbmcuam9pbiBpcyBuZXdlciB0aGFuIG1pblNkayBvbiBBbmRyb2lkLiBSZXBsYWNlIGJvdGggdXNlcy4KcHB0eCA9IHJlcGxhY2Vfb25jZSgKICAgIHBwdHgsCiAgICAnICAgICAgICByZXR1cm4gU3RyaW5nLmpvaW4oIiAiLCBwYXJ0cykudHJpbSgpOycsCiAgICAnICAgICAgICByZXR1cm4gam9pblN0cmluZ3MocGFydHMsICIgIikudHJpbSgpOycsCiAgICAidGV4dCBqb2luIiwKKQpwcHR4ID0gcmVwbGFjZV9vbmNlKAogICAgcHB0eCwKICAgICcgICAgICAgIHJldHVybiBTdHJpbmcuam9pbigiLyIsIG5vcm1hbGl6ZWQpOycsCiAgICAnICAgICAgICByZXR1cm4gam9pblN0cmluZ3Mobm9ybWFsaXplZCwgIi8iKTsnLAogICAgInBhdGggam9pbiIsCikKCiMgQWRkIEFQSTIzLXNhZmUgam9pbiBoZWxwZXIgZXhhY3RseSBvbmNlLgpoZWxwZXIgPSAiIiIgICAgcHJpdmF0ZSBTdHJpbmcgam9pblN0cmluZ3MoTGlzdDxTdHJpbmc+IHZhbHVlcywgU3RyaW5nIGRlbGltaXRlcikgewogICAgICAgIFN0cmluZ0J1aWxkZXIgYnVpbGRlciA9IG5ldyBTdHJpbmdCdWlsZGVyKCk7CiAgICAgICAgZm9yIChTdHJpbmcgdmFsdWUgOiB2YWx1ZXMpIHsKICAgICAgICAgICAgaWYgKGJ1aWxkZXIubGVuZ3RoKCkgPiAwKSBidWlsZGVyLmFwcGVuZChkZWxpbWl0ZXIpOwogICAgICAgICAgICBidWlsZGVyLmFwcGVuZCh2YWx1ZSk7CiAgICAgICAgfQogICAgICAgIHJldHVybiBidWlsZGVyLnRvU3RyaW5nKCk7CiAgICB9CgoiIiIKaWYgInByaXZhdGUgU3RyaW5nIGpvaW5TdHJpbmdzKExpc3Q8U3RyaW5nPiB2YWx1ZXMsIFN0cmluZyBkZWxpbWl0ZXIpIiBub3QgaW4gcHB0eDoKICAgIGFuY2hvciA9ICIgICAgcHJpdmF0ZSBTdHJpbmcgYXR0cmlidXRlKFN0cmluZyBhdHRycywgU3RyaW5nIG5hbWUpIHsiCiAgICBpZiBhbmNob3Igbm90IGluIHBwdHg6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgiQ291bGQgbm90IGxvY2F0ZSBoZWxwZXIgaW5zZXJ0aW9uIHBvaW50IGluIFBQVFggcmVuZGVyZXIuIikKICAgIHBwdHggPSBwcHR4LnJlcGxhY2UoYW5jaG9yLCBoZWxwZXIgKyBhbmNob3IsIDEpCgojIEd1YXJkIGFnYWluc3QgZXZlcnkga25vd24gQVBJMjMgbGludCByZWdyZXNzaW9uIGluIHRoaXMgZmlsZS4KZm9yIGZvcmJpZGRlbiBpbiAoCiAgICAiQ29tcGFyYXRvci5jb21wYXJpbmdJbnQiLAogICAgIi5nZXRPckRlZmF1bHQoIiwKICAgICJTdHJpbmcuam9pbigiLAopOgogICAgaWYgZm9yYmlkZGVuIGluIHBwdHg6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmIlBQVFggQVBJMjMgcmVwYWlyIGluY29tcGxldGU6IHtmb3JiaWRkZW59IHJlbWFpbnMuIikKCnBwdHhfcGF0aC53cml0ZV90ZXh0KHBwdHgsIGVuY29kaW5nPSJ1dGYtOCIpCnByaW50KCJPQ1IgYW5kIFBQVFggQVBJMjMgY29tcGF0aWJpbGl0eSByZXBhaXJzIGFwcGxpZWQuIikK' | base64 --decode > /tmp/android_final_repair.py
+          python3 /tmp/android_final_repair.py
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verify frontend and sync Capacitor
+        run: |
+          npm run verify
+          npx cap sync android
+
+      - name: Run Android unit tests
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Run Android lint with full failure report
+        working-directory: android
+        shell: bash
+        run: |
+          set +e
+          ./gradlew --no-daemon lintDebug
+          STATUS=$?
+          REPORT="app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt"
+          if [ -f "$REPORT" ]; then
+            echo "===== FULL ANDROID LINT REPORT ====="
+            cat "$REPORT"
+            echo "===== END ANDROID LINT REPORT ====="
+          fi
+          exit $STATUS
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Verify APK exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit verified Android repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java             android/app/src/main/java/com/mobdea/education/pptx/MobdeaPptxRendererPlugin.java
+          if git diff --cached --quiet; then
+            echo "Android source already contains the verified repairs."
+          else
+            git commit -m "Repair Android OCR and API23 compatibility"
+            git push origin HEAD:v14-working
+          fi
+
+      - name: Upload V14 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-v14-final-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload lint report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-v14-android-diagnostics
+          path: |
+            android/app/build/reports/lint-results-debug.html
+            android/app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
+          if-no-files-found: ignore
+          retention-days: 7
