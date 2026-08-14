@@ -191,7 +191,7 @@
 }
 
 .classmode-v103 .lesson-map-studio.tools-closed .lesson-map-main {
-  grid-template-rows: auto minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
 }
 
 .classmode-v103 .lesson-map-studio.tools-closed .lesson-map-controlbar,

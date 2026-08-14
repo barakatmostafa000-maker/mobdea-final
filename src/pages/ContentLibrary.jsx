@@ -13,7 +13,7 @@ import {
   Film,
   FolderOpen,
   Image as ImageIcon,
-  Map,
+  Map as MapIcon,
   Mic2,
   PencilLine,
   Plus,
@@ -843,7 +843,7 @@ ${extracted}` : extracted,
                         <span className="eyebrow">{lesson.unit || 'بدون وحدة'} {lesson.lessonDate ? `• ${lesson.lessonDate}` : ''}</span>
                         <h3>{lesson.title}</h3>
                         <p>{lesson.notes || 'لا توجد ملاحظات للدرس.'}{lesson.homework ? ` • الواجب: ${lesson.homework}` : ''}</p>
-                        <div className="library-lesson-meta"><span><FileText size={14}/> ص {lesson.pageStart || 1}–{lesson.pageEnd || lesson.pageStart || 1}</span><span><FolderOpen size={14}/> {media.length} وسائط</span><span><Map size={14}/> {lesson.mapState ? 'خريطة محفوظة' : 'خريطة تلقائية'}</span></div>
+                        <div className="library-lesson-meta"><span><FileText size={14}/> ص {lesson.pageStart || 1}–{lesson.pageEnd || lesson.pageStart || 1}</span><span><FolderOpen size={14}/> {media.length} وسائط</span><span><MapIcon size={14}/> {lesson.mapState ? 'خريطة محفوظة' : 'خريطة تلقائية'}</span></div>
                         <div className="library-media-chips">{media.slice(0, 6).map((item) => <span key={item.id}><MediaIcon type={item.type} size={13}/>{item.title}</span>)}{media.length > 6 && <span>+{media.length - 6}</span>}</div>
                       </div>
                       <div className="library-lesson-actions">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { renderNativePdfBlob, renderNativePdfPage } from '../services/pdfRenderer';
+import { renderWebPdfBlob, renderWebPdfPage } from '../services/webPdfRenderer';
 
 const initialState = { dataUrl: '', pageCount: 0, loading: false, error: '' };
 
@@ -11,40 +12,43 @@ export function usePdfPage(source, page = 1) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!globalThis.Capacitor?.isNativePlatform?.()) {
-      setState(initialState);
-      return () => { cancelled = true; };
-    }
+
     if (!blob && !url) {
       setState(initialState);
       return () => { cancelled = true; };
     }
 
     setState((current) => ({ ...current, loading: true, error: '' }));
-    const task = blob
-      ? renderNativePdfBlob(blob, page, 1800, cacheKey)
-      : renderNativePdfPage(url, page, 1800);
+
+    const isNative = Boolean(globalThis.Capacitor?.isNativePlatform?.());
+    const task = isNative
+      ? (blob
+        ? renderNativePdfBlob(blob, page, 1800, cacheKey)
+        : renderNativePdfPage(url, page, 1800))
+      : (blob
+        ? renderWebPdfBlob(blob, page, 1800, cacheKey)
+        : renderWebPdfPage(url, page, 1800, cacheKey || url));
+
     task
       .then((result) => {
-        if (!cancelled) {
-          setState({
-            dataUrl: result?.dataUrl || '',
-            pageCount: Number(result?.pageCount || 0),
-            loading: false,
-            error: '',
-          });
-        }
+        if (cancelled) return;
+        setState({
+          dataUrl: result?.dataUrl || '',
+          pageCount: Number(result?.pageCount || 0),
+          loading: false,
+          error: '',
+        });
       })
       .catch((error) => {
-        if (!cancelled) {
-          setState({
-            dataUrl: '',
-            pageCount: 0,
-            loading: false,
-            error: error?.message || 'تعذر عرض صفحة PDF.',
-          });
-        }
+        if (cancelled) return;
+        setState({
+          dataUrl: '',
+          pageCount: 0,
+          loading: false,
+          error: error?.message || 'تعذر عرض صفحة PDF.',
+        });
       });
+
     return () => { cancelled = true; };
   }, [blob, cacheKey, page, url]);
 

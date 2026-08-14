@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Copy, Gamepad2, RefreshCw, Tro
 import { selectQuestionRound } from '../../services/questionRotation';
 
 function answerOptions(question = {}) {
+  if (!question || typeof question !== 'object') return [];
   if (Array.isArray(question.options) && question.options.length) return question.options;
   if (question.type === 'tf') return ['صح', 'خطأ'];
   return [];

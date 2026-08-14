@@ -3275,6 +3275,22 @@ export default function ClassMode({ data, updateData, navigate }) {
               <button className="classmode-handwriting-polish" onClick={convertRecentHandwriting} disabled={handwritingBusy} type="button" title="تحويل آخر خط يد إلى نص منظم بالحجم والنوع المختارين"><Sparkles size={15}/>{handwritingBusy ? 'جارٍ القراءة…' : 'تصحيح خط اليد'}</button>
               <button type="button" className={`classmode-open-card-drawer ${cardsDrawerOpen ? 'active' : ''}`} onClick={() => setCardsDrawerOpen(true)}><StickyNote size={15}/> البطاقات</button>
             </div>
+            <div className="classmode-tool-group compact classmode-historical-symbol-row">
+              {historicalSymbolOptions.map((item) => (
+                <button
+                  key={item.key}
+                  className={tool === 'historical-symbol' && historicalSymbol === item.key ? 'active' : ''}
+                  onClick={() => {
+                    setHistoricalSymbol(item.key);
+                    activateBoardTool('historical-symbol');
+                  }}
+                  type="button"
+                  title={item.label}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
             <div className="classmode-tool-group compact">
               {boardTemplates.map(({ key, label, icon: Icon }) => (
                 <button key={key} className={boardTemplate === key ? 'active' : ''} onClick={() => setBoardTemplate(key)} type="button"><Icon size={17} />{label}</button>
