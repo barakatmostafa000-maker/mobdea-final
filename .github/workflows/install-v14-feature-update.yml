@@ -38,7 +38,7 @@ jobs:
           test -f /tmp/mobdea-v14-feature-update/v14-feature-update/src/data/countryCards.js
           rsync -a /tmp/mobdea-v14-feature-update/v14-feature-update/ ./
 
-            - name: Sync lockfile and install dependencies
+      - name: Sync lockfile and install dependencies
         run: |
           npm install --package-lock-only --ignore-scripts
           npm ci --ignore-scripts
