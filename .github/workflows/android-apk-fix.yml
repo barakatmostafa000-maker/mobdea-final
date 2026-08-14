@@ -1,0 +1,82 @@
+name: Repair Android OCR and Build APK
+
+on:
+  push:
+    branches:
+      - v14-working
+    paths:
+      - .github/workflows/android-apk-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout v14-working
+        uses: actions/checkout@v4
+        with:
+          ref: v14-working
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Apply Android OCR compile repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwYXRoID0gUGF0aCgiYW5kcm9pZC9hcHAvc3JjL21haW4vamF2YS9jb20vbW9iZGVhL2VkdWNhdGlvbi9vY3IvTW9iZGVhUGRmT2NyUGx1Z2luLmphdmEiKQpzb3VyY2UgPSBwYXRoLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQoKb2xkX2luaXQgPSAiYm9vbGVhbiBpbml0aWFsaXplZCA9IHRlc3MuaW5pdChkYXRhUm9vdC5nZXRBYnNvbHV0ZVBhdGgoKSwgbGFuZ3VhZ2UsIFRlc3NCYXNlQVBJLk9FTV9MU1RNX09OTFkpOyIKbmV3X2luaXQgPSAiYm9vbGVhbiBpbml0aWFsaXplZCA9IHRlc3MuaW5pdChkYXRhUm9vdC5nZXRBYnNvbHV0ZVBhdGgoKSwgbGFuZ3VhZ2UpOyIKaWYgb2xkX2luaXQgaW4gc291cmNlOgogICAgc291cmNlID0gc291cmNlLnJlcGxhY2Uob2xkX2luaXQsIG5ld19pbml0LCAxKQplbGlmIG5ld19pbml0IG5vdCBpbiBzb3VyY2U6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJFeHBlY3RlZCBUZXNzQmFzZUFQSSBpbml0IGNhbGwgd2FzIG5vdCBmb3VuZC4iKQoKb2xkX3JlamVjdCA9ICIiIiAgICBwcml2YXRlIHZvaWQgcmVqZWN0Q2FsbChQbHVnaW5DYWxsIGNhbGwsIFN0cmluZyBtZXNzYWdlLCBUaHJvd2FibGUgZXJyb3IpIHsKICAgICAgICBpZiAoZ2V0QWN0aXZpdHkoKSAhPSBudWxsKSBnZXRBY3Rpdml0eSgpLnJ1bk9uVWlUaHJlYWQoKCkgLT4gY2FsbC5yZWplY3QobWVzc2FnZSwgZXJyb3IpKTsKICAgICAgICBlbHNlIGNhbGwucmVqZWN0KG1lc3NhZ2UsIGVycm9yKTsKICAgIH0iIiIKbmV3X3JlamVjdCA9ICIiIiAgICBwcml2YXRlIHZvaWQgcmVqZWN0Q2FsbChQbHVnaW5DYWxsIGNhbGwsIFN0cmluZyBtZXNzYWdlLCBUaHJvd2FibGUgZXJyb3IpIHsKICAgICAgICBFeGNlcHRpb24gZXhjZXB0aW9uID0gZXJyb3IgaW5zdGFuY2VvZiBFeGNlcHRpb24gPyAoRXhjZXB0aW9uKSBlcnJvciA6IG5ldyBFeGNlcHRpb24oZXJyb3IpOwogICAgICAgIGlmIChnZXRBY3Rpdml0eSgpICE9IG51bGwpIGdldEFjdGl2aXR5KCkucnVuT25VaVRocmVhZCgoKSAtPiBjYWxsLnJlamVjdChtZXNzYWdlLCBleGNlcHRpb24pKTsKICAgICAgICBlbHNlIGNhbGwucmVqZWN0KG1lc3NhZ2UsIGV4Y2VwdGlvbik7CiAgICB9IiIiCgppZiBvbGRfcmVqZWN0IGluIHNvdXJjZToKICAgIHNvdXJjZSA9IHNvdXJjZS5yZXBsYWNlKG9sZF9yZWplY3QsIG5ld19yZWplY3QsIDEpCmVsaWYgbmV3X3JlamVjdCBub3QgaW4gc291cmNlOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiRXhwZWN0ZWQgcmVqZWN0Q2FsbCBtZXRob2Qgd2FzIG5vdCBmb3VuZC4iKQoKaWYgIlRlc3NCYXNlQVBJLk9FTV9MU1RNX09OTFkiIGluIHNvdXJjZToKICAgIHJhaXNlIFN5c3RlbUV4aXQoIk9FTV9MU1RNX09OTFkgaXMgc3RpbGwgcHJlc2VudCBhZnRlciByZXBhaXIuIikKaWYgImNhbGwucmVqZWN0KG1lc3NhZ2UsIGVycm9yKSIgaW4gc291cmNlOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiVGhyb3dhYmxlIHJlamVjdCBvdmVybG9hZCBpcyBzdGlsbCBwcmVzZW50IGFmdGVyIHJlcGFpci4iKQoKcGF0aC53cml0ZV90ZXh0KHNvdXJjZSwgZW5jb2Rpbmc9InV0Zi04IikKcHJpbnQoIk1vYmRlYVBkZk9jclBsdWdpbi5qYXZhIHJlcGFpcmVkLiIpCg==' | base64 --decode > /tmp/android_ocr_repair.py
+          python3 /tmp/android_ocr_repair.py
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verify web project and sync Capacitor
+        run: npm run cap:sync
+
+      - name: Build and test debug APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
+
+      - name: Commit repaired Android source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java
+          if git diff --cached --quiet; then
+            echo "Android OCR source was already repaired."
+          else
+            git commit -m "Repair Android OCR compilation"
+            git push origin HEAD:v14-working
+          fi
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-v14-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
