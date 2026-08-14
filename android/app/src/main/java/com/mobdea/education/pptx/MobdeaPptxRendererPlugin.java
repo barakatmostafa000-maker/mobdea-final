@@ -76,7 +76,14 @@ public class MobdeaPptxRendererPlugin extends Plugin {
                     Matcher matcher = SLIDE_PATTERN.matcher(name);
                     if (matcher.matches()) slideEntries.add(new SlideEntry(name, Integer.parseInt(matcher.group(1))));
                 }
-                Collections.sort(slideEntries, Comparator.comparingInt(item -> item.number));
+                Collections.sort(slideEntries, new Comparator<SlideEntry>() {
+                    @Override
+                    public int compare(SlideEntry left, SlideEntry right) {
+                        if (left.number < right.number) return -1;
+                        if (left.number > right.number) return 1;
+                        return 0;
+                    }
+                });
                 if (slideEntries.isEmpty()) throw new IllegalArgumentException("لم يتم العثور على شرائح داخل ملف PowerPoint.");
 
                 JSArray slides = new JSArray();
@@ -155,7 +162,9 @@ public class MobdeaPptxRendererPlugin extends Plugin {
         while (shapeMatcher.find()) {
             String block = shapeMatcher.group(1);
             String text = joinTexts(block);
-            String inheritedBlock = layoutPlaceholders.getOrDefault(placeholderKey(block), "");
+            String placeholder = placeholderKey(block);
+            String inheritedBlock = placeholder.isEmpty() ? "" : layoutPlaceholders.get(placeholder);
+            if (inheritedBlock == null) inheritedBlock = "";
             Matcher shapePropsMatcher = SHAPE_PROPS_PATTERN.matcher(block);
             String shapeProps = shapePropsMatcher.find() ? shapePropsMatcher.group(1) : "";
             Matcher inheritedShapePropsMatcher = SHAPE_PROPS_PATTERN.matcher(inheritedBlock);
@@ -353,7 +362,16 @@ public class MobdeaPptxRendererPlugin extends Plugin {
             String text = unescapeXml(matcher.group(1)).trim();
             if (!text.isEmpty()) parts.add(text);
         }
-        return String.join(" ", parts).trim();
+        return joinStrings(parts, " ").trim();
+    }
+
+    private String joinStrings(List<String> values, String delimiter) {
+        StringBuilder builder = new StringBuilder();
+        for (String value : values) {
+            if (builder.length() > 0) builder.append(delimiter);
+            builder.append(value);
+        }
+        return builder.toString();
     }
 
     private String attribute(String attrs, String name) {
@@ -400,7 +418,7 @@ public class MobdeaPptxRendererPlugin extends Plugin {
                 if (!normalized.isEmpty()) normalized.remove(normalized.size() - 1);
             } else normalized.add(part);
         }
-        return String.join("/", normalized);
+        return joinStrings(normalized, "/");
     }
 
     private String imageMime(String path) {

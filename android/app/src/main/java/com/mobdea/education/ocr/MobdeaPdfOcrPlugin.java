@@ -110,7 +110,7 @@ public class MobdeaPdfOcrPlugin extends Plugin {
             if (totalPages < 1) throw new IllegalArgumentException("The selected PDF pages are unavailable.");
 
             tess = new TessBaseAPI();
-            boolean initialized = tess.init(dataRoot.getAbsolutePath(), language, TessBaseAPI.OEM_LSTM_ONLY);
+            boolean initialized = tess.init(dataRoot.getAbsolutePath(), language);
             if (!initialized) throw new IllegalStateException("Unable to initialize Arabic OCR.");
             tess.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO);
             tess.setVariable("preserve_interword_spaces", "1");
@@ -206,8 +206,9 @@ public class MobdeaPdfOcrPlugin extends Plugin {
     }
 
     private void rejectCall(PluginCall call, String message, Throwable error) {
-        if (getActivity() != null) getActivity().runOnUiThread(() -> call.reject(message, error));
-        else call.reject(message, error);
+        Exception exception = error instanceof Exception ? (Exception) error : new Exception(error);
+        if (getActivity() != null) getActivity().runOnUiThread(() -> call.reject(message, exception));
+        else call.reject(message, exception);
     }
 
     private boolean ensureModel(File tessdata, String fileName, String sourceUrl, PluginCall call, AtomicBoolean cancelled) throws Exception {
