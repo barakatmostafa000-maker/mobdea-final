@@ -1,0 +1,283 @@
+name: Repair V14 Now
+
+on:
+  push:
+    branches:
+      - v14-working
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  repair-now:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout v14-working
+        uses: actions/checkout@v4
+        with:
+          ref: v14-working
+          fetch-depth: 0
+
+      - name: Verify and unpack V14 archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f mobdea-v14-feature-update.zip
+          echo "bad6622882a748171708b1c5dc48f7486e1fa47783e96e1f9da6d2dad6c20f3c  mobdea-v14-feature-update.zip" | sha256sum -c -
+          rm -rf /tmp/mobdea-v14-feature-update
+          mkdir -p /tmp/mobdea-v14-feature-update
+          unzip -q mobdea-v14-feature-update.zip -d /tmp/mobdea-v14-feature-update
+
+      - name: Apply only intended V14 feature files
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH_ROOT="/tmp/mobdea-v14-feature-update/v14-feature-update"
+
+          test -f "$PATCH_ROOT/src/pages/ClassMode.jsx"
+          test -f "$PATCH_ROOT/src/data/countryCards.js"
+          test -f "$PATCH_ROOT/tests/v14-progress-country-meta.test.mjs"
+
+          cp "$PATCH_ROOT/src/pages/ClassMode.jsx" src/pages/ClassMode.jsx
+          cp "$PATCH_ROOT/src/data/countryCards.js" src/data/countryCards.js
+          cp "$PATCH_ROOT/tests/v14-progress-country-meta.test.mjs" tests/v14-progress-country-meta.test.mjs
+
+          # Merge missing dependencies only; never downgrade current packages.
+          if [ -f "$PATCH_ROOT/package.json" ]; then
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          current_path = Path('package.json')
+          patch_path = Path('/tmp/mobdea-v14-feature-update/v14-feature-update/package.json')
+
+          current = json.loads(current_path.read_text(encoding='utf-8'))
+          patch = json.loads(patch_path.read_text(encoding='utf-8'))
+
+          for section in ('dependencies', 'devDependencies'):
+              current.setdefault(section, {})
+              for name, version in patch.get(section, {}).items():
+                  current[section].setdefault(name, version)
+
+          current_path.write_text(
+              json.dumps(current, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+          fi
+
+      - name: Repair all five failing regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # 1. ContentLibrary: keep native JavaScript Map available.
+          path = Path('src/pages/ContentLibrary.jsx')
+          source = path.read_text(encoding='utf-8')
+          source = re.sub(r'(?m)^(\s*)Map,\s*$', r'\1Map as MapIcon,', source, count=1)
+          source = re.sub(r'<Map(?=[\s/>])', '<MapIcon', source)
+          source = source.replace('</Map>', '</MapIcon>')
+          path.write_text(source, encoding='utf-8')
+
+          # 2. Classroom game: null question guard.
+          path = Path('src/components/classmode/ClassroomGamePanel.jsx')
+          source = path.read_text(encoding='utf-8')
+          guard = "  if (!question || typeof question !== 'object') return [];"
+          if guard not in source:
+              needle = "function answerOptions(question = {}) {\n"
+              if needle not in source:
+                  raise SystemExit('answerOptions() was not found.')
+              source = source.replace(needle, needle + guard + "\n", 1)
+          path.write_text(source, encoding='utf-8')
+
+          # 3. PDF: native renderer on Android, bundled pdfjs renderer on web.
+          Path('src/hooks/usePdfPage.js').write_text(
+          """import { useEffect, useState } from 'react';
+          import { renderNativePdfBlob, renderNativePdfPage } from '../services/pdfRenderer';
+          import { renderWebPdfBlob, renderWebPdfPage } from '../services/webPdfRenderer';
+
+          const initialState = { dataUrl: '', pageCount: 0, loading: false, error: '' };
+
+          export function usePdfPage(source, page = 1) {
+            const [state, setState] = useState(initialState);
+            const url = typeof source === 'string' ? source : source?.url || '';
+            const blob = typeof source === 'object' ? source?.blob || null : null;
+            const cacheKey = typeof source === 'object' ? source?.cacheKey || '' : url;
+
+            useEffect(() => {
+              let cancelled = false;
+              if (!blob && !url) {
+                setState(initialState);
+                return () => { cancelled = true; };
+              }
+
+              setState((current) => ({ ...current, loading: true, error: '' }));
+              const isNative = Boolean(globalThis.Capacitor?.isNativePlatform?.());
+              const task = isNative
+                ? (blob
+                  ? renderNativePdfBlob(blob, page, 1800, cacheKey)
+                  : renderNativePdfPage(url, page, 1800))
+                : (blob
+                  ? renderWebPdfBlob(blob, page, 1800, cacheKey)
+                  : renderWebPdfPage(url, page, 1800, cacheKey || url));
+
+              task
+                .then((result) => {
+                  if (!cancelled) {
+                    setState({
+                      dataUrl: result?.dataUrl || '',
+                      pageCount: Number(result?.pageCount || 0),
+                      loading: false,
+                      error: '',
+                    });
+                  }
+                })
+                .catch((error) => {
+                  if (!cancelled) {
+                    setState({
+                      dataUrl: '',
+                      pageCount: 0,
+                      loading: false,
+                      error: error?.message || 'تعذر عرض صفحة PDF.',
+                    });
+                  }
+                });
+
+              return () => { cancelled = true; };
+            }, [blob, cacheKey, page, url]);
+
+            return state;
+          }
+          """.replace('          ', ''),
+          encoding='utf-8',
+          )
+
+          # 4. Map drawer: closed state gives the map the only grid row.
+          path = Path('src/styles/v107.css')
+          source = path.read_text(encoding='utf-8')
+          source, changed = re.subn(
+              r'(\.classmode-v103 \.lesson-map-studio\.tools-closed \.lesson-map-main \{\s*)'
+              r'grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s*!important;',
+              r'\1grid-template-rows: minmax(0, 1fr) !important;',
+              source,
+              count=1,
+              flags=re.S,
+          )
+          if not changed and not re.search(
+              r'lesson-map-studio\.tools-closed \.lesson-map-main \{\s*'
+              r'grid-template-rows: minmax\(0, 1fr\) !important;',
+              source,
+              re.S,
+          ):
+              raise SystemExit('Closed map drawer rule was not found.')
+          path.write_text(source, encoding='utf-8')
+
+          # 5. Historical relief symbols: restore a real selectable toolbar row.
+          path = Path('src/pages/ClassMode.jsx')
+          source = path.read_text(encoding='utf-8')
+          marker = 'classmode-historical-symbol-row'
+
+          if marker not in source:
+              required = [
+                  'historicalSymbolOptions',
+                  "stamp.kind === 'historical-symbol'",
+                  'setHistoricalSymbol',
+                  'activateBoardTool',
+              ]
+              missing = [item for item in required if item not in source]
+              if missing:
+                  raise SystemExit(f'Historical-symbol prerequisites missing: {missing}')
+
+              anchor = 'classmode-tool-group compact classmode-text-style-row'
+              anchor_pos = source.find(anchor)
+              if anchor_pos < 0:
+                  raise SystemExit('Text-style toolbar row was not found.')
+
+              row_end = source.find('</div>', anchor_pos)
+              if row_end < 0:
+                  raise SystemExit('Text-style toolbar closing div was not found.')
+              row_end += len('</div>')
+
+              block = """
+            <div className="classmode-tool-group compact classmode-historical-symbol-row">
+              {historicalSymbolOptions.map((item) => (
+                <button
+                  key={item.key}
+                  className={tool === 'historical-symbol' && historicalSymbol === item.key ? 'active' : ''}
+                  onClick={() => {
+                    setHistoricalSymbol(item.key);
+                    activateBoardTool('historical-symbol');
+                  }}
+                  type="button"
+                  title={item.label}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>"""
+
+              source = source[:row_end] + block + source[row_end:]
+              path.write_text(source, encoding='utf-8')
+
+          PY
+
+      - name: Prove the five failures are fixed
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test \
+            tests/browser-p0-regression.test.mjs \
+            tests/browser-p0-v5-regression.test.mjs
+
+      - name: Sync exact dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --package-lock-only --ignore-scripts
+          npm ci --ignore-scripts
+
+      - name: Run all tests lint static checks and production build
+        run: npm run verify
+
+      - name: Commit only after everything passes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            src/pages/ClassMode.jsx \
+            src/data/countryCards.js \
+            tests/v14-progress-country-meta.test.mjs \
+            src/pages/ContentLibrary.jsx \
+            src/components/classmode/ClassroomGamePanel.jsx \
+            src/hooks/usePdfPage.js \
+            src/styles/v107.css \
+            package.json \
+            package-lock.json
+
+          if git diff --cached --quiet; then
+            echo "Everything was already fixed."
+            exit 0
+          fi
+
+          git commit -m "Install V14 and repair five regressions"
+          git push origin HEAD:v14-working
+
+      - name: Disable obsolete installer after successful repair
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/install-v14-feature-update.yml/disable" || true
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/repair-v14-feature-update-auto.yml/disable" || true
