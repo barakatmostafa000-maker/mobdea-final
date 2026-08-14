@@ -38,8 +38,10 @@ jobs:
           test -f /tmp/mobdea-v14-feature-update/v14-feature-update/src/data/countryCards.js
           rsync -a /tmp/mobdea-v14-feature-update/v14-feature-update/ ./
 
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
+      - name: Sync lockfile and install dependencies
+  run: |
+    npm install --package-lock-only --ignore-scripts
+    npm ci --ignore-scripts
 
       - name: Verify feature update and production build
         run: npm run verify
@@ -50,7 +52,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/pages/ClassMode.jsx src/data/countryCards.js tests/v14-progress-country-meta.test.mjs
+git add src/pages/ClassMode.jsx src/data/countryCards.js tests/v14-progress-country-meta.test.mjs package-lock.json
           if git diff --cached --quiet; then
             echo "No source changes to commit."
             exit 0
