@@ -70,11 +70,12 @@ public class MobdeaScreenRecorderPlugin extends Plugin {
     public void load() {
         super.load();
         IntentFilter filter = new IntentFilter(MobdeaScreenRecorderService.ACTION_RESULT);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getContext().registerReceiver(resultReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            getContext().registerReceiver(resultReceiver, filter);
-        }
+        ContextCompat.registerReceiver(
+            getContext(),
+            resultReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        );
         receiverRegistered = true;
     }
 
