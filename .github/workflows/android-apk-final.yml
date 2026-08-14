@@ -6,6 +6,8 @@ on:
       - v14-working
     paths:
       - .github/workflows/android-apk-final.yml
+      - android/app/src/main/java/com/mobdea/education/recording/MobdeaScreenRecorderPlugin.java
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -93,7 +95,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add             android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java             android/app/src/main/java/com/mobdea/education/pptx/MobdeaPptxRendererPlugin.java
+          git add \
+            android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java \
+            android/app/src/main/java/com/mobdea/education/pptx/MobdeaPptxRendererPlugin.java \
+            android/app/src/main/java/com/mobdea/education/recording/MobdeaScreenRecorderPlugin.java
           if git diff --cached --quiet; then
             echo "Android source already contains the verified repairs."
           else
