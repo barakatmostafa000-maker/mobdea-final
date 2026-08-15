@@ -12,6 +12,7 @@ import './styles/v109.css';
 import './styles/v110.css';
 import './styles/v111.css';
 import './styles/student-cards-print.css';
+import './styles/r18-classmode-viewport-fix.css';
 import { installViewportMetrics } from './services/viewport';
 
 installViewportMetrics();
@@ -27,9 +28,6 @@ function showFatalBootMessage(error) {
 window.addEventListener('error', (event) => showFatalBootMessage(event.error || event.message));
 window.addEventListener('unhandledrejection', (event) => showFatalBootMessage(event.reason));
 
-// A native tablet with an outdated/corrupt WebView cache used to remain white
-// forever. Keep a visible watchdog outside React so startup failures are never
-// silent and the teacher can retry or clear only the web cache.
 setTimeout(() => {
   if (!bootCompleted && rootElement && !rootElement.querySelector('.fatal-screen')) {
     showFatalBootMessage(new Error('لم تكتمل تهيئة واجهة المنصة خلال الوقت المتوقع.'));

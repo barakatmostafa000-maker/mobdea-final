@@ -49,14 +49,24 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
 
         configureSystemBarInsets();
+        applyImmersiveFullscreen();
         clearStaleWebCacheAfterUpgrade();
     }
 
-    private void configureSystemBarInsets() {
+    @Override
+    public void onResume() {
+        super.onResume();
+        applyImmersiveFullscreen();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) applyImmersiveFullscreen();
+    }
+
+    private void applyImmersiveFullscreen() {
         try {
-            // Android 15 enforces edge-to-edge for targetSdk 35. Keep the WebView
-            // aware of status/navigation/cutout insets so controls never sit under
-            // the system bars on phones or tablets.
             WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
             getWindow().setStatusBarColor(Color.TRANSPARENT);
             getWindow().setNavigationBarColor(Color.TRANSPARENT);
@@ -67,6 +77,32 @@ public class MainActivity extends BridgeActivity {
             );
             controller.setAppearanceLightStatusBars(false);
             controller.setAppearanceLightNavigationBars(false);
+            controller.setSystemBarsBehavior(
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            );
+            controller.hide(WindowInsetsCompat.Type.systemBars());
+        } catch (Exception ignored) {
+            // The web layer still fits the reported visible viewport if a vendor
+            // ROM refuses immersive mode.
+        }
+    }
+
+    private void configureSystemBarInsets() {
+        try {
+            WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+            getWindow().setStatusBarColor(Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(Color.TRANSPARENT);
+
+            WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(
+                    getWindow(),
+                    getWindow().getDecorView()
+            );
+            controller.setAppearanceLightStatusBars(false);
+            controller.setAppearanceLightNavigationBars(false);
+            controller.setSystemBarsBehavior(
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            );
+            controller.hide(WindowInsetsCompat.Type.systemBars());
 
             WebView webView = getBridge() != null ? getBridge().getWebView() : null;
             if (webView == null) return;
@@ -94,9 +130,6 @@ public class MainActivity extends BridgeActivity {
                 );
                 Runnable publishInsets = () -> webView.evaluateJavascript(script, null);
                 webView.post(publishInsets);
-                // The first launch after an APK upgrade reloads the WebView once
-                // after clearing stale assets. Re-publish the insets after that
-                // reload so the status-bar offset cannot be lost.
                 webView.postDelayed(publishInsets, 350L);
                 webView.postDelayed(publishInsets, 1200L);
                 return windowInsets;
@@ -130,14 +163,9 @@ public class MainActivity extends BridgeActivity {
         try {
             WebView webView = getBridge() != null ? getBridge().getWebView() : null;
             if (webView != null) {
-                // Keeps IndexedDB/local app data intact while removing stale HTML,
-                // JavaScript and CSS files that caused the tablet white screen.
                 webView.clearCache(true);
                 webView.clearHistory();
                 webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
-                // BridgeActivity may have started loading before the upgrade was
-                // detected. Reload once after clearing so the first visible page
-                // definitely uses the APK assets from the new version.
                 webView.postDelayed(webView::reload, 120L);
                 webView.postDelayed(() -> webView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT), 6000L);
             }

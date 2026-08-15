@@ -7,6 +7,22 @@ function finitePositive(value) {
   return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
+function stableViewportValue(...values) {
+  const valid = values
+    .map(finitePositive)
+    .filter(Boolean)
+    .sort((left, right) => left - right);
+  if (!valid.length) return 0;
+  return valid[Math.floor(valid.length / 2)];
+}
+
+function keyboardLikelyOpen() {
+  const active = globalThis.document?.activeElement;
+  if (!active) return false;
+  const tag = String(active.tagName || '').toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || active.isContentEditable === true;
+}
+
 function viewportMeasurements() {
   const visual = globalThis.visualViewport;
   const screenObject = globalThis.screen;
@@ -20,20 +36,23 @@ function viewportMeasurements() {
   const screenHeight = finitePositive(screenObject?.height);
 
   const native = Capacitor.isNativePlatform();
-  const landscape = Math.max(innerWidth, visualWidth, clientWidth) >= Math.max(innerHeight, visualHeight, clientHeight);
 
-  let width = Math.max(innerWidth, visualWidth, clientWidth);
-  let height = Math.max(innerHeight, visualHeight, clientHeight);
+  // Use the median of the three live CSS viewport measurements. This rejects
+  // both known Android failure modes: a stale oversized client/screen value
+  // that clips the footer, and a transient half-height visualViewport value
+  // after orientation restoration.
+  let width = stableViewportValue(visualWidth, innerWidth, clientWidth);
+  let height = stableViewportValue(visualHeight, innerHeight, clientHeight);
 
-  // A few older Samsung WebViews report a visual viewport close to half the
-  // real landscape height after orientation restoration. screen.* is expressed
-  // in CSS pixels too, so it is a dependable native-only fallback.
-  if (native && screenWidth && screenHeight) {
-    const expectedWidth = landscape ? Math.max(screenWidth, screenHeight) : Math.min(screenWidth, screenHeight);
-    const expectedHeight = landscape ? Math.min(screenWidth, screenHeight) : Math.max(screenWidth, screenHeight);
-    if (width < expectedWidth * 0.78) width = expectedWidth;
-    if (height < expectedHeight * 0.78) height = expectedHeight;
-  }
+  // The on-screen keyboard intentionally shrinks visualViewport. Respect that
+  // only while a text control is focused; otherwise one bad visualViewport
+  // sample must never collapse the classroom.
+  if (keyboardLikelyOpen() && visualHeight) height = Math.min(height || visualHeight, visualHeight);
+
+  // screen.* is a last-resort fallback only. It must never enlarge a valid
+  // WebView viewport because that was the source of the hidden bottom area.
+  if (!width) width = screenWidth || 1;
+  if (!height) height = screenHeight || 1;
 
   return {
     width: Math.max(1, Math.round(width)),
@@ -50,6 +69,7 @@ export function applyViewportMetrics() {
   root.style.setProperty('--mobdea-app-height', `${height}px`);
   root.style.setProperty('--mobdea-app-vh', `${height / 100}px`);
   root.classList.toggle('mobdea-native', native);
+  root.dataset.mobdeaViewport = `${width}x${height}`;
 }
 
 export function installViewportMetrics() {
@@ -67,7 +87,10 @@ export function installViewportMetrics() {
   globalThis.addEventListener?.('resize', schedule, { passive: true });
   globalThis.addEventListener?.('orientationchange', schedule, { passive: true });
   globalThis.visualViewport?.addEventListener?.('resize', schedule, { passive: true });
+  globalThis.visualViewport?.addEventListener?.('scroll', schedule, { passive: true });
   globalThis.document?.addEventListener?.('visibilitychange', schedule);
+  globalThis.document?.addEventListener?.('focusin', schedule);
+  globalThis.document?.addEventListener?.('focusout', schedule);
 
   cleanupViewport = () => {
     globalThis.cancelAnimationFrame?.(frame);
@@ -75,7 +98,10 @@ export function installViewportMetrics() {
     globalThis.removeEventListener?.('resize', schedule);
     globalThis.removeEventListener?.('orientationchange', schedule);
     globalThis.visualViewport?.removeEventListener?.('resize', schedule);
+    globalThis.visualViewport?.removeEventListener?.('scroll', schedule);
     globalThis.document?.removeEventListener?.('visibilitychange', schedule);
+    globalThis.document?.removeEventListener?.('focusin', schedule);
+    globalThis.document?.removeEventListener?.('focusout', schedule);
     cleanupViewport = null;
   };
   return cleanupViewport;
