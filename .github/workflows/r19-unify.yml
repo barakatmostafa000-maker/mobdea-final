@@ -1,0 +1,309 @@
+name: R19 Unified Bootstrap
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/r19-unify.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobdea-r19-unified-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  unify-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout main foundation
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure Git
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main v14-working
+
+      - name: Create R19 unified branch from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git switch -C r19-unified origin/main
+          echo "R19 base: $(git rev-parse --short HEAD)"
+          echo "V14 source: $(git rev-parse --short origin/v14-working)"
+
+      - name: Overlay current application runtime from v14-working
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Keep main's .github / CI foundation.
+          # Replace runtime/source trees with the current v14-working implementation,
+          # without bringing old root backup folders, repair ZIPs or source-mutating workflows.
+          rm -rf src public android cloud-worker tests scripts
+
+          git checkout origin/v14-working -- \
+            src \
+            public \
+            android \
+            cloud-worker \
+            tests \
+            scripts \
+            package.json \
+            package-lock.json \
+            .next-apk-version \
+            capacitor.config.json \
+            index.html \
+            join.html \
+            vite.config.js
+
+          # Never carry generated/runtime build output from the source branch.
+          rm -rf dist node_modules android/.gradle android/app/build android/build
+
+      - name: Repair native asset staging and raise textbook PDF capacity to 500 MB
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one occurrence of {old!r}, found {count}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'src/services/assetStore.js',
+              'const MAX_ASSET_BYTES = 200 * 1024 * 1024;',
+              'const MAX_ASSET_BYTES = 500 * 1024 * 1024;',
+          )
+          replace_once(
+              'src/services/assetStore.js',
+              "if (blob.size > MAX_ASSET_BYTES) throw new Error('الحد الأقصى للملف الواحد 200 ميجابايت.');",
+              "if (blob.size > MAX_ASSET_BYTES) throw new Error('الحد الأقصى للملف الواحد 500 ميجابايت.');",
+          )
+
+          replace_once(
+              'src/services/nativeAssetBridge.js',
+              'const MAX_NATIVE_STAGE_BYTES = 200 * 1024 * 1024;',
+              'const MAX_NATIVE_STAGE_BYTES = 500 * 1024 * 1024;',
+          )
+
+          native_path = Path('android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java')
+          native = native_path.read_text(encoding='utf-8')
+
+          old_limit = 'private static final long MAX_ASSET_BYTES = 200L * 1024L * 1024L;'
+          if native.count(old_limit) != 1:
+              raise SystemExit('MobdeaNativeAssetPlugin.java: expected one 200 MB native limit')
+          native = native.replace(
+              old_limit,
+              'private static final long MAX_ASSET_BYTES = 500L * 1024L * 1024L;',
+              1,
+          )
+
+          old_size = 'long expectedSize = Math.max(0L, call.getLong("size", 0L));'
+          if native.count(old_size) != 2:
+              raise SystemExit(
+                  'MobdeaNativeAssetPlugin.java: expected two legacy getLong size reads '
+                  f'but found {native.count(old_size)}'
+              )
+          native = native.replace(old_size, 'long expectedSize = readAssetSize(call);')
+
+          helper = (
+              '    private long readAssetSize(PluginCall call) {\n'
+              '        double value = call.getDouble("size", 0d);\n'
+              '        if (!Double.isFinite(value) || value <= 0d || value > Long.MAX_VALUE) return 0L;\n'
+              '        return Math.round(value);\n'
+              '    }\n\n'
+          )
+          anchor = '    private File assetDirectory() throws Exception {\n'
+          if 'private long readAssetSize(PluginCall call)' not in native:
+              if anchor not in native:
+                  raise SystemExit('MobdeaNativeAssetPlugin.java: helper insertion anchor missing')
+              native = native.replace(anchor, helper + anchor, 1)
+
+          if 'call.getLong("size"' in native:
+              raise SystemExit('MobdeaNativeAssetPlugin.java: legacy getLong size parser still present')
+          if 'call.getDouble("size", 0d)' not in native:
+              raise SystemExit('MobdeaNativeAssetPlugin.java: robust Double size parser missing')
+          native_path.write_text(native, encoding='utf-8')
+
+          replace_once(
+              'android/app/src/main/java/com/mobdea/education/pdf/MobdeaPdfRendererPlugin.java',
+              'private static final long MAX_PDF_BYTES = 200L * 1024L * 1024L;',
+              'private static final long MAX_PDF_BYTES = 500L * 1024L * 1024L;',
+          )
+          replace_once(
+              'android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java',
+              'private static final long MAX_PDF_BYTES = 200L * 1024L * 1024L;',
+              'private static final long MAX_PDF_BYTES = 500L * 1024L * 1024L;',
+          )
+
+          print('Applied R19 native/media capacity repairs.')
+          PY
+
+      - name: Add focused R19 regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > tests/r19-media-native-regression.test.mjs <<'TEST'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import test from 'node:test';
+
+          const read = (path) => fs.readFileSync(path, 'utf8');
+
+          test('R19 accepts 500 MB local/native textbook assets', () => {
+            assert.match(read('src/services/assetStore.js'), /MAX_ASSET_BYTES = 500 \* 1024 \* 1024/);
+            assert.match(read('src/services/nativeAssetBridge.js'), /MAX_NATIVE_STAGE_BYTES = 500 \* 1024 \* 1024/);
+            assert.match(
+              read('android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java'),
+              /MAX_ASSET_BYTES = 500L \* 1024L \* 1024L/,
+            );
+            assert.match(
+              read('android/app/src/main/java/com/mobdea/education/pdf/MobdeaPdfRendererPlugin.java'),
+              /MAX_PDF_BYTES = 500L \* 1024L \* 1024L/,
+            );
+            assert.match(
+              read('android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java'),
+              /MAX_PDF_BYTES = 500L \* 1024L \* 1024L/,
+            );
+          });
+
+          test('native staging reads JavaScript numeric sizes safely', () => {
+            const native = read('android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java');
+            assert.match(native, /call\.getDouble\("size", 0d\)/);
+            assert.match(native, /long expectedSize = readAssetSize\(call\);/);
+            assert.doesNotMatch(native, /call\.getLong\("size"/);
+          });
+
+          test('ClassMode keeps real multi-resource previous and next controls', () => {
+            const source = read('src/pages/ClassMode.jsx');
+            assert.match(source, /classmode-inline-media-switcher/);
+            assert.match(source, /cycleModeResource\(-1\)/);
+            assert.match(source, /cycleModeResource\(1\)/);
+            assert.match(source, /classmode-page-nav/);
+          });
+
+          test('Android registers PDF, OCR, PowerPoint and native asset plugins', () => {
+            const source = read('android/app/src/main/java/com/mobdea/education/MainActivity.java');
+            for (const plugin of [
+              'MobdeaPdfRendererPlugin.class',
+              'MobdeaPdfOcrPlugin.class',
+              'MobdeaPptxRendererPlugin.class',
+              'MobdeaNativeAssetPlugin.class',
+            ]) {
+              assert.ok(source.includes(`registerPlugin(${plugin})`), `Missing registration for ${plugin}`);
+            }
+          });
+          TEST
+
+          node --test tests/r19-media-native-regression.test.mjs
+
+      - name: Install locked JavaScript dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run complete web verification
+        run: npm run verify
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Android unit tests, lint and debug APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug --stacktrace
+
+      - name: Verify source and APK before publishing branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          echo "===== R19 changes ====="
+          git status --short
+          echo "===== APK ====="
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+          sha256sum android/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/r19-apk.sha256
+
+      - name: Commit unified Phase 0 source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf dist
+
+          git add -A \
+            src \
+            public \
+            android \
+            cloud-worker \
+            tests \
+            scripts \
+            package.json \
+            package-lock.json \
+            .next-apk-version \
+            capacitor.config.json \
+            index.html \
+            join.html \
+            vite.config.js
+
+          if git diff --cached --quiet; then
+            echo "No Phase 0 source changes to commit."
+          else
+            git commit -m "Bootstrap R19 unified runtime and repair native media pipeline"
+          fi
+
+          git push -u origin HEAD:r19-unified
+
+      - name: Upload R19 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-unified-phase0-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Mobdea R19 unified bootstrap"
+            echo "- Foundation: main"
+            echo "- Runtime/features source: v14-working"
+            echo "- Legacy repair archives/workflows: not overlaid"
+            echo "- Native JS byte-size parser: Double/Number-safe"
+            echo "- Textbook/PDF/native/OCR capacity: 500 MB"
+            if [ -f /tmp/r19-apk.sha256 ]; then
+              echo "- APK SHA256: $(cut -d' ' -f1 /tmp/r19-apk.sha256)"
+            fi
+            echo "- Target branch: r19-unified"
+          } >> "$GITHUB_STEP_SUMMARY"
