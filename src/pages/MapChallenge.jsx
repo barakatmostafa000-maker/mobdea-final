@@ -25,6 +25,7 @@ import {
   Target,
   TimerReset,
   Trophy,
+  Type,
   UserRound,
   Users,
   Waves,
@@ -33,8 +34,9 @@ import {
 } from 'lucide-react';
 import { identity } from '../config/identity';
 import { encourageStudent } from '../services/voice';
-import { calculateMapReward, shuffleMapItems } from '../utils/mapChallenge';
+import { calculateMapReward, normalizeMapAnswer, shuffleMapItems } from '../utils/mapChallenge';
 import ProfessionalMap, { GeographyGlyph } from '../components/maps/ProfessionalMap';
+import { MAP_RIVER_LINES } from '../data/mapEnrichment';
 import {
   GEOGRAPHY_REGIONS,
   GEOGRAPHY_LAYERS,
@@ -45,19 +47,24 @@ import {
 } from '../data/geography';
 
 const regions = GEOGRAPHY_REGIONS;
+const coreRegionKeys = ['egypt', 'arab', 'africa', 'asia', 'europe', 'northAmerica', 'southAmerica', 'australia', 'world'];
 
 const layers = {
   countries: { ...GEOGRAPHY_LAYERS.countries, icon: Flag },
+  borders: { ...GEOGRAPHY_LAYERS.borders, icon: Layers3 },
   capitals: { ...GEOGRAPHY_LAYERS.capitals, icon: MapPin },
   cities: { ...GEOGRAPHY_LAYERS.cities, icon: MapPin },
   mountains: { ...GEOGRAPHY_LAYERS.mountains, icon: Mountain },
   plateaus: { ...GEOGRAPHY_LAYERS.plateaus, icon: Mountain },
   plains: { ...GEOGRAPHY_LAYERS.plains, icon: Layers3 },
+  deserts: { ...GEOGRAPHY_LAYERS.deserts, icon: Layers3 },
   rivers: { ...GEOGRAPHY_LAYERS.rivers, icon: Waves },
   seas: { ...GEOGRAPHY_LAYERS.seas, icon: Waves },
+  oceans: { ...GEOGRAPHY_LAYERS.oceans, icon: Waves },
   minerals: { ...GEOGRAPHY_LAYERS.minerals, icon: Gem },
   latitude: { ...GEOGRAPHY_LAYERS.latitude, icon: Compass },
   longitude: { ...GEOGRAPHY_LAYERS.longitude, icon: Compass },
+  directions: { ...GEOGRAPHY_LAYERS.directions, icon: Compass },
   population: { ...GEOGRAPHY_LAYERS.population, icon: Users },
 };
 
@@ -65,11 +72,12 @@ const modeConfig = {
   challenge: { label: 'وضع التحدي', icon: Target, seconds: 35, lives: 3, multiplier: 1, description: 'أسئلة متتابعة ونقاط حسب السرعة' },
   explore: { label: 'وضع الاستكشاف', icon: Compass, seconds: 0, lives: 99, multiplier: 0, description: 'استكشف الدول والظاهرات بحرية' },
   training: { label: 'وضع التدريب', icon: GraduationCap, seconds: 60, lives: 8, multiplier: 0.65, description: 'وقت أطول وتلميحات تعليمية' },
+  naming: { label: 'اكتب الاسم', icon: Type, seconds: 45, lives: 5, multiplier: 0.85, description: 'اكتب اسم الموقع المحدد على الخريطة' },
   build: { label: 'وضع البناء', icon: Layers3, seconds: 0, lives: 99, multiplier: 0.45, description: 'ضع عناصر الجغرافيا على الخريطة' },
   contest: { label: 'البطولات', icon: Trophy, seconds: 20, lives: 2, multiplier: 1.5, description: 'أقصى سرعة ومكافآت أعلى' },
 };
 
-const buildPaletteIds = new Set(['mountains', 'plateaus', 'plains', 'river', 'desert', 'capital', 'city', 'pin', 'latitude', 'longitude', 'population-low', 'population-medium', 'population-high']);
+const buildPaletteIds = new Set(['terrain-single-mountain', 'terrain-mountain-range', 'terrain-plateau', 'water-river', 'terrain-desert', 'human-capital', 'human-city', 'map-marker', 'map-direction-arrow', 'population-low-density', 'population-medium-density', 'population-high-density', 'border-international']);
 const buildPalette = GEOGRAPHY_SYMBOLS.filter((item) => buildPaletteIds.has(item.id));
 
 export default function MapChallenge({ data, updateData, navigate }) {
@@ -84,6 +92,8 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const [streak, setStreak] = useState(0);
   const [message, setMessage] = useState('');
   const [labels, setLabels] = useState(false);
+  const [mapStyle, setMapStyle] = useState('relief');
+  const [silentMap, setSilentMap] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [seconds, setSeconds] = useState(modeConfig.challenge.seconds);
   const [lives, setLives] = useState(modeConfig.challenge.lives);
@@ -94,17 +104,21 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const [mapDrawColor, setMapDrawColor] = useState('#ef4444');
   const [mapStrokes, setMapStrokes] = useState([]);
   const [selectedBuildItem, setSelectedBuildItem] = useState(null);
+  const [selectedBuildPlacementId, setSelectedBuildPlacementId] = useState('');
+  const [nameAnswer, setNameAnswer] = useState('');
   const mapCanvasRef = useRef(null);
   const mapDrawing = useRef(false);
   const mapCurrentStroke = useRef(null);
   const answerLockRef = useRef(false);
   const timerHandledRef = useRef('');
+  const palettePointerRef = useRef(null);
   const settings = data?.settings || {};
 
   const region = regions[regionKey] || regions.world;
   const project = useMemo(() => createMapProjector(regionKey), [regionKey]);
   const countries = useMemo(() => getRegionCountries(geo, regionKey), [geo, regionKey]);
   const items = useMemo(() => getRegionLayerItems(geo, regionKey, layerKey), [geo, countries, layerKey, regionKey]);
+  const riverLines = useMemo(() => MAP_RIVER_LINES[regionKey] || [], [regionKey]);
   const activeConfig = modeConfig[mode];
   const target = order[index] || null;
   const progress = mode === 'build'
@@ -113,7 +127,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
   const saveResult = async (status, finalScore = score) => {
     const result = { id: Date.now(), region: regionKey, layer: layerKey, mode, score: finalScore, streak, placements, status, answered: mode === 'build' ? placements.length : Math.min(index + 1, order.length), total: mode === 'build' ? buildPalette.length : order.length, createdAt: new Date().toISOString() };
-    await updateData({ ...data, mapResults: [result, ...(data.mapResults || [])].slice(0, 250) });
+    await updateData((latest) => ({ ...latest, mapResults: [result, ...(latest.mapResults || [])].slice(0, 250) }));
   };
 
   const finish = async (status = 'completed', finalScore = score) => {
@@ -128,6 +142,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
     answerLockRef.current = false;
     timerHandledRef.current = '';
     setHintId('');
+    setNameAnswer('');
     if (index + 1 >= order.length) await finish('completed', finalScore);
     else { setIndex((value) => value + 1); resetTimer(); }
   };
@@ -199,9 +214,16 @@ export default function MapChallenge({ data, updateData, navigate }) {
     setSelectedBuildItem(null);
     setHintId('');
     setSelectedId('');
+    setNameAnswer('');
     setStarted(true);
     if (mode === 'explore') setLabels(true);
   };
+
+  useEffect(() => {
+    if (!started || mode !== 'naming' || !target) return;
+    setHintId(target.id);
+    setLabels(false);
+  }, [started, mode, target?.id]);
 
   const answer = async (id, name = '') => {
     setSelectedId(id);
@@ -209,7 +231,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
       setMessage(`📍 ${name || items.find((item) => item.id === id)?.name || 'موقع على الخريطة'}`);
       return;
     }
-    if (!started || !target || mode === 'build' || answerLockRef.current) return;
+    if (!started || !target || ['build', 'naming'].includes(mode) || answerLockRef.current) return;
     answerLockRef.current = true;
     if (id === target.id) {
       const reward = calculateMapReward({ seconds, multiplier: activeConfig.multiplier, streak });
@@ -223,6 +245,27 @@ export default function MapChallenge({ data, updateData, navigate }) {
       await wrongAnswer('ليست الإجابة المطلوبة — جرّب مرة أخرى');
       answerLockRef.current = false;
     }
+  };
+
+  const submitNameAnswer = async () => {
+    if (!started || mode !== 'naming' || !target || answerLockRef.current) return;
+    const supplied = normalizeMapAnswer(nameAnswer);
+    if (!supplied) {
+      setMessage('اكتب اسم الموقع أولًا.');
+      return;
+    }
+    answerLockRef.current = true;
+    if (supplied === normalizeMapAnswer(target.name)) {
+      const reward = calculateMapReward({ seconds, multiplier: activeConfig.multiplier, streak });
+      const nextScore = score + reward;
+      setScore(nextScore);
+      setStreak((value) => value + 1);
+      setMessage(`إجابة صحيحة +${reward} نقطة`);
+      setTimeout(() => advance(nextScore), 450);
+      return;
+    }
+    await wrongAnswer(`إجابة غير صحيحة — الموقع هو: ${target.name}`);
+    answerLockRef.current = false;
   };
 
   const useHint = () => {
@@ -243,8 +286,9 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
   const addBuildPlacement = (item, x, y) => {
     if (!item) return;
-    const placement = { ...item, id: `${item.id}-${Date.now()}`, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+    const placement = { ...item, id: `${item.id}-${Date.now()}`, showLabel: false, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)), size: 1 };
     setPlacements((current) => [...current, placement]);
+    setSelectedBuildPlacementId(placement.id);
     setSelectedBuildItem(null);
     setScore((value) => value + 25);
     setMessage(`تم وضع ${item.label} على الخريطة`);
@@ -254,19 +298,44 @@ export default function MapChallenge({ data, updateData, navigate }) {
     event.dataTransfer.setData('application/json', JSON.stringify(item));
   };
   const handleDropPlacement = (event) => {
-    if (mode !== 'build' || !started) return;
+    if (mode !== 'build') return;
     event.preventDefault();
     event.stopPropagation();
     try {
       const item = JSON.parse(event.dataTransfer.getData('application/json'));
       const rect = event.currentTarget.getBoundingClientRect();
+      if (!started) setStarted(true);
       addBuildPlacement(item, ((event.clientX - rect.left) / rect.width) * 100, ((event.clientY - rect.top) / rect.height) * 100);
     } catch { setMessage('تعذر وضع العنصر هنا.'); }
   };
   const handleMapStageClick = (event) => {
-    if (mode !== 'build' || !started || !selectedBuildItem || mapTool !== 'select') return;
+    if (mode !== 'build' || !selectedBuildItem || mapTool !== 'select') return;
     const rect = event.currentTarget.getBoundingClientRect();
+    if (!started) setStarted(true);
     addBuildPlacement(selectedBuildItem, ((event.clientX - rect.left) / rect.width) * 100, ((event.clientY - rect.top) / rect.height) * 100);
+  };
+  const startPalettePointer = (event, item) => {
+    setSelectedBuildItem(item);
+    if (event.pointerType === 'mouse') return;
+    palettePointerRef.current = { item, startX: event.clientX, startY: event.clientY };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const finishPalettePointer = (event) => {
+    const pending = palettePointerRef.current;
+    palettePointerRef.current = null;
+    if (!pending || event.pointerType === 'mouse') return;
+    const moved = Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY);
+    if (moved < 12) return;
+    const stage = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.map-pro-stage');
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    if (!started) setStarted(true);
+    addBuildPlacement(
+      pending.item,
+      ((event.clientX - rect.left) / rect.width) * 100,
+      ((event.clientY - rect.top) / rect.height) * 100,
+    );
   };
 
   const mapPoint = (event) => {
@@ -302,7 +371,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
   const recentBest = Math.max(0, ...(data?.mapResults || []).map((result) => Number(result.score || 0)));
 
   return (
-    <section className="page map-challenge-pro map-game-v103">
+    <section className="page map-challenge-pro map-game-v103 map-game-v11">
       <header className="map-game-topbar">
         <div className="map-player-profile"><img src={identity.portrait} alt={identity.teacherName}/><div><strong>{identity.teacherName}</strong><small>مستوى الجغرافيا 12</small></div></div>
         <div className="map-game-counters"><span>🪙 <b>{score}</b></span><span>⭐ <b>{streak * 5}</b></span><span>⚡ <b>{Math.max(0, Math.round((lives / activeConfig.lives) * 100))}/100</b></span></div>
@@ -312,7 +381,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
       <div className="map-game-layout">
         <aside className="map-game-nav">
           <div className="map-game-brand"><img src={identity.logo || identity.icon} alt={identity.schoolName}/><strong>تحدي الخرائط</strong></div>
-          <nav>{modeNav.map(([key, item]) => { const Icon = item.icon; return <button type="button" key={key} className={mode === key ? 'active' : ''} onClick={() => { setMode(key); setStarted(false); setSelectedBuildItem(null); setMessage(''); }}><Icon size={19}/><span>{item.label}</span></button>; })}</nav>
+          <nav>{modeNav.map(([key, item]) => { const Icon = item.icon; return <button type="button" key={key} className={mode === key ? 'active' : ''} onClick={() => { setMode(key); setStarted(false); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage(''); }}><Icon size={19}/><span>{item.label}</span></button>; })}</nav>
           <div className="map-game-secondary-nav">
             <button type="button" onClick={() => setMessage(`أفضل نتيجة مسجلة: ${recentBest} نقطة`)}><Medal size={18}/>الإنجازات</button>
             <button type="button" onClick={() => navigate?.('studentCards')}><BadgeCheck size={18}/>كروت الطلاب</button>
@@ -323,9 +392,12 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
         <main className="map-game-main">
           <div className="map-game-toolbar">
-            <div className="map-region-tabs">{Object.entries(regions).map(([key, item]) => <button key={key} type="button" className={regionKey === key ? 'active' : ''} onClick={() => { setRegionKey(key); setStarted(false); setSelectedBuildItem(null); setMessage(''); }}>{item.title}</button>)}</div>
+            <div className="map-region-tabs map-region-tabs-core">{coreRegionKeys.map((key) => { const item = regions[key]; return <button key={key} type="button" className={regionKey === key ? 'active' : ''} onClick={() => { setRegionKey(key); setStarted(false); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage(''); }}><span className={`region-mini-map region-${key}`} aria-hidden="true"/><b>{item.title}</b></button>; })}</div>
             <div className="map-view-tools">
-              <button type="button" onClick={() => setLabels((value) => !value)} title="إظهار الأسماء">{labels ? <EyeOff size={17}/> : <Eye size={17}/>}</button>
+              <button type="button" className={silentMap ? 'active' : ''} onClick={() => { setSilentMap((value) => !value); setLabels(false); }} title="خريطة صماء">صماء</button>
+              <button type="button" className={!silentMap && mapStyle === 'relief' ? 'active' : ''} onClick={() => { setSilentMap(false); setMapStyle('relief'); }} title="مظهر طبيعي مجسم">طبيعية</button>
+              <button type="button" className={!silentMap && mapStyle === 'atlas' ? 'active' : ''} onClick={() => { setSilentMap(false); setMapStyle('atlas'); }} title="مظهر أطلس تعليمي">أطلس</button>
+              <button type="button" onClick={() => setLabels((value) => !value)} title="إظهار الأسماء" disabled={silentMap}>{labels ? <EyeOff size={17}/> : <Eye size={17}/>}</button>
               <button type="button" onClick={() => setZoom((value) => Math.min(1.7, value + .1))}><ZoomIn size={17}/></button>
               <button type="button" onClick={() => setZoom((value) => Math.max(1, value - .1))}><ZoomOut size={17}/></button>
               <button type="button" onClick={() => { setZoom(1); setMapStrokes([]); }}><RotateCcw size={17}/></button>
@@ -334,7 +406,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
 
           <div className="map-game-canvas-shell">
             {!geo && <div className="map-game-loading">جارٍ تحميل حدود الخريطة الاحترافية…</div>}
-            <ProfessionalMap countries={countries} items={items} layerKey={layerKey} labels={labels} highlightedId={hintId} selectedId={selectedId} project={project} zoom={zoom} placements={placements} onCountryClick={answer} onFeatureClick={answer} onDropPlacement={handleDropPlacement} onMovePlacement={(id, x, y) => setPlacements((current) => current.map((item) => item.id === id ? { ...item, x, y } : item))} onRemovePlacement={(id) => setPlacements((current) => current.filter((item) => item.id !== id))} onStageClick={handleMapStageClick} canvasRef={mapCanvasRef} drawTool={mapTool} onPointerDown={onMapPointerDown} onPointerMove={onMapPointerMove} onPointerUp={onMapPointerUp}/>
+            <ProfessionalMap region={region} countries={countries} items={items} layerKey={layerKey} labels={labels} showActiveLabel={mode !== 'naming' || labels} highlightedId={hintId} selectedId={selectedId} project={project} zoom={zoom} placements={placements} selectedPlacementId={selectedBuildPlacementId} onSelectPlacement={setSelectedBuildPlacementId} onCountryClick={answer} onFeatureClick={answer} onDropPlacement={handleDropPlacement} onMovePlacement={(id, x, y) => { setPlacements((current) => current.map((item) => item.id === id ? { ...item, x, y } : item)); setSelectedBuildPlacementId(id); }} onResizePlacement={(id, delta) => { setPlacements((current) => current.map((item) => item.id === id ? { ...item, size: Math.max(0.5, Math.min(2.5, Number(((item.size || 1) + delta).toFixed(2)))) } : item)); setSelectedBuildPlacementId(id); }} onRemovePlacement={(id) => { setPlacements((current) => current.filter((item) => item.id !== id)); setSelectedBuildPlacementId((current) => current === id ? '' : current); }} onStageClick={handleMapStageClick} canvasRef={mapCanvasRef} drawTool={mapTool} onPointerDown={onMapPointerDown} onPointerMove={onMapPointerMove} onPointerUp={onMapPointerUp} mapStyle={mapStyle} silent={silentMap} lineFeatures={riverLines}/>
             <div className="map-drawing-tools">
               <button type="button" className={mapTool === 'select' ? 'active' : ''} onClick={() => setMapTool('select')}><MapPin size={16}/></button>
               <button type="button" className={mapTool === 'pen' ? 'active' : ''} onClick={() => setMapTool('pen')}><PenLine size={16}/></button>
@@ -344,7 +416,7 @@ export default function MapChallenge({ data, updateData, navigate }) {
             </div>
           </div>
 
-          <div className="map-layer-dock">{Object.entries(layers).map(([key, item]) => { const Icon = item.icon; return <button key={key} type="button" className={layerKey === key ? 'active' : ''} onClick={() => { setLayerKey(key); setStarted(false); setSelectedBuildItem(null); setMessage(''); }}><Icon size={18}/><span>{item.title}</span></button>; })}</div>
+          <div className="map-layer-dock">{Object.entries(layers).map(([key, item]) => { const Icon = item.icon; return <button key={key} type="button" className={layerKey === key ? 'active' : ''} onClick={() => { setLayerKey(key); setStarted(false); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage(''); }}><Icon size={18}/><span>{item.title}</span></button>; })}</div>
         </main>
 
         <aside className="map-game-question-panel">
@@ -352,17 +424,18 @@ export default function MapChallenge({ data, updateData, navigate }) {
           <div className="map-question-copy">
             <BrainCircuit size={34}/>
             <small>{region.subtitle}</small>
-            <h3>{mode === 'build' ? 'اسحب عناصر الجغرافيا إلى الخريطة' : mode === 'explore' ? 'اضغط على أي موضع لاستكشافه' : target ? `حدد: ${target.name}` : 'اختر الإعدادات وابدأ الجولة'}</h3>
+            <h3>{mode === 'build' ? 'اسحب عناصر الجغرافيا إلى الخريطة' : mode === 'explore' ? 'اضغط على أي موضع لاستكشافه' : mode === 'naming' ? 'اكتب اسم الموقع المضيء على الخريطة' : target ? `حدد: ${target.name}` : 'اختر الإعدادات وابدأ الجولة'}</h3>
           </div>
           <div className="map-question-stats"><div><span>الوقت</span><strong>{activeConfig.seconds ? `00:${String(seconds).padStart(2, '0')}` : '∞'}</strong></div><div><span>النقاط</span><strong>{score.toLocaleString('ar-EG')}</strong></div><div><span>المضاعف</span><strong>×{activeConfig.multiplier}</strong></div><div><span>الدقة</span><strong>{index ? Math.round((streak / Math.max(index, 1)) * 100) : 100}%</strong></div></div>
           <div className="map-lives">{Array.from({ length: Math.min(5, activeConfig.lives) }, (_, lifeIndex) => <span key={lifeIndex} className={lifeIndex < lives ? 'alive' : ''}>♥</span>)}</div>
-          {mode === 'build' && <div className="map-build-palette">{buildPalette.map((item) => <button key={item.id} draggable className={selectedBuildItem?.id === item.id ? 'active' : ''} onClick={() => { setSelectedBuildItem(item); setMessage(`تم اختيار ${item.label} — اضغط على مكانه في الخريطة.`); }} onDragStart={(event) => handlePaletteDrag(event, item)} type="button" style={{ '--palette-color': item.color }}><b className="map-palette-glyph"><GeographyGlyph type={item.id} symbol={item.symbol} /></b><strong>{item.label}</strong><small>{item.hint}</small></button>)}</div>}
+          {mode === 'build' && <div className="map-build-palette">{buildPalette.map((item) => <button key={item.id} draggable className={selectedBuildItem?.id === item.id ? 'active' : ''} onPointerDown={(event) => startPalettePointer(event, item)} onPointerUp={finishPalettePointer} onPointerCancel={() => { palettePointerRef.current = null; }} onClick={() => { setSelectedBuildItem(item); setMessage(`تم اختيار ${item.label} — اضغط على مكانه أو اسحب الشكل إلى الخريطة.`); }} onDragStart={(event) => handlePaletteDrag(event, item)} type="button" style={{ '--palette-color': item.color }}><b className="map-palette-glyph"><GeographyGlyph type={item.id} symbol={item.symbol} /></b><strong>{item.label}</strong><small>{item.hint}</small></button>)}</div>}
           {message && <div className={`map-game-message ${message.includes('صحيحة') || message.includes('تم وضع') || message.includes('📍') ? 'good' : ''}`}>{message}</div>}
           <div className="map-question-actions">
             {!started ? <button type="button" className="map-start-button" onClick={startGame}><Gamepad2 size={18}/>ابدأ الجولة</button> : <>
+              {mode === 'naming' && <div className="map-name-answer"><input value={nameAnswer} onChange={(event) => setNameAnswer(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void submitNameAnswer(); }} placeholder="اكتب اسم الدولة أو الظاهرة" autoComplete="off"/><button type="button" onClick={() => void submitNameAnswer()}>تحقق</button></div>}
               {!['build', 'explore'].includes(mode) && <button type="button" onClick={useHint}><Lightbulb size={18}/>تلميح</button>}
               {!['build', 'explore'].includes(mode) && <button type="button" onClick={skipQuestion}><SkipForward size={18}/>تخطي</button>}
-              {mode === 'build' && <button type="button" onClick={() => { setPlacements([]); setSelectedBuildItem(null); setMessage('تم مسح عناصر البناء.'); }}><RotateCcw size={18}/>مسح البناء</button>}
+              {mode === 'build' && <button type="button" onClick={() => { setPlacements([]); setSelectedBuildItem(null); setSelectedBuildPlacementId(''); setMessage('تم مسح عناصر البناء.'); }}><RotateCcw size={18}/>مسح البناء</button>}
               <button type="button" onClick={() => finish(mode === 'build' ? 'completed' : mode === 'explore' ? 'explored' : 'stopped')}><TimerReset size={18}/>{mode === 'build' ? 'حفظ البناء' : mode === 'explore' ? 'إنهاء الاستكشاف' : 'إنهاء الجولة'}</button>
             </>}
           </div>

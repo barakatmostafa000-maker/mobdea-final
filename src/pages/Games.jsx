@@ -4,6 +4,7 @@ import { questionBank, gradeOptions } from '../data/questionBank';
 import { mergeQuestionBanks } from '../services/assessment';
 import { encourageStudent, playVoiceClip } from '../services/voice';
 import OnlineGameHostPanel from '../components/live/OnlineGameHostPanel';
+import { appendQuestionHistory, selectQuestionRound } from '../services/questionRotation';
 
 const modes = [
   ['speed', '⚡', 'تحدي السرعة', 'أسئلة متتالية مع مؤقت وCombo.'],
@@ -18,11 +19,6 @@ const modes = [
 ];
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
-const recentSafe = (items, history) => {
-  const unseen = items.filter((item) => !history.includes(item.id));
-  return unseen.length >= Math.min(5, items.length) ? unseen : items;
-};
-
 const gradeKeyFromLabel = (label) => gradeOptions.find((item) => item.label === label)?.key || '6';
 const gradeLabelFromKey = (key) => gradeOptions.find((item) => item.key === key)?.label || '';
 
@@ -172,13 +168,13 @@ export default function Games({ data, updateData, shareState, navigate }) {
   };
 
   const startMode = (selectedMode) => {
-    const pool = recentSafe(poolFor(selectedMode), history);
-    if (!pool.length) {
+    const candidates = poolFor(selectedMode);
+    if (!candidates.length) {
       setFeedback('لا توجد أسئلة كافية لهذا الاختيار.');
       return;
     }
-    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, pool.length) : Math.min(10, pool.length);
-    resetRoundState(selectedMode, shuffle(pool).slice(0, count));
+    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, candidates.length) : Math.min(10, candidates.length);
+    resetRoundState(selectedMode, selectQuestionRound(candidates, history, count));
   };
 
   const startFromResource = (selectedMode, resource) => {
@@ -204,19 +200,19 @@ export default function Games({ data, updateData, shareState, navigate }) {
           : selectedMode === 'matching'
             ? lessonPool.filter((question) => question.type === 'mcq')
             : lessonPool.filter((question) => ['mcq', 'tf', 'fill'].includes(question.type));
-    const pool = recentSafe(compatible.length ? compatible : poolFor(selectedMode, targetGradeKey, targetUnit), history);
-    if (!pool.length) {
+    const candidates = compatible.length ? compatible : poolFor(selectedMode, targetGradeKey, targetUnit);
+    if (!candidates.length) {
       setFeedback('هذا الدرس لا يملك أسئلة كافية بعد. احفظ محتوى الدرس أولًا لتوليد أسئلته.');
       return;
     }
     setGradeKey(targetGradeKey);
     setUnit(targetUnit);
     setFocusResourceId(resource.id);
-    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, pool.length) : Math.min(10, pool.length);
-    resetRoundState(selectedMode, shuffle(pool).slice(0, count));
+    const count = ['timeline', 'character', 'matching'].includes(selectedMode) ? Math.min(4, candidates.length) : Math.min(10, candidates.length);
+    resetRoundState(selectedMode, selectQuestionRound(candidates, history, count));
   };
 
-  const persist = (questionId) => updateData({ ...data, gameQuestionHistory: [...history.filter((id) => id !== questionId), questionId].slice(-30) });
+  const persist = (questionId) => updateData({ ...data, gameQuestionHistory: appendQuestionHistory(history, [questionId], 500) });
 
   const award = (correct, base = 10) => {
     if (mode === 'battle' || mode === 'teams') {

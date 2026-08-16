@@ -53,6 +53,8 @@ public class MobdeaScreenRecorderService extends Service {
     private MediaRecorder mediaRecorder;
     private File outputFile;
     private long startedAt;
+    private long pausedAt;
+    private long totalPausedMs;
     private boolean recording;
     private boolean stopping;
     private final MediaProjection.Callback projectionCallback = new MediaProjection.Callback() {
@@ -149,8 +151,8 @@ public class MobdeaScreenRecorderService extends Service {
             mediaRecorder = createRecorder(outputFile, withAudio);
 
             DisplayMetrics metrics = getResources().getDisplayMetrics();
-            int width = makeEven(Math.min(Math.max(metrics.widthPixels, metrics.heightPixels), 1920));
-            int height = makeEven(Math.min(Math.min(metrics.widthPixels, metrics.heightPixels), 1080));
+            int width = makeEven(Math.min(Math.max(metrics.widthPixels, metrics.heightPixels), 1280));
+            int height = makeEven(Math.min(Math.min(metrics.widthPixels, metrics.heightPixels), 720));
             int density = metrics.densityDpi;
 
             virtualDisplay = mediaProjection.createVirtualDisplay(
@@ -165,6 +167,8 @@ public class MobdeaScreenRecorderService extends Service {
             );
             mediaRecorder.start();
             startedAt = System.currentTimeMillis();
+            pausedAt = 0;
+            totalPausedMs = 0;
             recording = true;
         } catch (Exception error) {
             stopRecording(false, safeError(error, "تعذر تشغيل تسجيل الشاشة."));
@@ -187,17 +191,19 @@ public class MobdeaScreenRecorderService extends Service {
         recorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        recorder.setVideoEncodingBitRate(5_000_000);
-        recorder.setVideoFrameRate(24);
+        // Classroom screens are mostly static text/maps. This bounded bitrate
+        // keeps a normal hour-long lesson inside the encrypted 200 MB asset cap.
+        recorder.setVideoEncodingBitRate(320_000);
+        recorder.setVideoFrameRate(15);
 
         DisplayMetrics metrics = getResources().getDisplayMetrics();
-        int width = makeEven(Math.min(Math.max(metrics.widthPixels, metrics.heightPixels), 1920));
-        int height = makeEven(Math.min(Math.min(metrics.widthPixels, metrics.heightPixels), 1080));
+        int width = makeEven(Math.min(Math.max(metrics.widthPixels, metrics.heightPixels), 1280));
+        int height = makeEven(Math.min(Math.min(metrics.widthPixels, metrics.heightPixels), 720));
         recorder.setVideoSize(width, height);
 
         if (withAudio) {
             recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            recorder.setAudioEncodingBitRate(128_000);
+            recorder.setAudioEncodingBitRate(64_000);
             recorder.setAudioSamplingRate(44_100);
         }
         recorder.setOutputFile(file.getAbsolutePath());
@@ -226,6 +232,7 @@ public class MobdeaScreenRecorderService extends Service {
         if (!recording || mediaRecorder == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return;
         try {
             mediaRecorder.pause();
+            pausedAt = System.currentTimeMillis();
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) manager.notify(NOTIFICATION_ID, buildNotification("تسجيل الحصة متوقف مؤقتًا"));
         } catch (RuntimeException ignored) {
@@ -237,6 +244,8 @@ public class MobdeaScreenRecorderService extends Service {
         if (!recording || mediaRecorder == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return;
         try {
             mediaRecorder.resume();
+            if (pausedAt > 0) totalPausedMs += Math.max(0, System.currentTimeMillis() - pausedAt);
+            pausedAt = 0;
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) manager.notify(NOTIFICATION_ID, buildNotification("جارٍ تسجيل الحصة"));
         } catch (RuntimeException ignored) {
@@ -247,7 +256,9 @@ public class MobdeaScreenRecorderService extends Service {
     private void stopRecording(boolean notifyResult, String errorMessage) {
         if (stopping) return;
         stopping = true;
-        long durationMs = startedAt > 0 ? Math.max(0, System.currentTimeMillis() - startedAt) : 0;
+        long now = System.currentTimeMillis();
+        long activePauseMs = pausedAt > 0 ? Math.max(0, now - pausedAt) : 0;
+        long durationMs = startedAt > 0 ? Math.max(0, now - startedAt - totalPausedMs - activePauseMs) : 0;
         String finalError = errorMessage == null ? "" : errorMessage;
         if (mediaRecorder != null) {
             try {
@@ -272,6 +283,8 @@ public class MobdeaScreenRecorderService extends Service {
         }
         recording = false;
         startedAt = 0;
+        pausedAt = 0;
+        totalPausedMs = 0;
 
         if (notifyResult || !finalError.isEmpty()) sendResult(durationMs, finalError);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE);

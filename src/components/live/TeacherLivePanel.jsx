@@ -8,6 +8,7 @@ import {
   MicOff,
   MonitorUp,
   Radio,
+  Share2,
   ScreenShareOff,
   UserRoundX,
   Users,
@@ -28,8 +29,8 @@ import {
   updateLiveParticipant,
   validateLiveStudentLink,
 } from '../../services/liveClass';
-import { cloudConfigured } from '../../services/cloudSync';
-import { copyToClipboard } from '../../services/share';
+import { cloudConfigured, testCloudConnection } from '../../services/cloudSync';
+import { copyToClipboard, shareLink } from '../../services/share';
 
 
 function friendlyLiveError(error, fallback = 'تعذر تشغيل الحصة الأونلاين.') {
@@ -39,8 +40,11 @@ function friendlyLiveError(error, fallback = 'تعذر تشغيل الحصة ا�
   if (normalized.includes('unauthorized') || normalized.includes('401') || normalized.includes('forbidden') || normalized.includes('403')) {
     return 'تعذر إنشاء رابط الحصة: رمز مساحة العمل غير صحيح أو غير محفوظ. راجع إعدادات المزامنة السحابية.';
   }
+  if (normalized.includes('not_found') || normalized.includes('404')) {
+    return 'الخادم متصل، لكن مسار إنشاء الحصة الأونلاين غير منشور عليه. ارفع آخر ملف cloud-worker ثم أعد المحاولة.';
+  }
   if (normalized.includes('failed to fetch') || normalized.includes('network') || normalized.includes('internet')) {
-    return 'تعذر الاتصال بخادم الحصة. تأكد من الإنترنت ثم حاول مرة أخرى.';
+    return 'تعذر الاتصال بخادم الحصة. تأكد من الإنترنت ورابط Cloudflare Worker ثم حاول مرة أخرى.';
   }
   if (normalized.includes('timeout') || normalized.includes('مهلة')) {
     return 'استغرق الخادم وقتًا طويلًا في الرد. حاول مرة أخرى بعد لحظات.';
@@ -59,6 +63,8 @@ function eventMessage(event) {
   switch (event?.type) {
     case 'participant-joined':
       return `دخل ${name} إلى الحصة.`;
+    case 'participant-left':
+      return `غادر ${name} الحصة.`;
     case 'mic-request':
       return `${name} يطلب فتح الميكروفون.`;
     case 'hand-raised':
@@ -97,6 +103,7 @@ export default function TeacherLivePanel({
   buildSnapshot,
   onNotice,
   onOpenSettings,
+  onSaveCloudSync,
   startRequest = 0,
 }) {
   const [room, setRoom] = useState(null);
@@ -107,6 +114,15 @@ export default function TeacherLivePanel({
   const [teacherAudioActive, setTeacherAudioActive] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [participantVolumes, setParticipantVolumes] = useState({});
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupNotice, setSetupNotice] = useState('');
+  const [setupForm, setSetupForm] = useState(() => ({
+    endpoint: cloudSync?.endpoint || '',
+    workspaceId: cloudSync?.workspaceId || '',
+    token: cloudSync?.token || '',
+    publicAppUrl: cloudSync?.publicAppUrl || '',
+  }));
   const roomRef = useRef(null);
   const eventCursorRef = useRef(0);
   const peersRef = useRef(new Map());
@@ -136,21 +152,31 @@ export default function TeacherLivePanel({
     participantsRef.current = participants;
   }, [participants]);
 
+  useEffect(() => {
+    setSetupForm({
+      endpoint: cloudSync?.endpoint || '',
+      workspaceId: cloudSync?.workspaceId || '',
+      token: cloudSync?.token || '',
+      publicAppUrl: cloudSync?.publicAppUrl || '',
+    });
+  }, [cloudSync?.endpoint, cloudSync?.workspaceId, cloudSync?.token, cloudSync?.publicAppUrl]);
+
   const configured = cloudConfigured({ cloudSync });
   const supported = liveClassSupported();
-  const makeStudentLink = useCallback((activeRoom) => {
+  const makeStudentLink = useCallback((activeRoom, configOverride = cloudSync) => {
     if (!activeRoom) return '';
     return buildLiveStudentLink({
       roomId: activeRoom.roomId,
       joinCode: activeRoom.joinCode,
       endpoint: activeRoom.endpoint,
       workspaceId: activeRoom.workspaceId,
+      publicAppUrl: configOverride?.publicAppUrl || cloudSync?.publicAppUrl || '',
       title: roomMeta.title,
       grade: roomMeta.grade,
       lesson: roomMeta.lesson,
       expiresAt: activeRoom.expiresAt,
     });
-  }, [roomMeta.grade, roomMeta.lesson, roomMeta.title]);
+  }, [cloudSync?.publicAppUrl, roomMeta.grade, roomMeta.lesson, roomMeta.title]);
   const studentLink = useMemo(() => {
     try {
       return makeStudentLink(room);
@@ -198,10 +224,14 @@ export default function TeacherLivePanel({
       ...(teacherMicStreamRef.current?.getAudioTracks() || []),
     ];
     const senders = peer.getSenders();
+    const desiredTrackIds = new Set(tracks.map((track) => track.id));
+    for (const sender of senders) {
+      if (sender.track && !desiredTrackIds.has(sender.track.id)) void sender.replaceTrack(null);
+    }
+    const outboundStream = new MediaStream(tracks);
     for (const track of tracks) {
-      const existing = senders.find((sender) => sender.track?.kind === track.kind);
-      if (existing) void existing.replaceTrack(track);
-      else peer.addTrack(track, new MediaStream([track]));
+      const existing = senders.find((sender) => sender.track?.id === track.id);
+      if (!existing) peer.addTrack(track, outboundStream);
     }
   }, []);
 
@@ -332,11 +362,13 @@ export default function TeacherLivePanel({
         eventCursorRef.current = Math.max(eventCursorRef.current, Number(result.cursor || 0));
         for (const event of result.events || []) {
           await handleSignalEvent(event).catch(() => null);
-          if (['participant-joined', 'student-ready', 'mic-started', 'mic-stopped'].includes(event.type)) {
+          if (['participant-joined', 'participant-left', 'student-ready', 'mic-started', 'mic-stopped'].includes(event.type)) {
             void refreshParticipants();
-            if (screenStreamRef.current) void sendOffer(event.sourceId || event.data?.participantId);
+            if (event.type !== 'participant-left' && (screenStreamRef.current || teacherMicStreamRef.current)) {
+              void sendOffer(event.sourceId || event.data?.participantId);
+            }
           }
-          if (['mic-request', 'hand-raised', 'reaction', 'chat', 'participant-joined'].includes(event.type)) {
+          if (['mic-request', 'hand-raised', 'reaction', 'chat', 'participant-joined', 'participant-left'].includes(event.type)) {
             const message = eventMessage(event);
             if (message) setActivity((items) => [{ id: event.id, message }, ...items].slice(0, 12));
           }
@@ -401,18 +433,29 @@ export default function TeacherLivePanel({
     return copied;
   }, [announce, studentLink]);
 
-  const startRoom = useCallback(async ({ copyAfterCreate = true } = {}) => {
-    if (!configured) {
-      announce('زر الحصة يعمل، لكن يلزم حفظ رمز مساحة العمل مرة واحدة في إعدادات المزامنة السحابية.');
+  const shareRoomLink = useCallback(async () => {
+    if (!studentLink || !validateLiveStudentLink(studentLink)) {
+      announce('رابط الحصة غير مكتمل. أعد إنشاء الغرفة.');
+      return;
+    }
+    const shared = await shareLink(studentLink, roomMeta.title || 'الحصة الأونلاين', 'رابط دخول الطالب إلى الحصة الأونلاين');
+    announce(shared ? 'تم فتح مشاركة رابط الحصة.' : 'تم إلغاء المشاركة.');
+  }, [announce, roomMeta.title, studentLink]);
+
+  const startRoom = useCallback(async ({ copyAfterCreate = true, configOverride = null, throwOnError = false, skipHealthCheck = false } = {}) => {
+    const effectiveCloudSync = configOverride || cloudSync;
+    if (!cloudConfigured({ cloudSync: effectiveCloudSync })) {
+      announce('الحصة الأونلاين تحتاج إعداد رابط السحابة مرة واحدة. اكتب البيانات ثم اضغط إنشاء الرابط.');
       setPanelOpen(true);
-      onOpenSettings?.();
+      setSetupOpen(true);
       return null;
     }
     if (busy) return null;
     setBusy(true);
     try {
-      const created = await createLiveRoom({ cloudSync }, roomMeta);
-      const createdLink = makeStudentLink(created);
+      if (!skipHealthCheck) await testCloudConnection({ cloudSync: effectiveCloudSync });
+      const created = await createLiveRoom({ cloudSync: effectiveCloudSync }, roomMeta);
+      const createdLink = makeStudentLink(created, effectiveCloudSync);
       if (!validateLiveStudentLink(createdLink)) throw new Error('تعذر تكوين رابط الطالب بعد إنشاء الغرفة.');
       roomRef.current = created;
       setRoom(created);
@@ -430,12 +473,17 @@ export default function TeacherLivePanel({
       }
       return { room: created, link: createdLink };
     } catch (error) {
-      announce(friendlyLiveError(error, 'تعذر إنشاء الحصة الأونلاين.'));
+      const message = friendlyLiveError(error, 'تعذر إنشاء الحصة الأونلاين.');
+      announce(message);
+      setPanelOpen(true);
+      setSetupOpen(true);
+      setSetupNotice(message);
+      if (throwOnError) throw error;
       return null;
     } finally {
       setBusy(false);
     }
-  }, [announce, busy, cloudSync, configured, makeStudentLink, onOpenSettings, roomMeta]);
+  }, [announce, busy, cloudSync, makeStudentLink, roomMeta]);
 
   useEffect(() => {
     if (!startRequest || startRequest === lastStartRequestRef.current) return;
@@ -667,22 +715,49 @@ export default function TeacherLivePanel({
     }
   };
 
+  const saveInlineCloudSetup = async () => {
+    const candidate = {
+      ...cloudSync,
+      endpoint: setupForm.endpoint.trim(),
+      workspaceId: setupForm.workspaceId.trim(),
+      token: setupForm.token.trim(),
+      publicAppUrl: setupForm.publicAppUrl.trim(),
+      enabled: true,
+    };
+    setSetupBusy(true);
+    setSetupNotice('جارٍ التحقق من الخادم ثم إنشاء رابط الحصة…');
+    try {
+      await testCloudConnection(candidate);
+      await onSaveCloudSync?.(candidate);
+      setSetupNotice('تم الاتصال بالخادم. جارٍ إنشاء غرفة الحصة…');
+      const created = await startRoom({ copyAfterCreate: true, configOverride: candidate, throwOnError: true, skipHealthCheck: true });
+      if (!created?.link) throw new Error('تم حفظ الإعدادات لكن تعذر إنشاء رابط الحصة. حاول مرة أخرى.');
+      setSetupNotice('تم إنشاء الرابط ونسخه تلقائيًا. أرسله للطالب ليدخل مباشرة.');
+      setSetupOpen(false);
+      setPanelOpen(true);
+    } catch (error) {
+      setSetupNotice(friendlyLiveError(error, 'تعذر اختبار الإعدادات وإنشاء الرابط.'));
+    } finally {
+      setSetupBusy(false);
+    }
+  };
+
   if (!room) {
     return (
-      <article className="panel classmode-side-panel live-teacher-panel is-idle">
+      <article className={`panel classmode-side-panel live-teacher-panel is-idle ${panelOpen ? 'is-open' : 'is-collapsed'}`}>
         <div className="panel-heading compact">
           <div>
             <span className="eyebrow">الحصة الأونلاين</span>
             <h3>بث مباشر للطلاب</h3>
           </div>
-          <Radio size={18} />
+          <button className="icon-action" type="button" onClick={() => setPanelOpen(false)} title="إغلاق لوحة الحصة الأونلاين" aria-label="إغلاق لوحة الحصة الأونلاين"><X size={17} /></button>
         </div>
         <p className="live-panel-description">
           أنشئ رابطًا واحدًا؛ يشاهد الطلاب الشرح ويطلبون فتح الميكروفون من أجهزتهم.
         </p>
         {!configured && (
           <div className="settings-notice warning">
-            <WifiOff size={16} /> فعّل المزامنة السحابية من الإعدادات أولًا.
+            <WifiOff size={16} /> أدخل إعداد الرابط هنا مرة واحدة؛ بعد التحقق ستُنشأ الغرفة ويُنسخ رابط الطالب تلقائيًا.
           </div>
         )}
         {!supported && (
@@ -699,12 +774,21 @@ export default function TeacherLivePanel({
           >
             <Radio size={17} /> {busy ? 'جارٍ الإنشاء…' : 'بدء حصة أونلاين'}
           </button>
-          {!configured && (
-            <button className="secondary-btn" type="button" onClick={onOpenSettings}>
-              <Link size={16} /> إعداد الرابط الآن
-            </button>
-          )}
+          <button className="secondary-btn" type="button" onClick={() => setSetupOpen((value) => !value)}>
+            <Link size={16} /> {configured ? 'تعديل الإعداد وإنشاء رابط' : 'إعداد الرابط الآن'}
+          </button>
         </div>
+        {setupOpen && (
+          <div className="live-inline-setup">
+            <div className="live-inline-setup-head"><strong>إعداد رابط الحصة مرة واحدة</strong><button type="button" className="icon-action" onClick={() => setSetupOpen(false)}><X size={15}/></button></div>
+            <label><span>رابط Cloudflare Worker</span><input type="url" dir="ltr" value={setupForm.endpoint} onChange={(event) => setSetupForm((current) => ({ ...current, endpoint: event.target.value }))} placeholder="https://your-worker.workers.dev" /></label>
+            <label><span>مساحة العمل</span><input dir="ltr" value={setupForm.workspaceId} onChange={(event) => setSetupForm((current) => ({ ...current, workspaceId: event.target.value }))} placeholder="mostafa-center-main" /></label>
+            <label><span>الرمز السري</span><input type="password" dir="ltr" value={setupForm.token} onChange={(event) => setSetupForm((current) => ({ ...current, token: event.target.value }))} placeholder="24 حرفًا أو أكثر" /></label>
+            <label><span>رابط صفحة الطلاب العامة</span><input type="url" dir="ltr" value={setupForm.publicAppUrl || ''} onChange={(event) => setSetupForm((current) => ({ ...current, publicAppUrl: event.target.value }))} placeholder="https://your-project.pages.dev/" /></label>
+            {setupNotice && <div className="settings-notice">{setupNotice}</div>}
+            <div className="live-inline-setup-actions"><button type="button" className="primary-btn" disabled={setupBusy} onClick={() => void saveInlineCloudSetup()}>{setupBusy ? 'جارٍ إنشاء الرابط…' : 'تحقق وأنشئ الرابط'}</button><button type="button" className="secondary-btn" onClick={onOpenSettings}>الإعدادات المتقدمة</button></div>
+          </div>
+        )}
       </article>
     );
   }
@@ -724,6 +808,11 @@ export default function TeacherLivePanel({
       <div className="live-room-code-row">
         <div><span>كود الدخول</span><strong>{room.joinCode}</strong></div>
         <button className="secondary-btn" type="button" onClick={() => void copyRoomLink()}><Copy size={15} /> نسخ الرابط</button>
+        <button className="secondary-btn" type="button" onClick={() => void shareRoomLink()}><Share2 size={15} /> مشاركة</button>
+      </div>
+      <div className="live-student-link-box">
+        <input dir="ltr" readOnly value={studentLink} aria-label="رابط دخول الطالب" onFocus={(event) => event.currentTarget.select()} />
+        <button className="primary-btn compact-btn" type="button" onClick={() => void copyRoomLink()}><Copy size={14} /> نسخ</button>
       </div>
 
       {panelOpen && (

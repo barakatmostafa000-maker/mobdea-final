@@ -25,9 +25,10 @@ function currentLocationIsPublic(locationLike = globalThis.location) {
   return true;
 }
 
-export function resolvePublicAppBase(locationLike = globalThis.location) {
+export function resolvePublicAppBase(locationLike = globalThis.location, override = '') {
   const configured = normalizedBase(
-    globalThis.__MOBDEA_PUBLIC_APP_URL__
+    override
+      || globalThis.__MOBDEA_PUBLIC_APP_URL__
       || globalThis.localStorage?.getItem?.('mobdea_public_app_url')
       || identity.publicAppUrl
       || DEFAULT_PUBLIC_APP_URL,
@@ -38,7 +39,9 @@ export function resolvePublicAppBase(locationLike = globalThis.location) {
       const current = new URL(locationLike.href);
       current.search = '';
       current.hash = '';
-      return current;
+      // Keep the deployment directory. This matters on GitHub Pages where the
+      // app can live under /repository-name/ rather than the domain root.
+      return new URL('./', current);
     } catch {
       // Fall through to the configured public URL.
     }
@@ -47,13 +50,14 @@ export function resolvePublicAppBase(locationLike = globalThis.location) {
   return configured || new URL(DEFAULT_PUBLIC_APP_URL);
 }
 
-export function buildPublicAppUrl(path = '/', locationLike = globalThis.location) {
-  const base = resolvePublicAppBase(locationLike);
+export function buildPublicAppUrl(path = '/', locationLike = globalThis.location, override = '') {
+  const base = resolvePublicAppBase(locationLike, override);
   const cleanPath = String(path || '/').trim();
-  if (cleanPath && cleanPath !== '/') {
-    base.pathname = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-  }
-  base.search = '';
-  base.hash = '';
-  return base;
+  const relativePath = cleanPath && cleanPath !== '/'
+    ? cleanPath.replace(/^\/+/, '')
+    : '';
+  const target = relativePath ? new URL(relativePath, base) : new URL(base);
+  target.search = '';
+  target.hash = '';
+  return target;
 }

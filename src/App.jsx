@@ -9,7 +9,8 @@ import SharedAccess from './pages/SharedAccess';
 import { loadAppData, saveAppData, resetAppData } from './services/storage';
 import { checkForUpdate, openApkDownload } from './services/updater';
 import { registerServiceWorker, applyServiceWorkerUpdate } from './services/pwaUpdate';
-import { pushCloudData } from './services/cloudSync';
+import { cloudConfigured, pullCloudData, pullCloudDataIfExists, pushCloudData } from './services/cloudSync';
+import { mergeAppData, normalizeStudentCodes } from './services/dataMerge';
 import { shouldRunAutoBackup } from './services/autoBackup';
 import UpdatePrompt from './components/UpdatePrompt';
 import { speakWelcome } from './services/voice';
@@ -17,9 +18,10 @@ import { readShareFromLocation, resolveShareFromLocation } from './services/shar
 import { release } from './config/release';
 import { ROLE_HOME, getRoleModules, buildWelcomeMessage } from './utils/auth';
 import { identity } from './config/identity';
+import { mergeStudentPortalSnapshot, refreshStudentPortalSnapshot } from './services/studentPortalCloud';
 
-import MapChallenge from './pages/MapChallenge';
-import ContentLibrary from './pages/ContentLibrary';
+const MapChallenge = lazy(() => import('./pages/MapChallenge'));
+const ContentLibrary = lazy(() => import('./pages/ContentLibrary'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Students = lazy(() => import('./pages/Students'));
 const Attendance = lazy(() => import('./pages/Attendance'));
@@ -210,6 +212,7 @@ export default function App() {
   const persistedDataRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
   const autoBackupRunningRef = useRef(false);
+  const autoSyncRunningRef = useRef(false);
 
   useEffect(() => registerServiceWorker(() => { swReadyRef.current = true; }), []);
 
@@ -321,9 +324,24 @@ export default function App() {
     return () => { clearTimeout(timer); events.forEach((event) => window.removeEventListener(event, resetTimer)); };
   }, [data?.settings?.lockEnabled, data?.settings?.lockAfterMinutes, auth]);
 
-  const updateData = useCallback((nextOrUpdater) => {
-    const candidate = typeof nextOrUpdater === 'function' ? nextOrUpdater(dataRef.current) : nextOrUpdater;
+  const updateData = useCallback((nextOrUpdater, options = {}) => {
+    let candidate = typeof nextOrUpdater === 'function' ? nextOrUpdater(dataRef.current) : nextOrUpdater;
     if (!candidate || typeof candidate !== 'object') return Promise.reject(new Error('بيانات الحفظ غير صالحة.'));
+
+    if (!options.skipCloudDirty && candidate.settings?.cloudSync) {
+      candidate = {
+        ...candidate,
+        settings: {
+          ...candidate.settings,
+          cloudSync: {
+            ...candidate.settings.cloudSync,
+            localChangedAt: new Date().toISOString(),
+            autoSyncError: '',
+          },
+        },
+      };
+    }
+
     dataRef.current = candidate;
     setData(candidate);
 
@@ -416,6 +434,54 @@ export default function App() {
 
 
   useEffect(() => {
+    if (auth?.role !== 'student') return undefined;
+    let cancelled = false;
+    let running = false;
+
+    const refreshStudentData = async () => {
+      const current = dataRef.current;
+      const session = current?.settings?.studentPortalSession;
+      if (!current || !session?.studentToken || running) return;
+      if (globalThis.navigator && globalThis.navigator.onLine === false) return;
+      running = true;
+      try {
+        const payload = await refreshStudentPortalSnapshot(session);
+        if (cancelled) return;
+        const merged = mergeStudentPortalSnapshot(current, payload, session);
+        await updateData(merged, { skipCloudDirty: true });
+      } catch (error) {
+        if (cancelled) return;
+        await updateData((latest) => ({
+          ...latest,
+          settings: {
+            ...latest.settings,
+            studentPortalSession: {
+              ...(latest.settings?.studentPortalSession || {}),
+              lastError: String(error?.message || 'تعذر تحديث حساب الطالب.').slice(0, 220),
+            },
+          },
+        }), { skipCloudDirty: true }).catch(() => null);
+      } finally {
+        running = false;
+      }
+    };
+
+    const first = setTimeout(refreshStudentData, 700);
+    const interval = setInterval(refreshStudentData, 2 * 60 * 1000);
+    const onVisible = () => { if (!document.hidden) void refreshStudentData(); };
+    document.addEventListener('visibilitychange', onVisible);
+    globalThis.addEventListener?.('online', refreshStudentData);
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      globalThis.removeEventListener?.('online', refreshStudentData);
+    };
+  }, [auth?.role, data?.settings?.studentPortalSession?.studentToken, updateData]);
+
+
+  useEffect(() => {
     if (!['admin', 'teacher'].includes(auth?.role)) return undefined;
 
     let cancelled = false;
@@ -441,10 +507,11 @@ export default function App() {
               revision: result.revision,
               lastPushAt: completedAt,
               lastAutoBackupAt: completedAt,
+              localChangedAt: '',
               autoBackupError: '',
             },
           },
-        }));
+        }), { skipCloudDirty: true });
       } catch (error) {
         if (cancelled) return;
 
@@ -459,7 +526,7 @@ export default function App() {
               ).slice(0, 240),
             },
           },
-        })).catch(() => null);
+        }), { skipCloudDirty: true }).catch(() => null);
       } finally {
         autoBackupRunningRef.current = false;
       }
@@ -481,6 +548,174 @@ export default function App() {
     data?.settings?.cloudSync?.endpoint,
     data?.settings?.cloudSync?.lastAutoBackupAt,
     data?.settings?.cloudSync?.lastPushAt,
+    data?.settings?.cloudSync?.token,
+    data?.settings?.cloudSync?.workspaceId,
+    updateData,
+  ]);
+
+
+  useEffect(() => {
+    if (!['admin', 'teacher'].includes(auth?.role)) return undefined;
+
+    let cancelled = false;
+    let initialTimer;
+
+    const recordSyncError = async (message) => {
+      if (cancelled) return;
+      await updateData((latest) => ({
+        ...latest,
+        settings: {
+          ...latest.settings,
+          cloudSync: {
+            ...latest.settings.cloudSync,
+            autoSyncError: String(message || 'تعذر إكمال المزامنة التلقائية.').slice(0, 240),
+          },
+        },
+      }), { skipCloudDirty: true }).catch(() => null);
+    };
+
+    const localCloudConfig = (current, remoteCloud = {}) => ({
+      ...remoteCloud,
+      ...(current?.settings?.cloudSync || {}),
+      token: current?.settings?.cloudSync?.token || '',
+      endpoint: current?.settings?.cloudSync?.endpoint || remoteCloud.endpoint || '',
+      workspaceId: current?.settings?.cloudSync?.workspaceId || remoteCloud.workspaceId || '',
+    });
+
+    const pushMergedSnapshot = async (localSnapshot, initialRemote) => {
+      let remote = initialRemote;
+      let source = localSnapshot;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const merged = mergeAppData(source, remote.data);
+        const pulledAt = new Date().toISOString();
+        merged.students = normalizeStudentCodes(merged.students || []);
+        merged.settings = {
+          ...merged.settings,
+          cloudSync: {
+            ...localCloudConfig(source, remote.data?.settings?.cloudSync),
+            revision: remote.revision,
+            lastPullAt: pulledAt,
+          },
+        };
+        try {
+          const result = await pushCloudData(merged);
+          return { merged, result, completedAt: pulledAt };
+        } catch (error) {
+          const conflict = String(error?.message || '').includes('نسخة سحابية أحدث');
+          if (!conflict || attempt > 0) throw error;
+          // Another device pushed after our pull. Download once more, merge the
+          // newest records, repair codes, and retry without making the teacher
+          // wait for the next scheduled interval.
+          remote = await pullCloudData(source.settings);
+          source = dataRef.current || merged;
+        }
+      }
+      throw new Error('تعذر دمج النسخة السحابية بعد محاولتين.');
+    };
+
+    const runAutoSync = async () => {
+      const current = dataRef.current;
+      const cloud = current?.settings?.cloudSync;
+      if (!current || !cloud || cloud.autoSync === false || autoSyncRunningRef.current) return;
+      if (globalThis.navigator && globalThis.navigator.onLine === false) return;
+      if (!cloudConfigured(current.settings)) return;
+
+      autoSyncRunningRef.current = true;
+      try {
+        const remote = await pullCloudDataIfExists(current.settings);
+        if (cancelled) return;
+
+        if (!remote) {
+          const seeded = {
+            ...current,
+            students: normalizeStudentCodes(current.students || []),
+            settings: {
+              ...current.settings,
+              cloudSync: { ...current.settings.cloudSync, revision: '' },
+            },
+          };
+          const result = await pushCloudData(seeded);
+          if (cancelled) return;
+          const completedAt = result.updatedAt || new Date().toISOString();
+          await updateData((latest) => ({
+            ...seeded,
+            settings: {
+              ...seeded.settings,
+              cloudSync: {
+                ...localCloudConfig(latest),
+                revision: result.revision,
+                lastPushAt: completedAt,
+                lastAutoSyncAt: completedAt,
+                localChangedAt: '',
+                autoSyncError: '',
+              },
+            },
+          }), { skipCloudDirty: true });
+          return;
+        }
+
+        const completedAt = new Date().toISOString();
+        if (cloud.localChangedAt) {
+          const pushed = await pushMergedSnapshot(current, remote);
+          if (cancelled) return;
+          const pushedAt = pushed.result.updatedAt || pushed.completedAt;
+          pushed.merged.settings.cloudSync = {
+            ...pushed.merged.settings.cloudSync,
+            revision: pushed.result.revision,
+            lastPushAt: pushedAt,
+            lastAutoSyncAt: pushedAt,
+            localChangedAt: '',
+            autoSyncError: '',
+          };
+          await updateData(pushed.merged, { skipCloudDirty: true });
+          return;
+        }
+
+        if (remote.revision === cloud.revision) return;
+        const restored = {
+          ...remote.data,
+          students: normalizeStudentCodes(remote.data?.students || []),
+          settings: {
+            ...remote.data.settings,
+            cloudSync: {
+              ...localCloudConfig(current, remote.data?.settings?.cloudSync),
+              revision: remote.revision,
+              lastPullAt: completedAt,
+              lastAutoSyncAt: completedAt,
+              localChangedAt: '',
+              autoSyncError: '',
+            },
+          },
+        };
+        await updateData(restored, { skipCloudDirty: true });
+      } catch (error) {
+        await recordSyncError(error?.message || 'تعذر إكمال المزامنة التلقائية.');
+      } finally {
+        autoSyncRunningRef.current = false;
+      }
+    };
+
+    const minutes = Math.max(1, Math.min(60, Number(data?.settings?.cloudSync?.autoSyncIntervalMinutes || 2)));
+    const localDirty = Boolean(data?.settings?.cloudSync?.localChangedAt);
+    initialTimer = setTimeout(runAutoSync, localDirty ? 900 : 2200);
+    const interval = setInterval(runAutoSync, minutes * 60 * 1000);
+    const onVisible = () => { if (!document.hidden) void runAutoSync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    globalThis.addEventListener?.('online', runAutoSync);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      globalThis.removeEventListener?.('online', runAutoSync);
+    };
+  }, [
+    auth?.role,
+    data?.settings?.cloudSync?.autoSync,
+    data?.settings?.cloudSync?.autoSyncIntervalMinutes,
+    data?.settings?.cloudSync?.endpoint,
+    data?.settings?.cloudSync?.localChangedAt,
     data?.settings?.cloudSync?.token,
     data?.settings?.cloudSync?.workspaceId,
     updateData,

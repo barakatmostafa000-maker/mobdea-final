@@ -48,6 +48,7 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
   const [screenActive, setScreenActive] = useState(false);
   const videoRef = useRef(null);
   const peerRef = useRef(null);
+  const remoteMediaStreamRef = useRef(null);
   const micStreamRef = useRef(null);
   const cursorRef = useRef(0);
   const pendingIceRef = useRef([]);
@@ -78,7 +79,9 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
   }, []);
 
   const ensurePeer = useCallback(() => {
-    if (peerRef.current && peerRef.current.connectionState !== 'closed') return peerRef.current;
+    if (peerRef.current && !['closed', 'failed'].includes(peerRef.current.connectionState)) return peerRef.current;
+    peerRef.current?.close();
+    peerRef.current = null;
     const peer = new RTCPeerConnection({ iceServers: defaultIceServers() });
     peer.onicecandidate = (event) => {
       if (!event.candidate) return;
@@ -89,18 +92,37 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
       });
     };
     peer.ontrack = (event) => {
-      const stream = event.streams?.[0] || new MediaStream([event.track]);
-      setRemoteStream(stream);
+      const combined = remoteMediaStreamRef.current || new MediaStream();
+      remoteMediaStreamRef.current = combined;
+      if (!combined.getTracks().some((track) => track.id === event.track.id)) combined.addTrack(event.track);
+      event.track.addEventListener('ended', () => {
+        combined.removeTrack(event.track);
+        setRemoteStream(new MediaStream(combined.getTracks()));
+      }, { once: true });
+      setRemoteStream(new MediaStream(combined.getTracks()));
       if (event.track.kind === 'video') setScreenActive(true);
     };
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === 'failed') {
         setNotice('انقطع البث مؤقتًا. سيتم إعادة المحاولة تلقائيًا.');
+        if (peerRef.current === peer) peerRef.current = null;
+        peer.close();
+        remoteMediaStreamRef.current = null;
+        setRemoteStream(null);
+        setTimeout(() => {
+          void sendEvent({
+            type: 'student-ready',
+            targetId: 'teacher',
+            data: { name, studentCode, reconnect: true },
+          });
+        }, 500);
+      } else if (peer.connectionState === 'connected') {
+        setNotice('عاد البث المباشر واتصل الجهاز بنجاح.');
       }
     };
     peerRef.current = peer;
     return peer;
-  }, [sendEvent]);
+  }, [name, sendEvent, studentCode]);
 
   const flushPendingIce = useCallback(async (peer) => {
     const pending = [...pendingIceRef.current];
@@ -135,7 +157,7 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
     }
   }, [ensurePeer, flushPendingIce, sendEvent]);
 
-  const stopMic = useCallback(() => {
+  const stopMic = useCallback((notifyTeacher = true) => {
     const hadActiveMic = Boolean(micStreamRef.current?.getAudioTracks().some((track) => track.readyState === 'live'));
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
     micStreamRef.current = null;
@@ -148,7 +170,7 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
       }
     }
     setMicState('muted');
-    if (hadActiveMic) {
+    if (hadActiveMic && notifyTeacher) {
       void sendEvent({ type: 'mic-stopped', targetId: 'teacher', data: { name, studentCode } });
     }
   }, [name, sendEvent, studentCode]);
@@ -246,9 +268,35 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
     };
   }, [handleSignal, sendEvent, session, startMic, stopMic]);
 
+  useEffect(() => {
+    if (!session) return undefined;
+    const requestReconnect = () => {
+      if (globalThis.document?.visibilityState === 'hidden') return;
+      if (peerRef.current && ['closed', 'failed'].includes(peerRef.current.connectionState)) {
+        peerRef.current.close();
+        peerRef.current = null;
+      }
+      void sendEvent({
+        type: 'student-ready',
+        targetId: 'teacher',
+        data: { name, studentCode, reconnect: true },
+      });
+    };
+    const onVisibility = () => {
+      if (globalThis.document?.visibilityState === 'visible') requestReconnect();
+    };
+    globalThis.addEventListener?.('online', requestReconnect);
+    globalThis.document?.addEventListener?.('visibilitychange', onVisibility);
+    return () => {
+      globalThis.removeEventListener?.('online', requestReconnect);
+      globalThis.document?.removeEventListener?.('visibilitychange', onVisibility);
+    };
+  }, [name, sendEvent, session, studentCode]);
+
   useEffect(() => () => {
     stopMic();
     peerRef.current?.close();
+    remoteMediaStreamRef.current = null;
   }, [stopMic]);
 
   const join = async (event) => {
@@ -346,6 +394,22 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
     }
   };
 
+  const leaveRoom = async () => {
+    stopMic(false);
+    if (session && !roomClosed) {
+      await sendEvent({
+        type: 'participant-left',
+        targetId: 'teacher',
+        data: { name, studentCode },
+      }).catch(() => null);
+    }
+    peerRef.current?.close();
+    peerRef.current = null;
+    remoteMediaStreamRef.current = null;
+    setRemoteStream(null);
+    onGoHome?.();
+  };
+
   if (!payload?.roomId || !payload?.endpoint || !payload?.workspaceId) {
     return (
       <section className="page live-student-page">
@@ -394,7 +458,7 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
             const copied = await copyToClipboard(globalThis.location?.href || '');
             setNotice(copied ? 'تم نسخ رابط الحصة.' : 'تعذر نسخ الرابط.');
           }}><Share2 size={16} /> مشاركة الرابط</button>
-          <button className="secondary-btn" type="button" onClick={onGoHome}><ArrowRight size={16} /> خروج</button>
+          <button className="secondary-btn" type="button" onClick={() => void leaveRoom()}><ArrowRight size={16} /> خروج</button>
         </div>
       </header>
 

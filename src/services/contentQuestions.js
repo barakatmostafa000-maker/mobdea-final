@@ -1,5 +1,6 @@
 import { sanitizeQuestion } from './assessment.js';
 import { gradeOptions } from '../data/questionBank.js';
+import { questionFingerprint } from './questionRotation.js';
 
 const RESOURCE_TYPE_LABELS = {
   textbook: 'كتاب المنهج الرئيسي',
@@ -73,6 +74,22 @@ function sourceLabel(resource = {}) {
   return RESOURCE_TYPE_LABELS[kind] || RESOURCE_TYPE_LABELS[resource.type] || normalize(resource.title || 'المحتوى المرتبط');
 }
 
+function officialQuestionKind(resource = {}, fallbackKind = sourceKind(resource)) {
+  const ocrKind = normalize(resource.ocrSourceKind || '').toLowerCase();
+  const hasReviewQueue = Array.isArray(resource.ocrReviewQuestions) && resource.ocrReviewQuestions.length > 0;
+  const reviewed = hasReviewQueue && resource.ocrReviewQuestions.some((item) => item.approved && item.answer);
+  if (hasReviewQueue && !reviewed) return '';
+  if (['textbook', 'exams'].includes(ocrKind) && (reviewed || resource.questionText || resource.extractedText)) return ocrKind;
+  if (['textbook', 'exams'].includes(fallbackKind) && (reviewed || resource.questionText || resource.extractedText)) return fallbackKind;
+  return '';
+}
+
+function questionOriginForKind(kind = '') {
+  if (kind === 'textbook') return 'official-textbook';
+  if (kind === 'exams') return 'official-exams';
+  return 'lesson-content';
+}
+
 function splitNoteLines(value = '') {
   return String(value || '')
     .replace(/\r/g, '\n')
@@ -104,6 +121,128 @@ function questionBase(resource = {}) {
   const topic = inferTopic(resource);
   const term = normalize(resource.term || 'الترم الأول');
   return { gradeKey, grade, title, unit, lesson, topic, term };
+}
+
+export function parseStructuredQuestionText(value = '') {
+  const raw = String(value || '').replace(/\r/g, '\n').trim();
+  if (!raw) return [];
+  const lines = raw.split(/\n+/).map((line) => normalize(line)).filter(Boolean);
+  const items = [];
+  let current = null;
+
+  const flush = () => {
+    if (!current?.question || !current?.answer) {
+      current = null;
+      return;
+    }
+    const labels = ['أ', 'ب', 'ج', 'د'];
+    const labelIndex = labels.indexOf(current.answer.replace(/[.)\-–—:]/g, '').trim());
+    if (labelIndex >= 0 && current.options[labelIndex]) current.answer = current.options[labelIndex];
+    items.push({
+      question: normalize(current.question),
+      answer: normalize(current.answer),
+      options: current.options.map(normalize).filter(Boolean),
+      type: current.type || '',
+    });
+    current = null;
+  };
+
+  for (const line of lines) {
+    const inline = line.match(/^(?:س(?:ؤال)?\s*[:：-]?\s*)?(.{6,260}?[؟?])\s*(?:=>|→|\||الإجابة\s*[:：-]|الاجابة\s*[:：-]|ج(?:واب|ابة)?\s*[:：-])\s*(.{1,220})$/u);
+    if (inline) {
+      flush();
+      current = { question: inline[1], answer: inline[2], options: [], type: '' };
+      flush();
+      continue;
+    }
+
+    const questionLine = line.match(/^(?:س(?:ؤال)?\s*[:：-]\s*|\d{1,3}\s*[.)\-–—:]\s*)(.{4,300})$/u);
+    if (questionLine) {
+      flush();
+      current = { question: questionLine[1], answer: '', options: [], type: '' };
+      continue;
+    }
+
+    const answerLine = line.match(/^(?:الإجابة|الاجابة|الحل|ج(?:واب|ابة)?)\s*[:：-]\s*(.{1,240})$/u);
+    if (answerLine && current) {
+      current.answer = answerLine[1];
+      flush();
+      continue;
+    }
+
+    const optionLine = line.match(/^(?:\(?([أاببججددهـ])\)?|([A-Da-d])|([1-4]))\s*[.)\-–—:]\s*(.{1,240})$/u);
+    if (optionLine && current) {
+      current.options.push(optionLine[4]);
+      continue;
+    }
+
+    const truth = line.match(/^(.{8,260}?)\s*[（(]?(صح|خطأ)[）)]?$/u);
+    if (truth) {
+      flush();
+      current = { question: truth[1], answer: truth[2], options: ['صح', 'خطأ'], type: 'tf' };
+      flush();
+      continue;
+    }
+
+    if (/[؟?]$/.test(line)) {
+      flush();
+      current = { question: line, answer: '', options: [], type: '' };
+      continue;
+    }
+
+    if (current && !current.options.length && !current.answer) {
+      current.question = `${current.question} ${line}`;
+    }
+  }
+  flush();
+  return items;
+}
+
+function buildQuestionsFromQuestionText(resource, baseId, common, officialKind = 'textbook') {
+  const reviewQueue = Array.isArray(resource.ocrReviewQuestions) ? resource.ocrReviewQuestions : [];
+  const reviewed = reviewQueue
+    .filter((item) => item.approved && normalize(item.question || item.text) && normalize(item.answer))
+    .map((item) => ({
+      question: normalize(item.question || item.text),
+      answer: normalize(item.answer),
+      options: Array.isArray(item.options) ? item.options.map(normalize).filter(Boolean) : [],
+      type: item.type || '',
+      page: Number(item.page || 0) || '',
+    }));
+  const pairs = reviewQueue.length ? reviewed : parseStructuredQuestionText(resource.questionText || resource.extractedText || '');
+  const answers = pairs.map((item) => item.answer).filter(Boolean);
+  return pairs.slice(0, 120).map((item, index) => {
+    if (item.type === 'tf' || ['صح', 'خطأ'].includes(item.answer)) {
+      return { ...buildQuestion(`${baseId}-book-question-${index + 1}`, {
+        ...common,
+        type: 'tf',
+        text: item.question,
+        options: ['صح', 'خطأ'],
+        answer: item.answer,
+        answerIndex: item.answer === 'صح' ? 0 : 1,
+        difficulty: 'متوسط',
+        maxScore: 1,
+        source: officialKind === 'exams' ? 'official-exams' : 'official-textbook',
+      }), ocrPage: item.page || '' };
+    }
+    const distractors = answers
+      .filter((answer) => answer !== item.answer)
+      .slice(index % Math.max(1, answers.length), index % Math.max(1, answers.length) + 3);
+    const options = item.options.length >= 2
+      ? uniqueOptions(item.answer, item.options)
+      : uniqueOptions(item.answer, [...distractors, 'لا ينطبق على موضوع الدرس', 'إجابة غير صحيحة']);
+    return { ...buildQuestion(`${baseId}-book-question-${index + 1}`, {
+      ...common,
+      type: 'mcq',
+      text: item.question,
+      options,
+      answer: item.answer,
+      answerIndex: options.indexOf(item.answer),
+      difficulty: 'متوسط',
+      maxScore: 2,
+      source: officialKind === 'exams' ? 'official-exams' : 'official-textbook',
+    }), ocrPage: item.page || '' };
+  });
 }
 
 function buildQuestionsFromNotes(resource, baseId, common) {
@@ -167,6 +306,9 @@ export function generateQuestionsFromResource(resource = {}) {
       : `داخل ${label}`;
   const base = `auto-${resource.id}`;
   const common = { gradeKey, grade, term, unit, lesson, topic };
+  const officialKind = officialQuestionKind(resource, kind);
+  const textbookQuestions = buildQuestionsFromQuestionText(resource, base, common, officialKind || 'textbook');
+  const hasOfficialQuestionBank = Boolean(officialKind && textbookQuestions.length);
 
   const lessonOptions = uniqueOptions(lesson, distractorsForLesson(resource));
   const unitOptions = uniqueOptions(unit, ['الوحدة الأولى', 'الوحدة الثانية', 'مراجعة عامة']);
@@ -176,7 +318,8 @@ export function generateQuestionsFromResource(resource = {}) {
     'سجل إداري للطلاب',
   ]);
 
-  const items = [
+  const items = hasOfficialQuestionBank ? [...textbookQuestions] : [
+    ...textbookQuestions,
     buildQuestion(`${base}-lesson-mcq`, {
       ...common,
       type: 'mcq',
@@ -241,9 +384,9 @@ export function generateQuestionsFromResource(resource = {}) {
     }),
   ];
 
-  items.push(...buildQuestionsFromNotes(resource, base, common));
+  if (!hasOfficialQuestionBank) items.push(...buildQuestionsFromNotes(resource, base, common));
 
-  if (kind === 'exams') {
+  if (!hasOfficialQuestionBank && kind === 'exams') {
     items.push(buildQuestion(`${base}-exam-training`, {
       ...common,
       type: 'mcq',
@@ -261,7 +404,7 @@ export function generateQuestionsFromResource(resource = {}) {
     }));
   }
 
-  if (/خريطة|map|خرائط|جغراف/i.test(`${title} ${lesson} ${unit} ${topic}`) || resource.type === 'map' || resource.mapState) {
+  if (!hasOfficialQuestionBank && (/خريطة|map|خرائط|جغراف/i.test(`${title} ${lesson} ${unit} ${topic}`) || resource.type === 'map' || resource.mapState)) {
     items.push(buildQuestion(`${base}-map`, {
       ...common,
       topic: 'الخريطة والظاهرات الجغرافية',
@@ -274,7 +417,7 @@ export function generateQuestionsFromResource(resource = {}) {
     }));
   }
 
-  if (homework) {
+  if (!hasOfficialQuestionBank && homework) {
     items.push(buildQuestion(`${base}-homework`, {
       ...common,
       type: 'essay',
@@ -288,42 +431,67 @@ export function generateQuestionsFromResource(resource = {}) {
 
   return items.map((question) => ({
     ...question,
+    generated: true,
     resourceId: resource.id,
     resourceTitle: title,
-    sourceKind: kind,
-    sourceLabel: label,
+    sourceKind: officialKind || kind,
+    sourceLabel: officialKind === 'exams' ? RESOURCE_TYPE_LABELS.exams : officialKind === 'textbook' ? RESOURCE_TYPE_LABELS.textbook : label,
     sourceResourceId: resource.sourceResourceId || resource.id,
-    sourceAssetId: resource.assetId || '',
+    sourceAssetId: resource.ocrSourceAssetId || resource.assetId || '',
     sourceFileName: resource.fileName || '',
-    sourceExamResourceId: resource.sourceExamResourceId || (kind === 'exams' ? resource.id : ''),
-    sourceExamAssetId: resource.sourceExamAssetId || (kind === 'exams' ? resource.assetId || '' : ''),
-    sourceExamFileName: resource.sourceExamFileName || (kind === 'exams' ? resource.fileName || '' : ''),
-    sourcePageStart: resource.pageStart || '',
-    sourcePageEnd: resource.pageEnd || '',
-    questionOrigin: kind === 'exams' ? 'official-exams' : kind === 'textbook' ? 'official-textbook' : 'lesson-content',
-    source: 'auto',
+    sourceExamResourceId: resource.sourceExamResourceId || ((officialKind || kind) === 'exams' ? resource.id : ''),
+    sourceExamAssetId: resource.sourceExamAssetId || ((officialKind || kind) === 'exams' ? (resource.ocrSourceAssetId || resource.assetId || '') : ''),
+    sourceExamFileName: resource.sourceExamFileName || ((officialKind || kind) === 'exams' ? resource.fileName || '' : ''),
+    sourcePageStart: question.ocrPage || (officialKind ? (resource.questionPageStart || resource.pageStart || '') : (kind === 'textbook' ? (resource.questionPageStart || resource.pageStart || '') : (resource.pageStart || ''))),
+    sourcePageEnd: question.ocrPage || (officialKind ? (resource.questionPageEnd || resource.pageEnd || '') : (kind === 'textbook' ? (resource.questionPageEnd || resource.pageEnd || '') : (resource.pageEnd || ''))),
+    questionOrigin: questionOriginForKind(officialKind || kind),
+    source: question.questionOrigin || question.source || (officialKind ? questionOriginForKind(officialKind) : 'auto'),
   }));
 }
 
 export function generateQuestionsForLessonBundle(lesson = {}, resources = []) {
   const all = [lesson, ...(Array.isArray(resources) ? resources : [])].filter(Boolean);
-  const generated = all.flatMap((resource) => generateQuestionsFromResource({
-    ...resource,
-    grade: resource.grade || lesson.grade,
-    term: resource.term || lesson.term,
-    unit: resource.unit || lesson.unit,
-    lesson: resource.lesson || lesson.title || lesson.lesson,
-    notes: resource.notes || lesson.notes,
-    homework: resource.homework || lesson.homework,
-  }).map((question) => ({
+  const chosenOfficialKind = normalize(lesson.ocrSourceKind || '').toLowerCase();
+  const generated = all.flatMap((resource) => {
+    const resourceKind = sourceKind(resource);
+    const receivesLessonOcr = Boolean(lesson.questionText && ['textbook', 'exams'].includes(chosenOfficialKind) && resourceKind === chosenOfficialKind);
+    const isLessonRecord = String(resource.id || '') === String(lesson.id || '');
+    const questionText = resource.questionText
+      || (receivesLessonOcr ? lesson.questionText : '')
+      || (!chosenOfficialKind && isLessonRecord ? (lesson.questionText || lesson.extractedText || '') : '')
+      || resource.extractedText
+      || '';
+    return generateQuestionsFromResource({
+      ...resource,
+      grade: resource.grade || lesson.grade,
+      term: resource.term || lesson.term,
+      unit: resource.unit || lesson.unit,
+      lesson: resource.lesson || lesson.title || lesson.lesson,
+      notes: resource.notes || lesson.notes,
+      homework: resource.homework || lesson.homework,
+      questionText,
+      ocrSourceKind: receivesLessonOcr ? chosenOfficialKind : resource.ocrSourceKind,
+      ocrSourceAssetId: receivesLessonOcr ? (lesson.ocrSourceAssetId || resource.assetId || '') : resource.ocrSourceAssetId,
+      ocrExtractedAt: receivesLessonOcr ? lesson.ocrExtractedAt : resource.ocrExtractedAt,
+      ocrReviewQuestions: receivesLessonOcr ? lesson.ocrReviewQuestions : resource.ocrReviewQuestions,
+      questionPageStart: receivesLessonOcr ? lesson.questionPageStart : resource.questionPageStart,
+      questionPageEnd: receivesLessonOcr ? lesson.questionPageEnd : resource.questionPageEnd,
+    }).map((question) => ({
     ...question,
     lessonId: lesson.id || resource.lessonId || resource.parentLessonId || '',
     lessonTitle: lesson.title || lesson.lesson || resource.lesson || '',
-  })));
+    }));
+  });
 
+  const hasOfficial = generated.some((question) => ['official-textbook', 'official-exams'].includes(question.questionOrigin));
+  const eligible = hasOfficial
+    ? generated.filter((question) => ['official-textbook', 'official-exams'].includes(question.questionOrigin))
+    : generated;
+  const priority = { 'official-textbook': 0, 'official-exams': 1, 'lesson-content': 2 };
+  eligible.sort((left, right) => (priority[left.questionOrigin] ?? 3) - (priority[right.questionOrigin] ?? 3));
   const seen = new Set();
-  return generated.filter((question) => {
-    const key = `${question.type}|${normalize(question.text)}`;
+  return eligible.filter((question) => {
+    const key = `${question.type}|${questionFingerprint(question)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -336,6 +504,8 @@ export function upsertGeneratedQuestions(questionBank = [], resource = {}, gener
   const incomingIds = new Set((generatedQuestions || []).map((question) => String(question?.id || '')).filter(Boolean));
   const cleaned = Array.isArray(questionBank)
     ? questionBank.filter((question) => {
+        const generated = question?.generated === true || String(question?.id || '').startsWith('auto-');
+        if (!generated) return true;
         const sameResource = String(question?.resourceId ?? '') === resourceId;
         const sameLesson = resourceId && String(question?.lessonId ?? '') === resourceId;
         const samePrefix = String(question?.id ?? '').startsWith(prefix);
@@ -350,6 +520,8 @@ export function removeGeneratedQuestions(questionBank = [], resourceId) {
   const key = String(resourceId ?? '');
   const prefix = `auto-${key}`;
   return (Array.isArray(questionBank) ? questionBank : []).filter((question) => {
+    const generated = question?.generated === true || String(question?.id || '').startsWith('auto-');
+    if (!generated) return true;
     const sameResource = String(question?.resourceId ?? '') === key;
     const sameLesson = String(question?.lessonId ?? '') === key;
     const samePrefix = String(question?.id ?? '').startsWith(prefix);

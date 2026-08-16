@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../cloud-worker/worker.js';
+import { createCredentialSecret } from '../src/utils/security.js';
 
 class MemoryKV {
   constructor() { this.values = new Map(); }
@@ -311,4 +312,213 @@ test('live classroom supports student join, microphone approval and encrypted si
   }), env);
   const teacherEventBody = await teacherEvents.json();
   assert.equal(teacherEventBody.events.some((event) => event.type === 'game-answer'), true);
+
+  const left = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events`, {
+    method: 'POST',
+    headers: liveHeaders(student.participantToken, '10.0.2.13'),
+    body: JSON.stringify({ type: 'participant-left', targetId: 'teacher', data: { name: 'أحمد محمد' } }),
+  }), env);
+  assert.equal(left.status, 201);
+
+  const offlineResponse = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/participants`, {
+    headers: liveHeaders(room.teacherToken, '10.0.2.14'),
+  }), env);
+  const offline = await offlineResponse.json();
+  assert.equal(offline.participants[0].status, 'offline');
+  assert.equal(offline.participants[0].online, false);
+
+  const reconnected = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/events`, {
+    method: 'POST',
+    headers: liveHeaders(student.participantToken, '10.0.2.15'),
+    body: JSON.stringify({ type: 'student-ready', targetId: 'teacher', data: { name: 'أحمد محمد', reconnect: true } }),
+  }), env);
+  assert.equal(reconnected.status, 201);
+
+  const onlineAgainResponse = await worker.fetch(new Request(`https://sync.example.com/live/rooms/${room.roomId}/participants`, {
+    headers: liveHeaders(room.teacherToken, '10.0.2.16'),
+  }), env);
+  const onlineAgain = await onlineAgainResponse.json();
+  assert.equal(onlineAgain.participants[0].status, 'online');
+  assert.equal(onlineAgain.participants[0].online, true);
+});
+
+test('game preflight accepts native app and exposes game token header', async () => {
+  const env = makeEnv();
+  const preflight = await worker.fetch(new Request('https://sync.example.com/game/rooms/join', {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'http://localhost',
+      'Access-Control-Request-Headers': 'content-type,x-mobdea-workspace,x-mobdea-game-token',
+      'Access-Control-Request-Method': 'POST',
+    },
+  }), env);
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), 'http://localhost');
+  assert.match(preflight.headers.get('Access-Control-Allow-Headers') || '', /X-Mobdea-Game-Token/i);
+});
+
+test('sync rejects duplicate positive student codes at the server boundary', async () => {
+  const env = makeEnv();
+  const response = await worker.fetch(new Request('https://sync.example.com/sync', {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.0.3.1' }),
+    body: JSON.stringify({
+      schemaVersion: 10,
+      appVersion: '10.6.0',
+      workspaceId: 'school_one',
+      data: {
+        students: [
+          { id: 1, code: 15, name: 'أحمد' },
+          { id: 2, code: 15, name: 'سارة' },
+        ],
+        sessions: [],
+        settings: {},
+      },
+    }),
+  }), env);
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error, 'invalid_payload');
+});
+
+test('game room can be created, joined publicly and read with participant token', async () => {
+  const env = makeEnv();
+  const createdResponse = await worker.fetch(new Request('https://sync.example.com/game/rooms', {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.0.4.1' }),
+    body: JSON.stringify({
+      title: 'تحدي خرائط مصر',
+      teacherName: 'المبدع مصطفى بركات',
+      mode: 'map-challenge',
+      maxParticipants: 20,
+    }),
+  }), env);
+  assert.equal(createdResponse.status, 201);
+  const created = await createdResponse.json();
+  assert.ok(created.room?.roomId);
+  assert.match(created.joinCode, /^\d{6}$/);
+  assert.ok(created.teacherToken);
+
+  const joinedResponse = await worker.fetch(new Request('https://sync.example.com/game/rooms/join', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Mobdea-Workspace': 'school_one',
+      Origin: 'http://localhost',
+      'CF-Connecting-IP': '10.0.4.2',
+    },
+    body: JSON.stringify({
+      joinCode: created.joinCode,
+      displayName: 'أحمد محمد',
+      studentId: '25',
+    }),
+  }), env);
+  assert.equal(joinedResponse.status, 201);
+  const joined = await joinedResponse.json();
+  assert.equal(joined.roomId, created.room.roomId);
+  assert.equal(joined.participantId, joined.participant.participantId);
+  assert.ok(joined.participantToken);
+
+  const stateResponse = await worker.fetch(new Request(`https://sync.example.com/game/rooms/${created.room.roomId}/state`, {
+    headers: {
+      'X-Mobdea-Workspace': 'school_one',
+      'X-Mobdea-Game-Token': joined.participantToken,
+      Origin: 'http://localhost',
+      'CF-Connecting-IP': '10.0.4.3',
+    },
+  }), env);
+  assert.equal(stateResponse.status, 200);
+  const state = await stateResponse.json();
+  assert.equal(state.participant.displayName, 'أحمد محمد');
+  assert.equal(state.room.title, 'تحدي خرائط مصر');
+});
+
+test('student can log in from a fresh device and receives only their synchronized portal data', async () => {
+  const env = makeEnv();
+  const pinSecret = await createCredentialSecret('123456', 'student');
+  const payload = {
+    schemaVersion: 9,
+    appVersion: '10.8.0',
+    workspaceId: 'school_one',
+    data: {
+      sessions: [],
+      students: [
+        { id: 101, code: 7001, name: 'أحمد محمد', grade: 'الصف السادس', group: 'أ', points: 47, active: true, ...pinSecret },
+        { id: 102, code: 7002, name: 'سارة إيهاب', grade: 'الصف الخامس', group: 'ب', active: true, ...await createCredentialSecret('654321', 'student') },
+      ],
+      grades: [
+        { id: 'g1', studentId: 101, score: 18 },
+        { id: 'g2', studentId: 102, score: 20 },
+      ],
+      attendance: [
+        { id: 'a1', studentId: 101, date: '2026-08-08', status: 'present' },
+        { id: 'a2', studentId: 102, date: '2026-08-08', status: 'absent' },
+      ],
+      payments: [
+        { id: 'p1', studentId: 101, amount: 100 },
+        { id: 'p2', studentId: 102, amount: 80 },
+      ],
+      lessonRecordings: [
+        { id: 'r1', grade: 'الصف السادس', group: 'أ', visibleToStudents: true, studentIds: [101], videoAssetId: 'recording-asset', title: 'حصة الحضارة' },
+        { id: 'r2', grade: 'الصف الخامس', group: 'ب', visibleToStudents: true, studentIds: [102], title: 'حصة أخرى' },
+        { id: 'r3', grade: 'الصف السادس', group: 'أ', visibleToStudents: true, studentIds: [102], title: 'تسجيل موجه لطالب آخر في نفس الصف والمجموعة' },
+      ],
+      contentLibrary: [
+        { id: 'book-6', grade: 'الصف السادس', title: 'كتاب الصف السادس', assetId: 'book-asset' },
+        { id: 'book-5', grade: 'الصف الخامس', title: 'كتاب الصف الخامس' },
+      ],
+      settings: { cloudSync: { publicAppUrl: 'https://students.example.com/' } },
+    },
+  };
+  const synced = await worker.fetch(new Request('https://sync.example.com/sync', {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.0.5.1' }),
+    body: JSON.stringify(payload),
+  }), env);
+  assert.equal(synced.status, 200);
+
+  const login = await worker.fetch(new Request('https://sync.example.com/student/login', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://app.example.com',
+      'X-Mobdea-Workspace': 'school_one',
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '10.0.5.2',
+    },
+    body: JSON.stringify({ code: '٧٠٠١', pin: '١٢٣٤٥٦' }),
+  }), env);
+  assert.equal(login.status, 200);
+  const logged = await login.json();
+  assert.equal(logged.student.id, 101);
+  assert.equal(logged.student.points, 47);
+  assert.equal(logged.data.students.length, 1);
+  assert.deepEqual(logged.data.grades.map((item) => item.id), ['g1']);
+  assert.deepEqual(logged.data.attendance.map((item) => item.id), ['a1']);
+  assert.deepEqual(logged.data.payments.map((item) => item.id), ['p1']);
+  assert.deepEqual(logged.data.lessonRecordings.map((item) => item.id), ['r1']);
+  assert.deepEqual(logged.data.contentLibrary.map((item) => item.id), ['book-6']);
+  assert.equal(logged.data.settings.cloudSync.publicAppUrl, 'https://students.example.com/');
+
+  const snapshot = await worker.fetch(new Request('https://sync.example.com/student/snapshot', {
+    headers: {
+      Origin: 'https://app.example.com',
+      'X-Mobdea-Workspace': 'school_one',
+      'X-Mobdea-Student-Token': logged.studentToken,
+      'CF-Connecting-IP': '10.0.5.3',
+    },
+  }), env);
+  assert.equal(snapshot.status, 200);
+  assert.equal((await snapshot.json()).student.code, 7001);
+
+  const wrongPin = await worker.fetch(new Request('https://sync.example.com/student/login', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://app.example.com',
+      'X-Mobdea-Workspace': 'school_one',
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '10.0.5.4',
+    },
+    body: JSON.stringify({ code: '7001', pin: '000000' }),
+  }), env);
+  assert.equal(wrongPin.status, 401);
 });

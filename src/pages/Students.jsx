@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ContactRound, KeyRound, Trash2 } from 'lucide-react';
 import { normalizeEgyptPhone, pickPhoneFromContacts } from '../services/contacts';
 import { createCredentialSecret, hasCredentialSecret, normalizePin } from '../utils/security';
+import { cloudConfigured, pushCloudData } from '../services/cloudSync';
 
 function pruneStudentFromData(data, studentId) {
   return {
@@ -19,7 +20,7 @@ function pruneStudentFromData(data, studentId) {
 
 function emptyStudent() {
   return {
-    name: '', grade: '', group: '', guardianPhone: '', studentPhone: '', sessionPrice: 50,
+    name: '', code: '', grade: '', group: '', guardianPhone: '', studentPhone: '', sessionPrice: 50,
     permissions: { games: true, grades: true, content: true },
     parentPermissions: { attendance: true, grades: true, dues: true },
     studentPin: '', guardianPin: '',
@@ -58,15 +59,21 @@ export default function Students({ data, updateData }) {
     setNotice('');
     try {
       const exists = data.students.some((student) => student.id === form.id);
-      const studentId = exists ? form.id : Date.now();
-      const code = exists ? form.code : Math.max(0, ...data.students.map((student) => Number(student.code) || 0)) + 1;
+      const studentId = exists ? form.id : Date.now() * 1000 + Math.floor(Math.random() * 1000);
+      const usedCodes = new Set(data.students.filter((student) => student.id !== studentId).map((student) => Number(student.code)).filter((code) => Number.isSafeInteger(code) && code > 0));
+      const requestedCode = Number(form.code);
+      let code = Number.isSafeInteger(requestedCode) && requestedCode > 0 ? requestedCode : 1;
+      if (!(Number.isSafeInteger(requestedCode) && requestedCode > 0)) {
+        while (usedCodes.has(code)) code += 1;
+      }
+      if (usedCodes.has(code)) throw new Error(`كود الطالب ${code} مستخدم بالفعل. اختر كودًا آخر أو اتركه فارغًا للتوليد التلقائي.`);
       const guardianPhone = normalizeEgyptPhone(form.guardianPhone || '');
       const studentPhone = normalizeEgyptPhone(form.studentPhone || '');
       const duplicateStudentPhone = data.students.find((student) => student.id !== studentId && studentPhone && (studentPhone === normalizeEgyptPhone(student.studentPhone || '') || studentPhone === normalizeEgyptPhone(student.guardianPhone || '')));
       if (duplicateStudentPhone) throw new Error(`هاتف الطالب مستخدم بالفعل لدى ${duplicateStudentPhone.name}.`);
       const guardianUsedAsStudentPhone = data.students.find((student) => student.id !== studentId && guardianPhone && guardianPhone === normalizeEgyptPhone(student.studentPhone || ''));
       if (guardianUsedAsStudentPhone) throw new Error(`رقم ولي الأمر مستخدم كهاتف طالب لدى ${guardianUsedAsStudentPhone.name}.`);
-      const nextStudent = { ...form, id: studentId, code, name: form.name.trim(), guardianPhone, studentPhone };
+      const nextStudent = { ...form, id: studentId, code, name: form.name.trim(), guardianPhone, studentPhone, updatedAt: new Date().toISOString() };
       const studentPin = normalizePin(form.studentPin);
       const guardianPin = normalizePin(form.guardianPin);
       if (studentPin && (studentPin.length < 6 || studentPin.length > 10)) throw new Error('PIN الطالب يجب أن يتكون من 6 إلى 10 أرقام.');
@@ -79,9 +86,36 @@ export default function Students({ data, updateData }) {
       const nextStudents = exists
         ? data.students.map((student) => student.id === studentId ? nextStudent : student)
         : [...data.students, nextStudent];
-      await updateData({ ...data, students: nextStudents });
+      const nextData = { ...data, students: nextStudents };
+      await updateData(nextData);
+      let syncMessage = 'تم حفظ بيانات الطالب وحسابات الدخول بأمان.';
+      if (cloudConfigured(nextData.settings)) {
+        try {
+          const remote = await pushCloudData(nextData);
+          const syncedAt = new Date().toISOString();
+          await updateData({
+            ...nextData,
+            settings: {
+              ...nextData.settings,
+              cloudSync: {
+                ...nextData.settings.cloudSync,
+                revision: remote.revision || nextData.settings.cloudSync.revision || '',
+                lastPushAt: syncedAt,
+                lastAutoSyncAt: syncedAt,
+                localChangedAt: '',
+                autoSyncError: '',
+              },
+            },
+          }, { skipCloudDirty: true });
+          syncMessage = 'تم حفظ الطالب ومزامنته فورًا؛ يمكنه الدخول من أي جهاز بنفس الكود وPIN.';
+        } catch (syncError) {
+          syncMessage = `تم الحفظ على هذا الجهاز، لكن المزامنة الفورية فشلت: ${syncError?.message || 'تحقق من الخادم ثم اضغط مزامنة.'}`;
+        }
+      } else {
+        syncMessage = 'تم الحفظ محليًا. اضبط المزامنة السحابية ليتمكن الطالب من الدخول من جهاز آخر.';
+      }
       setForm(null);
-      setNotice('تم حفظ بيانات الطالب وحسابات الدخول بأمان.');
+      setNotice(syncMessage);
     } catch (error) {
       setNotice(error?.message || 'تعذر حفظ الطالب.');
     } finally {
@@ -136,6 +170,7 @@ export default function Students({ data, updateData }) {
             <h3>{form.id ? 'تعديل طالب' : 'إضافة طالب'}</h3>
             <div className="form-grid">
               <input placeholder="اسم الطالب" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+              <input type="number" min="1" inputMode="numeric" placeholder="كود الطالب — اتركه فارغًا للتوليد" value={form.code || ''} onChange={(event) => setForm({ ...form, code: event.target.value.replace(/\D/g, '').slice(0, 9) })} />
               <input placeholder="الصف الدراسي" value={form.grade} onChange={(event) => setForm({ ...form, grade: event.target.value })} />
               <input placeholder="المجموعة" value={form.group} onChange={(event) => setForm({ ...form, group: event.target.value })} />
               <div className="phone-picker-field"><input placeholder="رقم ولي الأمر" value={form.guardianPhone || ''} onChange={(event) => setForm({ ...form, guardianPhone: normalizeEgyptPhone(event.target.value) })} /><button type="button" onClick={() => chooseContact('guardianPhone')} title="اختيار من جهات الاتصال"><ContactRound /></button></div>

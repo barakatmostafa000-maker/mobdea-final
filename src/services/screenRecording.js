@@ -31,7 +31,24 @@ export async function stopNativeScreenRecording() {
     throw new Error('لا يوجد تسجيل Android نشط.');
   }
   const result = await NativeScreenRecorder.stop();
-  const source = Capacitor.convertFileSrc(result.path || '');
+  return readNativeScreenRecording({
+    nativePath: String(result.path || ''),
+    name: result.fileName || `mobdea-recording-${Date.now()}.mp4`,
+    type: result.mimeType || 'video/mp4',
+    durationSeconds: Math.max(1, Math.round(Number(result.durationMs || 0) / 1000)),
+  });
+}
+
+export async function readNativeScreenRecording({
+  nativePath = '',
+  name = '',
+  type = 'video/mp4',
+  durationSeconds = 1,
+} = {}) {
+  const rawPath = String(nativePath || '');
+  if (!rawPath) throw new Error('لم يُرجع Android مسار ملف تسجيل الحصة.');
+  const fileUrl = /^[a-z][a-z0-9+.-]*:/i.test(rawPath) ? rawPath : `file://${rawPath}`;
+  const source = Capacitor.convertFileSrc(fileUrl);
   if (!source) throw new Error('تعذر الوصول إلى ملف تسجيل الحصة.');
   const response = await fetch(source);
   if (!response.ok) throw new Error('تعذر قراءة ملف تسجيل الحصة من الجهاز.');
@@ -39,8 +56,15 @@ export async function stopNativeScreenRecording() {
   if (!blob.size) throw new Error('ملف تسجيل الحصة فارغ.');
   return {
     blob,
-    name: result.fileName || `mobdea-recording-${Date.now()}.mp4`,
-    type: result.mimeType || blob.type || 'video/mp4',
-    durationSeconds: Math.max(1, Math.round(Number(result.durationMs || 0) / 1000)),
+    nativePath: rawPath,
+    name: name || `mobdea-recording-${Date.now()}.mp4`,
+    type: type || blob.type || 'video/mp4',
+    durationSeconds: Math.max(1, Number(durationSeconds || 1)),
   };
+}
+
+export async function releaseNativeScreenRecording(path) {
+  if (!path || !nativeScreenRecordingAvailable()) return false;
+  const result = await NativeScreenRecorder.release({ path });
+  return Boolean(result?.deleted);
 }

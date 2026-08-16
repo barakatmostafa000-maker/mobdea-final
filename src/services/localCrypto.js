@@ -1,4 +1,4 @@
-import { secureGet, secureRemove, secureSet } from './secureVault';
+import { secureGet, secureRemove, secureSet } from './secureVault.js';
 
 const DATA_KEY_NAME = 'mobdea_local_data_key_v1';
 const FORMAT = 'mobdea-local-encrypted-v1';

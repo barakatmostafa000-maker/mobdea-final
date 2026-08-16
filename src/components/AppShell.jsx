@@ -156,12 +156,16 @@ export default function AppShell({ active, onChange, children, settings, data, a
               <ChevronLeft className="nav-arrow" size={16} />
             </button>
           ))}
+          <button className="sidebar-logout-nav" type="button" onClick={onLogout}>
+            <span className="nav-icon"><LogOut size={19} /></span>
+            <span className="nav-copy"><strong>تسجيل الخروج</strong><small>آخر عنصر في القائمة</small></span>
+            <ChevronLeft className="nav-arrow" size={16} />
+          </button>
         </nav>
 
         <div className="sidebar-footer">
           <div><ShieldCheck size={18} /><span><strong>الإدارة محمية</strong><small>PIN وقفل تلقائي</small></span></div>
           <b>{release.footerLabel}</b>
-          <button className="logout-btn" type="button" onClick={onLogout}><LogOut size={16} /> تسجيل الخروج</button>
         </div>
       </aside>
 

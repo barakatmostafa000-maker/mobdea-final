@@ -13,6 +13,7 @@ import {
   defaultAuthState, normalizeDigits, resolveGuardianByPhone, resolveStudentByCode,
   resolveStudentFromQrPayload, ROLE_LABELS,
 } from '../utils/auth';
+import { loginStudentFromCloud, mergeStudentLoginSnapshot } from '../services/studentPortalCloud';
 
 const roles = [
   { key: 'teacher', title: 'المعلم', hint: 'كلمة مرور موحدة', icon: GraduationCap, pinPrefix: 'teacher' },
@@ -164,15 +165,32 @@ export default function LockScreen({ data, onUnlock, updateData }) {
       }
 
       if (role === 'student') {
-        const student = resolveStudentByCode(data, identifier) || resolveStudentFromQrPayload(data, identifier);
         const scope = `student:${normalizeDigits(identifier) || 'unknown'}`;
         assertLoginAllowed(scope);
-        if (!student) failLogin(scope, 'كود الطالب أو PIN غير صحيح.');
-        if (!hasCredentialSecret(student, 'student')) throw new Error('حساب الطالب غير مفعّل. اطلب من المعلم إنشاء PIN للطالب.');
-        if (!(await verifyCredentialSecret(pin, student, 'student'))) failLogin(scope, 'كود الطالب أو PIN غير صحيح.');
-        clearLoginFailures(scope);
-        onUnlock(defaultAuthState('student', student), { remember });
-        return;
+        const localStudent = resolveStudentByCode(data, identifier) || resolveStudentFromQrPayload(data, identifier);
+        if (localStudent && hasCredentialSecret(localStudent, 'student')) {
+          const localOk = await verifyCredentialSecret(pin, localStudent, 'student');
+          if (localOk) {
+            clearLoginFailures(scope);
+            onUnlock(defaultAuthState('student', localStudent), { remember });
+            return;
+          }
+        }
+
+        try {
+          const payload = await loginStudentFromCloud(data.settings, identifier, pin);
+          const merged = await mergeStudentLoginSnapshot(data, payload, pin);
+          await updateData(merged, { skipCloudDirty: true });
+          const cloudStudent = payload.student || merged.students.find((item) => String(item.code) === String(identifier));
+          clearLoginFailures(scope);
+          onUnlock(defaultAuthState('student', cloudStudent), { remember });
+          return;
+        } catch (cloudError) {
+          if (localStudent && !hasCredentialSecret(localStudent, 'student')) {
+            throw new Error('حساب الطالب غير مفعّل. اطلب من المعلم إنشاء PIN للطالب ثم مزامنة البيانات.');
+          }
+          failLogin(scope, cloudError?.message || 'كود الطالب أو PIN غير صحيح.');
+        }
       }
 
       if (role === 'guardian') {

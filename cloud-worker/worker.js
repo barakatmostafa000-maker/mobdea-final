@@ -21,7 +21,18 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 function allowedOrigins(env) {
-  return String(env.MOBDEA_ALLOWED_ORIGINS || '').split(',').map((item) => item.trim()).filter(Boolean);
+  const builtIn = [
+    'http://localhost',
+    'https://localhost',
+    'capacitor://localhost',
+    'https://mobdea-live-barakatmostafa000.pages.dev',
+    'https://barakatmostafa000-maker.github.io',
+  ];
+  const configured = String(env.MOBDEA_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return [...new Set([...builtIn, ...configured])];
 }
 
 function corsHeaders(request, env) {
@@ -29,7 +40,7 @@ function corsHeaders(request, env) {
   const allowed = allowedOrigins(env);
   const headers = {
     'Vary': 'Origin',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Mobdea-Workspace,X-Mobdea-Client,X-Mobdea-Live-Token,If-Match,X-Mobdea-Asset-Name,X-Mobdea-Asset-Kind,X-Mobdea-Asset-Sha256,X-Mobdea-Asset-Size',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Mobdea-Workspace,X-Mobdea-Client,X-Mobdea-Live-Token,X-Mobdea-Game-Token,X-Mobdea-Student-Token,If-Match,X-Mobdea-Asset-Name,X-Mobdea-Asset-Kind,X-Mobdea-Asset-Sha256,X-Mobdea-Asset-Size',
     'Access-Control-Expose-Headers': 'ETag,X-Mobdea-Asset-Sha256,X-Mobdea-Asset-Size,X-Mobdea-Asset-Name,X-Mobdea-Asset-Kind',
     'Access-Control-Allow-Methods': 'GET,HEAD,PUT,POST,PATCH,DELETE,OPTIONS',
     'Access-Control-Max-Age': '86400',
@@ -154,6 +165,16 @@ function validateSyncPayload(payload, workspace) {
   if (!payload || typeof payload !== 'object' || payload.workspaceId !== workspace || !payload.data || typeof payload.data !== 'object') return false;
   if (!Number.isInteger(Number(payload.schemaVersion)) || Number(payload.schemaVersion) < 1 || Number(payload.schemaVersion) > 100) return false;
   if (!Array.isArray(payload.data.students) || !Array.isArray(payload.data.sessions)) return false;
+  const studentCodes = new Set();
+  for (const student of payload.data.students) {
+    const code = Number(student?.code);
+    // Legacy clients may omit the code; current clients normalize it before
+    // upload. Whenever a positive code is present, enforce workspace-wide
+    // uniqueness at the server boundary.
+    if (!Number.isSafeInteger(code) || code <= 0) continue;
+    if (studentCodes.has(code)) return false;
+    studentCodes.add(code);
+  }
   if (!payload.data.settings || typeof payload.data.settings !== 'object') return false;
   if (payload.assetManifest !== undefined) {
     if (!Array.isArray(payload.assetManifest) || payload.assetManifest.length > MAX_ASSET_COUNT) return false;
@@ -185,6 +206,200 @@ async function rateLimit(request, env, workspace, write = false, overrideLimit =
 
 function randomToken() {
   return bytesToBase64(crypto.getRandomValues(new Uint8Array(24))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+const STUDENT_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+function normalizeArabicDigits(value = '') {
+  const map = { '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9' };
+  return String(value || '').replace(/[٠-٩]/g, (digit) => map[digit]).replace(/\D/g, '');
+}
+
+function studentSessionKey(workspace, tokenHash) {
+  return `student-session:${workspace}:${tokenHash}`;
+}
+
+async function verifyPbkdf2Secret(value, hashBase64, saltBase64, iterationsValue) {
+  const iterations = Number(iterationsValue || 310000);
+  if (!value || !hashBase64 || !saltBase64 || !Number.isInteger(iterations) || iterations < 100000 || iterations > 1000000) return false;
+  try {
+    const key = await crypto.subtle.importKey('raw', encoder.encode(String(value)), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: base64ToBytes(saltBase64), iterations }, key, 256);
+    const candidate = new Uint8Array(bits);
+    const expected = base64ToBytes(hashBase64);
+    if (candidate.length !== expected.length) return false;
+    let diff = 0;
+    for (let index = 0; index < candidate.length; index += 1) diff |= candidate[index] ^ expected[index];
+    return diff === 0;
+  } catch {
+    return false;
+  }
+}
+
+async function readWorkspacePayload(env, workspace) {
+  const encrypted = await env.MOBDEA_DATA.get(`workspace:${workspace}`);
+  if (!encrypted) return null;
+  return decryptJson(encrypted, env, `sync:${workspace}`);
+}
+
+function safeStudentRecord(student = {}) {
+  return {
+    id: student.id ?? null,
+    code: student.code ?? '',
+    name: safeLiveText(student.name || 'طالب', 100),
+    grade: safeLiveText(student.grade || '', 80),
+    group: safeLiveText(student.group || '', 80),
+    points: Math.max(0, Number(student.points || 0)),
+    permissions: student.permissions && typeof student.permissions === 'object' ? student.permissions : {},
+    active: student.active !== false,
+    updatedAt: safeLiveText(student.updatedAt || '', 40),
+  };
+}
+
+function recordMatchesStudent(record = {}, student = {}) {
+  const studentId = String(student.id ?? '');
+  const studentCode = String(student.code ?? '').trim();
+  const directIds = [record.studentId, record.selectedStudentId, record.playerOne, record.playerTwo, record.secondStudentId]
+    .filter((value) => value !== undefined && value !== null)
+    .map(String);
+  const directCodes = [record.studentCode, record.selectedStudentCode]
+    .filter((value) => value !== undefined && value !== null && String(value).trim())
+    .map((value) => String(value).trim());
+  const listIds = Array.isArray(record.studentIds) ? record.studentIds.map(String) : [];
+  const listCodes = Array.isArray(record.studentCodes) ? record.studentCodes.map((value) => String(value).trim()) : [];
+  const hasExplicitScope = directIds.length > 0 || directCodes.length > 0 || Array.isArray(record.studentIds) || Array.isArray(record.studentCodes);
+  if (hasExplicitScope) {
+    return directIds.includes(studentId)
+      || listIds.includes(studentId)
+      || Boolean(studentCode && (directCodes.includes(studentCode) || listCodes.includes(studentCode)));
+  }
+  const gradeMatches = !record.grade || !student.grade || String(record.grade).trim() === String(student.grade).trim();
+  const groupMatches = !record.group || !student.group || String(record.group).trim() === String(student.group).trim();
+  return gradeMatches && groupMatches;
+}
+
+function recordExplicitlyMatchesStudent(record = {}, student = {}) {
+  const studentId = String(student.id ?? '');
+  const studentCode = String(student.code ?? '').trim();
+  const ids = [record.studentId, record.selectedStudentId, record.playerOne, record.playerTwo, record.secondStudentId]
+    .filter((value) => value !== undefined && value !== null)
+    .map(String);
+  if (Array.isArray(record.studentIds)) ids.push(...record.studentIds.map(String));
+  if (studentId && ids.includes(studentId)) return true;
+  const codes = [record.studentCode, record.selectedStudentCode]
+    .filter((value) => value !== undefined && value !== null && String(value).trim())
+    .map((value) => String(value).trim());
+  if (Array.isArray(record.studentCodes)) codes.push(...record.studentCodes.map((value) => String(value).trim()));
+  return Boolean(studentCode && codes.includes(studentCode));
+}
+
+function collectStudentAssetIds(snapshot = {}) {
+  const ids = new Set();
+  const add = (value) => { if (value) ids.add(String(value)); };
+  for (const item of snapshot.contentLibrary || []) {
+    add(item.assetId); add(item.examAssetId); add(item.thumbnailAssetId); add(item.recordingAssetId);
+  }
+  for (const item of snapshot.lessonRecordings || []) {
+    add(item.boardAssetId); add(item.videoAssetId);
+  }
+  return ids;
+}
+
+function buildStudentSnapshot(stored = {}, student = {}) {
+  const data = stored.data || {};
+  const sameGrade = (value) => !value || !student.grade || String(value).trim() === String(student.grade).trim();
+  const own = (items = []) => (Array.isArray(items) ? items : []).filter((item) => recordExplicitlyMatchesStudent(item, student));
+  const visibleRecordings = (Array.isArray(data.lessonRecordings) ? data.lessonRecordings : []).filter((item) => item.visibleToStudents !== false && recordMatchesStudent(item, student));
+  const contentLibrary = (Array.isArray(data.contentLibrary) ? data.contentLibrary : []).filter((item) => sameGrade(item.grade));
+  const sessions = (Array.isArray(data.sessions) ? data.sessions : []).filter((item) => recordMatchesStudent(item, student)).map((item) => ({
+    id: item.id, title: safeLiveText(item.title || '', 140), grade: safeLiveText(item.grade || '', 80), group: safeLiveText(item.group || '', 80), date: safeLiveText(item.date || '', 40), startTime: safeLiveText(item.startTime || '', 20), lessonId: item.lessonId ?? null,
+  }));
+  const customQuestionBank = (Array.isArray(data.customQuestionBank) ? data.customQuestionBank : []).filter((item) => sameGrade(item.grade));
+  return {
+    students: [safeStudentRecord(student)],
+    sessions,
+    attendance: own(data.attendance),
+    grades: own(data.grades),
+    payments: own(data.payments),
+    achievements: own(data.achievements),
+    gameResults: own(data.gameResults),
+    mapResults: own(data.mapResults),
+    contentLibrary,
+    lessonRecordings: visibleRecordings,
+    customQuestionBank,
+    settings: {
+      visibleModules: data.settings?.visibleModules || {},
+      cloudSync: { publicAppUrl: safeLiveText(data.settings?.cloudSync?.publicAppUrl || '', 260) },
+    },
+  };
+}
+
+async function authenticateStudentSession(request, env, workspace) {
+  const token = String(request.headers.get('X-Mobdea-Student-Token') || '').trim();
+  if (!workspace || token.length < 20) return null;
+  const digest = await sha256Hex(encoder.encode(token));
+  const key = studentSessionKey(workspace, digest);
+  const encrypted = await env.MOBDEA_DATA.get(key);
+  if (!encrypted) return null;
+  const session = await decryptJson(encrypted, env, key);
+  if (!session || Date.parse(session.expiresAt) <= Date.now()) return null;
+  return { ...session, token, key };
+}
+
+async function handleStudentLogin(request, env, workspace) {
+  if (!workspace) return json(request, env, { error: 'workspace_required' }, 400);
+  if (!(await rateLimit(request, env, workspace, true, 12, 'student-login'))) return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
+  const body = await parseJsonBody(request, 20_000);
+  const code = Number(normalizeArabicDigits(body.code));
+  const pin = normalizeArabicDigits(body.pin).slice(0, 10);
+  if (!Number.isSafeInteger(code) || code <= 0 || !/^\d{6,10}$/.test(pin)) return json(request, env, { error: 'invalid_credentials' }, 401);
+  const stored = await readWorkspacePayload(env, workspace);
+  if (!stored?.data) return json(request, env, { error: 'workspace_not_ready' }, 404);
+  const student = (stored.data.students || []).find((item) => Number(item.code) === code);
+  if (!student) return json(request, env, { error: 'student_not_found' }, 401);
+  if (student.active === false || !student.studentPinHash || !student.studentPinSalt) return json(request, env, { error: 'student_not_active' }, 403);
+  const verified = await verifyPbkdf2Secret(pin, student.studentPinHash, student.studentPinSalt, student.studentPinIterations);
+  if (!verified) return json(request, env, { error: 'invalid_credentials' }, 401);
+  const token = randomToken();
+  const digest = await sha256Hex(encoder.encode(token));
+  const key = studentSessionKey(workspace, digest);
+  const expiresAt = new Date(Date.now() + STUDENT_SESSION_TTL_SECONDS * 1000).toISOString();
+  const session = { workspace, studentId: student.id, studentCode: student.code, createdAt: new Date().toISOString(), expiresAt };
+  await env.MOBDEA_DATA.put(key, await encryptJson(session, env, key), { expirationTtl: STUDENT_SESSION_TTL_SECONDS });
+  return json(request, env, { ok: true, student: safeStudentRecord(student), studentToken: token, expiresAt, data: buildStudentSnapshot(stored, student) }, 200);
+}
+
+async function handleStudentSnapshot(request, env, workspace) {
+  const session = await authenticateStudentSession(request, env, workspace);
+  if (!session) return json(request, env, { error: 'unauthorized' }, 401);
+  const stored = await readWorkspacePayload(env, workspace);
+  if (!stored?.data) return json(request, env, { error: 'workspace_not_ready' }, 404);
+  const student = (stored.data.students || []).find((item) => String(item.id) === String(session.studentId));
+  if (!student) return json(request, env, { error: 'student_not_found' }, 404);
+  return json(request, env, { ok: true, student: safeStudentRecord(student), data: buildStudentSnapshot(stored, student), expiresAt: session.expiresAt }, 200);
+}
+
+async function handleStudentAsset(request, env, workspace, assetId) {
+  const session = await authenticateStudentSession(request, env, workspace);
+  if (!session) return json(request, env, { error: 'unauthorized' }, 401);
+  if (!env.MOBDEA_ASSETS || !/^[a-zA-Z0-9._-]{1,100}$/.test(assetId)) return json(request, env, { error: 'not_found' }, 404);
+  const stored = await readWorkspacePayload(env, workspace);
+  const student = (stored?.data?.students || []).find((item) => String(item.id) === String(session.studentId));
+  if (!student) return json(request, env, { error: 'student_not_found' }, 404);
+  const snapshot = buildStudentSnapshot(stored, student);
+  if (!collectStudentAssetIds(snapshot).has(String(assetId))) return json(request, env, { error: 'forbidden' }, 403);
+  if (!(await rateLimit(request, env, workspace, false, MAX_ASSET_READS_PER_MINUTE, 'student-asset-r'))) return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
+  const key = `workspace/${workspace}/${assetId}`;
+  const object = await env.MOBDEA_ASSETS.get(key);
+  if (!object) return json(request, env, { error: 'not_found' }, 404);
+  const metadata = object.customMetadata || {};
+  const encrypted = await object.arrayBuffer();
+  const plaintext = await decryptBinary(encrypted, metadata.iv, env, `asset:${workspace}:${assetId}`);
+  if (Number(metadata.size || 0) !== plaintext.byteLength || await sha256Hex(plaintext) !== metadata.sha256) throw new Error('Stored asset integrity check failed.');
+  const headers = assetResponseHeaders(request, env, metadata);
+  headers['Content-Length'] = String(plaintext.byteLength);
+  headers['Content-Disposition'] = `inline; filename*=UTF-8''${encodeURIComponent(metadata.name || 'file')}`;
+  return new Response(plaintext, { status: 200, headers });
 }
 
 function safeAssetMetadata(value, maxLength = 180) {
@@ -670,7 +885,7 @@ async function createUniqueGameJoinCode(env, workspace) {
 }
 
 async function handleCreateGameRoom(request, env, auth) {
-  if (
+  if (!(
     await rateLimit(
       request,
       env,
@@ -679,7 +894,7 @@ async function handleCreateGameRoom(request, env, auth) {
       20,
       'game-create',
     )
-  ) {
+  )) {
     return json(
       request,
       env,
@@ -782,7 +997,7 @@ async function handleCreateGameRoom(request, env, auth) {
 }
 
 async function handleJoinGameRoom(request, env, workspace) {
-  if (
+  if (!(
     await rateLimit(
       request,
       env,
@@ -791,7 +1006,7 @@ async function handleJoinGameRoom(request, env, workspace) {
       60,
       'game-join',
     )
-  ) {
+  )) {
     return json(
       request,
       env,
@@ -924,7 +1139,10 @@ async function handleJoinGameRoom(request, env, workspace) {
     {
       ok: true,
       room: publicGameRoom(room),
+      roomId: room.roomId,
+      joinCode: room.joinCode,
       participant,
+      participantId: participant.participantId,
       participantToken,
     },
     201,
@@ -1841,7 +2059,7 @@ async function handleLiveEvents(request, env, workspace, roomId) {
       return json(request, env, { error: 'invalid_event_type' }, 400);
     }
     const participantTypes = new Set([
-      'student-ready', 'mic-request', 'mic-started', 'mic-stopped', 'hand-raised', 'reaction', 'chat',
+      'student-ready', 'participant-left', 'mic-request', 'mic-started', 'mic-stopped', 'hand-raised', 'reaction', 'chat',
       'heartbeat', 'game-state', 'game-ready', 'game-answer',
       'webrtc-offer', 'webrtc-answer', 'webrtc-ice',
     ]);
@@ -1866,18 +2084,22 @@ async function handleLiveEvents(request, env, workspace, roomId) {
       const participant = {
         ...auth.participant,
         lastSeenAt: new Date().toISOString(),
-        status: 'online',
+        status: type === 'participant-left' ? 'offline' : 'online',
         micState: type === 'mic-request'
           ? 'requested'
           : type === 'mic-started'
             ? 'speaking'
             : type === 'mic-stopped'
               ? 'muted'
+              : type === 'participant-left'
+                ? 'muted'
               : auth.participant.micState,
         muted: type === 'mic-started'
           ? false
           : type === 'mic-stopped'
             ? true
+            : type === 'participant-left'
+              ? true
             : auth.participant.muted,
       };
       await writeLiveParticipant(env, auth.room, participant);
@@ -1905,7 +2127,7 @@ async function handleLiveParticipants(request, env, workspace, roomId, participa
       const lastSeen = Date.parse(participant.lastSeenAt || participant.joinedAt || 0);
       participants.push({
         ...participant,
-        online: Number.isFinite(lastSeen) && Date.now() - lastSeen < 45_000,
+        online: participant.status === 'online' && Number.isFinite(lastSeen) && Date.now() - lastSeen < 45_000,
       });
     }
     participants.sort((left, right) => String(left.joinedAt || '').localeCompare(String(right.joinedAt || '')));
@@ -1993,6 +2215,12 @@ export default {
       const shareMatch = /^\/share\/([a-zA-Z0-9_-]+)$/.exec(url.pathname);
       if (request.method === 'GET' && shareMatch) return handleReadShare(request, env, shareMatch[1], validWorkspace(url.searchParams.get('workspace')));
 
+      const publicWorkspace = validWorkspace(request.headers.get('X-Mobdea-Workspace'));
+      if (url.pathname === '/student/login' && request.method === 'POST') return handleStudentLogin(request, env, publicWorkspace);
+      if (url.pathname === '/student/snapshot' && request.method === 'GET') return handleStudentSnapshot(request, env, publicWorkspace);
+      const studentAssetMatch = /^\/student\/assets\/([a-zA-Z0-9._-]+)$/.exec(url.pathname);
+      if (studentAssetMatch && request.method === 'GET') return handleStudentAsset(request, env, publicWorkspace, studentAssetMatch[1]);
+
       const liveWorkspace = validWorkspace(request.headers.get('X-Mobdea-Workspace'));
       const liveJoinMatch = /^\/live\/rooms\/([a-zA-Z0-9_-]+)\/join$/.exec(url.pathname);
       if (request.method === 'POST' && liveJoinMatch) {
@@ -2017,7 +2245,7 @@ export default {
         return handleCloseLiveRoom(request, env, liveWorkspace, validLiveRoomId(liveRoomMatch[1]));
       }
 
-      
+
       /* MOBDEA_GAME_PUBLIC_ROUTES_V1 */
       const gameWorkspace = validWorkspace(
         request.headers.get('X-Mobdea-Workspace'),

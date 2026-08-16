@@ -39,8 +39,33 @@ export function normalizeOnlineQuestions(questions = [], limit = 10) {
   return normalized;
 }
 
-export function publicOnlineQuestion(question, index, total, durationSec = 25) {
+export function onlineQuestionTiming(durationSec = 25, startedAtMs = Date.now()) {
+  const safeDuration = Math.max(5, Math.min(120, Number(durationSec || 25)));
+  const safeStart = Number.isFinite(Number(startedAtMs)) ? Number(startedAtMs) : Date.now();
+  return {
+    durationSec: safeDuration,
+    startedAt: new Date(safeStart).toISOString(),
+    endsAt: new Date(safeStart + safeDuration * 1000).toISOString(),
+  };
+}
+
+export function onlineQuestionSecondsLeft(question = {}, nowMs = Date.now()) {
+  const deadline = Date.parse(question.endsAt || '');
+  if (!Number.isFinite(deadline)) {
+    return Math.max(0, Math.ceil(Number(question.durationSec || 0)));
+  }
+  return Math.max(0, Math.ceil((deadline - Number(nowMs || Date.now())) / 1000));
+}
+
+export function publicOnlineQuestion(question, index, total, durationSec = 25, timing = null) {
   if (!question) return null;
+  const synchronizedTiming = timing?.endsAt
+    ? {
+        durationSec: Math.max(5, Math.min(120, Number(timing.durationSec || durationSec || 25))),
+        startedAt: new Date(timing.startedAt || Date.now()).toISOString(),
+        endsAt: new Date(timing.endsAt).toISOString(),
+      }
+    : onlineQuestionTiming(durationSec);
   return {
     id: question.id,
     text: question.text,
@@ -51,8 +76,7 @@ export function publicOnlineQuestion(question, index, total, durationSec = 25) {
     difficulty: question.difficulty,
     index: Number(index || 0),
     total: Number(total || 0),
-    durationSec: Math.max(5, Math.min(120, Number(durationSec || 25))),
-    startedAt: new Date().toISOString(),
+    ...synchronizedTiming,
   };
 }
 

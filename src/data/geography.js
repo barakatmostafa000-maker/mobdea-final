@@ -1,4 +1,33 @@
+import { COUNTRY_AR_NAMES } from './mapEnrichment.js';
+import { MAP_SYMBOL_GROUPS } from './mapSymbolCatalog.js';
+
 const arabIso = ['DZA', 'BHR', 'COM', 'DJI', 'EGY', 'IRQ', 'JOR', 'KWT', 'LBN', 'LBY', 'MRT', 'MAR', 'OMN', 'PSE', 'QAT', 'SAU', 'SOM', 'SDN', 'SYR', 'TUN', 'ARE', 'YEM'];
+
+// Natural Earth 110m omits a few small island states. These compact, real-world
+// coordinate outlines keep the Arab-region map complete without drawing an
+// empty placeholder for Bahrain or Comoros.
+const supplementalCountries = Object.freeze([
+  {
+    type: 'Feature',
+    properties: { iso_a3: 'BHR', name: 'Bahrain', continent: 'Asia' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[[50.45, 26.28], [50.49, 26.06], [50.57, 25.80], [50.66, 25.73], [50.67, 25.96], [50.62, 26.24], [50.45, 26.28]]],
+    },
+  },
+  {
+    type: 'Feature',
+    properties: { iso_a3: 'COM', name: 'Comoros', continent: 'Africa' },
+    geometry: {
+      type: 'MultiPolygon',
+      coordinates: [
+        [[[43.22, -11.42], [43.24, -11.93], [43.36, -11.94], [43.42, -11.55], [43.22, -11.42]]],
+        [[[43.63, -12.06], [43.64, -12.38], [43.82, -12.42], [43.87, -12.12], [43.63, -12.06]]],
+        [[[44.19, -12.07], [44.22, -12.37], [44.48, -12.42], [44.53, -12.10], [44.19, -12.07]]],
+      ],
+    },
+  },
+]);
 
 const countryNameOverrides = {
   PSE: 'فلسطين', ESH: 'الصحراء الغربية', COD: 'الكونغو الديمقراطية', COG: 'الكونغو',
@@ -17,6 +46,7 @@ export function getCountryName(featureOrIso, fallback = '') {
   const iso = typeof featureOrIso === 'string' ? featureOrIso : featureOrIso?.properties?.iso_a3;
   const name = typeof featureOrIso === 'string' ? fallback : featureOrIso?.properties?.name;
   if (countryNameOverrides[iso]) return countryNameOverrides[iso];
+  if (COUNTRY_AR_NAMES[iso]) return COUNTRY_AR_NAMES[iso];
   try {
     return arabicRegionNames?.of(iso) || name || iso || 'موقع غير مسمى';
   } catch {
@@ -65,30 +95,34 @@ export const GEOGRAPHY_REGIONS = Object.freeze({
 
 export const GEOGRAPHY_LAYERS = Object.freeze({
   countries: { title: 'الدول', color: '#d6ae38' },
+  borders: { title: 'الحدود', color: '#f0d478' },
   capitals: { title: 'العواصم', color: '#d64545' },
   cities: { title: 'المدن', color: '#f28c62' },
   mountains: { title: 'الجبال', color: '#9a704c' },
   plateaus: { title: 'الهضاب', color: '#bc8754' },
   plains: { title: 'السهول', color: '#6f9d63' },
+  deserts: { title: 'الصحارى', color: '#d6ae38' },
   rivers: { title: 'الأنهار', color: '#2f80ed' },
-  seas: { title: 'البحار والمحيطات', color: '#38a9db' },
+  seas: { title: 'البحار', color: '#38a9db' },
+  oceans: { title: 'المحيطات', color: '#1f78b4' },
   minerals: { title: 'الثروات', color: '#b85c9e' },
   terrain: { title: 'كل التضاريس', color: '#a87845' },
   water: { title: 'كل المياه', color: '#2f80ed' },
   latitude: { title: 'دوائر العرض', color: '#79c8e8' },
   longitude: { title: 'خطوط الطول', color: '#98d8ee' },
+  directions: { title: 'الاتجاهات', color: '#f0d478' },
   population: { title: 'السكان', color: '#e2b24a' },
 });
 
 export const GEOGRAPHY_FEATURES = Object.freeze({
   egypt: {
-    terrain: [['جبال البحر الأحمر', 33.2, 27.3], ['هضبة الجلف الكبير', 25.6, 23.5], ['جبل سانت كاترين', 33.95, 28.53], ['منخفض القطارة', 28.7, 30.0], ['دلتا النيل', 31.1, 31.0], ['سهل وادي النيل', 31.1, 26.5]],
+    terrain: [['جبال البحر الأحمر', 33.2, 27.3], ['هضبة الجلف الكبير', 25.6, 23.5], ['جبل سانت كاترين', 33.95, 28.53], ['منخفض القطارة', 28.7, 30.0], ['دلتا النيل', 31.1, 31.0], ['سهل وادي النيل', 31.1, 26.5], ['الصحراء الغربية', 27.5, 26.5], ['الصحراء الشرقية', 33.2, 25.4]],
     water: [['نهر النيل', 31.1, 27.5], ['البحر الأحمر', 35.1, 26.5], ['البحر المتوسط', 30.5, 31.8], ['بحيرة ناصر', 32.7, 23.8], ['قناة السويس', 32.4, 30.3]],
     minerals: [['بترول خليج السويس', 33.1, 29.2], ['فوسفات أبو طرطور', 25.5, 25.4], ['حديد الواحات البحرية', 28.9, 28.3], ['ذهب السكري', 34.7, 24.95], ['غاز البحر المتوسط', 31.8, 31.8]],
     capitals: [['القاهرة', 31.2357, 30.0444], ['الإسكندرية', 29.9187, 31.2001], ['أسوان', 32.8998, 24.0889], ['الأقصر', 32.6396, 25.6872], ['بورسعيد', 32.3019, 31.2653], ['السويس', 32.55, 29.97]],
   },
   arab: {
-    terrain: [['جبال أطلس', -5, 32], ['جبال الحجاز', 39.5, 23.5], ['هضبة نجد', 45, 24], ['جبال لبنان', 35.8, 33.9], ['مرتفعات اليمن', 44, 15.5], ['الصحراء الكبرى', 12, 25]],
+    terrain: [['جبال أطلس', -5, 32], ['جبال الحجاز', 39.5, 23.5], ['هضبة نجد', 45, 24], ['جبال لبنان', 35.8, 33.9], ['مرتفعات اليمن', 44, 15.5], ['الصحراء الكبرى', 12, 25], ['سهول دجلة والفرات', 44, 32]],
     water: [['نهر النيل', 31, 22], ['دجلة والفرات', 44, 33], ['البحر الأحمر', 38, 22], ['الخليج العربي', 51, 26], ['البحر المتوسط', 18, 35], ['المحيط الأطلسي', -13, 25]],
     minerals: [['بترول الخليج العربي', 49, 25], ['حديد موريتانيا', -11, 22], ['فوسفات المغرب', -7, 32], ['ذهب السودان', 33, 18], ['غاز الجزائر', 3, 29]],
     capitals: [['القاهرة', 31.2, 30.0], ['الرياض', 46.7, 24.7], ['بغداد', 44.4, 33.3], ['الرباط', -6.8, 34.0], ['الخرطوم', 32.6, 15.5], ['دمشق', 36.3, 33.5]],
@@ -106,7 +140,7 @@ export const GEOGRAPHY_FEATURES = Object.freeze({
     capitals: [['بكين', 116.4, 39.9], ['طوكيو', 139.7, 35.7], ['نيودلهي', 77.2, 28.6], ['الرياض', 46.7, 24.7], ['جاكرتا', 106.8, -6.2], ['أنقرة', 32.85, 39.93]],
   },
   europe: {
-    terrain: [['جبال الألب', 10, 46], ['جبال البرانس', 0, 42.6], ['جبال الكاربات', 25, 47], ['السهل الأوروبي العظيم', 20, 52], ['هضبة إسبانيا', -4, 40], ['جبال الأبنين', 13, 42]],
+    terrain: [['جبال الألب', 10, 46], ['جبال البرانس', 0, 42.6], ['جبال الكاربات', 25, 47], ['السهل الأوروبي العظيم', 20, 52], ['هضبة إسبانيا', -4, 40], ['جبال الأبنين', 13, 42], ['صحراء تابيرناس', -2.45, 37.0]],
     water: [['نهر الراين', 7, 50], ['نهر الدانوب', 20, 46], ['نهر الفولجا', 46, 48], ['البحر المتوسط', 18, 36], ['بحر الشمال', 3, 56], ['بحر البلطيق', 19, 58]],
     minerals: [['فحم الرور', 7, 51], ['حديد السويد', 18, 67], ['بترول بحر الشمال', 2, 59], ['غاز هولندا', 6, 53], ['بوكسيت فرنسا', 4, 44]],
     capitals: [['لندن', -0.13, 51.5], ['باريس', 2.35, 48.85], ['برلين', 13.4, 52.5], ['روما', 12.5, 41.9], ['مدريد', -3.7, 40.4], ['موسكو', 37.6, 55.75]],
@@ -130,92 +164,14 @@ export const GEOGRAPHY_FEATURES = Object.freeze({
     capitals: [['كانبرا', 149.1, -35.3], ['سيدني', 151.2, -33.9], ['ملبورن', 144.96, -37.8], ['ويلينغتون', 174.78, -41.29], ['بورت مورسبي', 147.18, -9.44]],
   },
   world: {
-    terrain: [['جبال الهيمالايا', 86, 28], ['جبال الأنديز', -70, -20], ['جبال الروكي', -112, 45], ['جبال الألب', 10, 46], ['هضبة التبت', 88, 32]],
+    terrain: [['جبال الهيمالايا', 86, 28], ['جبال الأنديز', -70, -20], ['جبال الروكي', -112, 45], ['جبال الألب', 10, 46], ['هضبة التبت', 88, 32], ['سهول أوروبا الكبرى', 20, 52], ['الصحراء الكبرى', 12, 23]],
     water: [['المحيط الهادئ', -150, 0], ['المحيط الأطلسي', -30, 5], ['المحيط الهندي', 80, -20], ['نهر الأمازون', -60, -4], ['البحر المتوسط', 18, 35]],
     minerals: [['بترول الخليج العربي', 49, 25], ['حديد أستراليا', 120, -25], ['نحاس تشيلي', -70, -25], ['فحم الصين', 112, 36], ['ذهب جنوب إفريقيا', 27, -27]],
     capitals: [['القاهرة', 31.2, 30], ['باريس', 2.35, 48.85], ['نيودلهي', 77.2, 28.6], ['برازيليا', -47.9, -15.8], ['كانبرا', 149.1, -35.3]],
   },
 });
 
-export const GEOGRAPHY_SYMBOL_GROUPS = Object.freeze([
-  {
-    id: 'surface', label: 'مظاهر السطح', items: [
-      { id: 'mountains', label: 'جبال', hint: 'سلاسل جبلية', symbol: '▲', color: '#8d6e4c' },
-      { id: 'plateaus', label: 'هضاب', hint: 'سطوح مرتفعة', symbol: '▰', color: '#c38f5a' },
-      { id: 'plains', label: 'سهول', hint: 'أراضٍ منبسطة', symbol: '▬', color: '#7aa46f' },
-      { id: 'depression', label: 'منخفضات', hint: 'أرض أقل من محيطها', symbol: '▽', color: '#8b6f8f' },
-      { id: 'desert', label: 'صحارى', hint: 'مناطق جافة', symbol: '◌', color: '#d6ae38' },
-      { id: 'valley', label: 'أودية', hint: 'ممرات بين المرتفعات', symbol: '∨', color: '#8d7356' },
-      { id: 'delta', label: 'دلتا', hint: 'تفرعات مصب النهر', symbol: 'Δ', color: '#4d9e6f' },
-      { id: 'volcano', label: 'بركان', hint: 'نشاط بركاني', symbol: '♨', color: '#c94b3c' },
-      { id: 'oasis', label: 'واحة', hint: 'مياه ونبات في الصحراء', symbol: '✺', color: '#2f9d78' },
-      { id: 'island', label: 'جزيرة', hint: 'يابس تحيط به المياه', symbol: '◐', color: '#8aa56c' },
-      { id: 'peninsula', label: 'شبه جزيرة', hint: 'يابس تحيط به المياه من ثلاث جهات', symbol: '◒', color: '#9a8a5b' },
-      { id: 'basin', label: 'حوض', hint: 'منطقة منخفضة لتجمع المياه', symbol: '⌣', color: '#7c718e' },
-      { id: 'coast', label: 'ساحل', hint: 'منطقة التقاء اليابس بالماء', symbol: '⌇', color: '#4b91a8' },
-    ],
-  },
-  {
-    id: 'water', label: 'المياه', items: [
-      { id: 'river', label: 'نهر', hint: 'مجرى مائي', symbol: '≈', color: '#2f80ed' },
-      { id: 'lake', label: 'بحيرة', hint: 'مسطح مائي داخلي', symbol: '⬭', color: '#3a9ad9' },
-      { id: 'sea', label: 'بحر', hint: 'مسطح مائي', symbol: '≋', color: '#2979b8' },
-      { id: 'ocean', label: 'محيط', hint: 'مسطح مائي واسع', symbol: '◉', color: '#155a91' },
-      { id: 'canal', label: 'قناة', hint: 'مجرى مائي صناعي', symbol: '║', color: '#55a8d8' },
-      { id: 'waterfall', label: 'شلال', hint: 'سقوط مياه', symbol: '⇊', color: '#4fa7cf' },
-      { id: 'fish', label: 'ثروة سمكية', hint: 'سواحل وبحيرات', symbol: '◈', color: '#2f80ed' },
-      { id: 'gulf', label: 'خليج', hint: 'امتداد مائي داخل اليابس', symbol: '⊂', color: '#2e78b7' },
-      { id: 'strait', label: 'مضيق', hint: 'ممر مائي ضيق', symbol: '⇆', color: '#357fa9' },
-      { id: 'bay', label: 'خور/خليج صغير', hint: 'تجويف ساحلي', symbol: '◡', color: '#4a8fb5' },
-      { id: 'spring', label: 'عين ماء', hint: 'مياه جوفية تظهر على السطح', symbol: '⊙', color: '#4ab5b4' },
-      { id: 'dam', label: 'سد', hint: 'حاجز للتحكم في المياه', symbol: '▥', color: '#617c91' },
-      { id: 'groundwater', label: 'مياه جوفية', hint: 'مخزون مائي تحت سطح الأرض', symbol: '◉', color: '#4a8bb7' },
-    ],
-  },
-  {
-    id: 'resources', label: 'الثروات', items: [
-      { id: 'minerals', label: 'معادن', hint: 'ثروات معدنية', symbol: '◆', color: '#b85c9e' },
-      { id: 'petroleum', label: 'بترول', hint: 'حقول النفط', symbol: '●', color: '#1e1e22' },
-      { id: 'gas', label: 'غاز طبيعي', hint: 'حقول الغاز', symbol: '◍', color: '#df8d32' },
-      { id: 'coal', label: 'فحم', hint: 'مناجم الفحم', symbol: '■', color: '#343434' },
-      { id: 'iron', label: 'حديد', hint: 'خام الحديد', symbol: 'Fe', color: '#8f5f55' },
-      { id: 'gold', label: 'ذهب', hint: 'مناجم الذهب', symbol: 'Au', color: '#d5aa22' },
-      { id: 'phosphate', label: 'فوسفات', hint: 'مناجم الفوسفات', symbol: 'P', color: '#a779b8' },
-      { id: 'agriculture', label: 'زراعة', hint: 'مناطق زراعية', symbol: '✦', color: '#4d9e6f' },
-      { id: 'animal', label: 'ثروة حيوانية', hint: 'مناطق الرعي', symbol: '♞', color: '#5d8f57' },
-      { id: 'salt', label: 'ملح', hint: 'ملاحات ومناجم الملح', symbol: '◇', color: '#d8d1c0' },
-      { id: 'solar', label: 'طاقة شمسية', hint: 'مناطق الطاقة الشمسية', symbol: '☀', color: '#e5aa2c' },
-      { id: 'wind', label: 'طاقة رياح', hint: 'مزارع الرياح', symbol: '✤', color: '#6aa9b7' },
-    ],
-  },
-  {
-    id: 'human', label: 'ظواهر بشرية', items: [
-      { id: 'capital', label: 'عاصمة', hint: 'عاصمة دولة', symbol: '★', color: '#d64545' },
-      { id: 'city', label: 'مدينة', hint: 'مدينة مهمة', symbol: '●', color: '#e26d5a' },
-      { id: 'port', label: 'ميناء', hint: 'ميناء بحري', symbol: '⚓', color: '#376c9d' },
-      { id: 'industry', label: 'صناعة', hint: 'مركز صناعي', symbol: '⚙', color: '#6f7783' },
-      { id: 'population', label: 'سكان', hint: 'منطقة كثافة سكانية', symbol: '♟', color: '#8c5a9e' },
-      { id: 'tourism', label: 'سياحة', hint: 'مركز سياحي', symbol: '✹', color: '#d17a35' },
-      { id: 'border', label: 'حدود سياسية', hint: 'خط فاصل بين الدول', symbol: '┄', color: '#d59a46' },
-      { id: 'road', label: 'طريق', hint: 'محور نقل بري', symbol: '═', color: '#a47855' },
-      { id: 'railway', label: 'سكة حديد', hint: 'خط نقل بالقطارات', symbol: '╫', color: '#606b76' },
-      { id: 'airport', label: 'مطار', hint: 'مطار أو محور جوي', symbol: '✈', color: '#657ca8' },
-      { id: 'archaeology', label: 'أثر تاريخي', hint: 'موقع أثري أو حضاري', symbol: '⌂', color: '#b27a42' },
-    ],
-  },  {
-    id: 'reference', label: 'علامات وبيانات', items: [
-      { id: 'pin', label: 'دبوس', hint: 'علامة بدون اسم أو مع ملاحظة', symbol: '📍', color: '#d64545' },
-      { id: 'country', label: 'دولة', hint: 'تحديد دولة أو إقليم', symbol: '▱', color: '#d6ae38' },
-      { id: 'latitude', label: 'دائرة عرض', hint: 'خط عرض مرجعي', symbol: '↔', color: '#5b8fb9' },
-      { id: 'longitude', label: 'خط طول', hint: 'خط طول مرجعي', symbol: '↕', color: '#5b8fb9' },
-      { id: 'grid', label: 'شبكة إحداثيات', hint: 'خطوط الطول ودوائر العرض', symbol: '▦', color: '#628ca4' },
-      { id: 'population-low', label: 'سكان قليل', hint: 'كثافة سكانية منخفضة', symbol: '●', color: '#8cc78b' },
-      { id: 'population-medium', label: 'سكان متوسط', hint: 'كثافة سكانية متوسطة', symbol: '●', color: '#e2b34f' },
-      { id: 'population-high', label: 'سكان كثيف', hint: 'كثافة سكانية مرتفعة', symbol: '●', color: '#d6534d' },
-      { id: 'note', label: 'ملاحظة', hint: 'معلومة أو شرح على الخريطة', symbol: '✎', color: '#8c5a9e' },
-    ],
-  },
-]);
+export const GEOGRAPHY_SYMBOL_GROUPS = MAP_SYMBOL_GROUPS;
 
 export const GEOGRAPHY_SYMBOLS = GEOGRAPHY_SYMBOL_GROUPS.flatMap((group) => group.items.map((item) => ({ ...item, groupId: group.id, groupLabel: group.label })));
 
@@ -226,6 +182,9 @@ export const GRADE_MAP_RECOMMENDATIONS = Object.freeze({
   'الصف الأول الإعدادي': { defaultRegion: 'africa', recommended: ['africa'] },
   'الصف الثاني الإعدادي': { defaultRegion: 'asia', recommended: ['asia', 'europe'] },
   'الصف الثالث الإعدادي': { defaultRegion: 'northAmerica', recommended: ['northAmerica', 'southAmerica', 'australia'] },
+  'الصف الأول الثانوي': { defaultRegion: 'world', recommended: ['world', 'egypt', 'arab', 'africa', 'asia', 'europe'] },
+  'الصف الثاني الثانوي': { defaultRegion: 'world', recommended: ['world', 'africa', 'asia', 'europe', 'northAmerica', 'southAmerica'] },
+  'الصف الثالث الثانوي': { defaultRegion: 'world', recommended: ['world', 'egypt', 'arab', 'africa', 'asia', 'europe'] },
 });
 
 function normalizeGradeLabel(value = '') {
@@ -281,15 +240,27 @@ export function createMapProjector(regionKey, width = 1000, height = 620) {
 
 export function getRegionCountries(geo, regionKey) {
   const region = GEOGRAPHY_REGIONS[regionKey] || GEOGRAPHY_REGIONS.world;
-  return geo?.features?.filter(region.countryFilter) || [];
+  const source = [...(geo?.features || []), ...supplementalCountries];
+  return source.filter(region.countryFilter);
+}
+
+export function getCountryFeatureId(feature, index = 0) {
+  const iso = String(feature?.properties?.iso_a3 || '').trim();
+  if (iso && iso !== '-99') return iso;
+  const name = String(feature?.properties?.name || 'unknown').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  return `X-${name || index}`;
 }
 
 export function getRegionLayerItems(geo, regionKey, layerKey) {
   const countries = getRegionCountries(geo, regionKey);
-  if (layerKey === 'countries' || layerKey === 'population') {
-    return countries.map((feature) => ({
-      id: feature.properties.iso_a3,
-      name: layerKey === 'population' ? `سكان ${getCountryName(feature)}` : getCountryName(feature),
+  if (layerKey === 'countries' || layerKey === 'borders' || layerKey === 'population') {
+    return countries.map((feature, index) => ({
+      id: getCountryFeatureId(feature, index),
+      name: layerKey === 'population'
+        ? `سكان ${getCountryName(feature)}`
+        : layerKey === 'borders'
+          ? `حدود ${getCountryName(feature)}`
+          : getCountryName(feature),
       feature,
       coord: featureCenter(feature),
     }));
@@ -299,8 +270,10 @@ export function getRegionLayerItems(geo, regionKey, layerKey) {
     mountains: { source: 'terrain', match: /(جبال|جبل|مرتفعات|حاجز)/u },
     plateaus: { source: 'terrain', match: /(هضبة|هضاب)/u },
     plains: { source: 'terrain', match: /(سهل|سهول|دلتا|حوض|منخفض|وادي)/u },
-    rivers: { source: 'water', match: /(نهر|قناة|مضيق)/u },
-    seas: { source: 'water', match: /(بحر|محيط|خليج|بحيرة)/u },
+    deserts: { source: 'terrain', match: /(صحراء|صحارى)/u },
+    rivers: { source: 'water', match: /(نهر)/u },
+    seas: { source: 'water', match: /(بحر|خليج|بحيرة|قناة|مضيق)/u },
+    oceans: { source: 'water', match: /(محيط)/u },
     cities: { source: 'capitals', match: /.*/u },
   };
 
@@ -323,6 +296,18 @@ export function getRegionLayerItems(geo, regionKey, layerKey) {
     return lines
       .filter((item) => item[1] >= minX && item[1] <= maxX && item[2] >= minY && item[2] <= maxY)
       .map((item, index) => ({ id: `${regionKey}:${layerKey}:${index}`, name: item[0], coord: [item[1], item[2]] }));
+  }
+
+  if (layerKey === 'directions') {
+    const [minX, minY, maxX, maxY] = (GEOGRAPHY_REGIONS[regionKey] || GEOGRAPHY_REGIONS.world).bounds;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    return [
+      ['الشمال', centerX, maxY - ((maxY - minY) * .08)],
+      ['الجنوب', centerX, minY + ((maxY - minY) * .08)],
+      ['الشرق', maxX - ((maxX - minX) * .08), centerY],
+      ['الغرب', minX + ((maxX - minX) * .08), centerY],
+    ].map((item, index) => ({ id: `${regionKey}:directions:${index}`, name: item[0], coord: [item[1], item[2]] }));
   }
 
   const config = derived[layerKey];

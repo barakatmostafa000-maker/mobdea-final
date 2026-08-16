@@ -65,10 +65,10 @@ export default function Settings({ data, updateData, resetAppData }) {
     ...current,
     settings: { ...current.settings, visibleModules: { ...current.settings.visibleModules, [key]: value } },
   }));
-  const patchCloud = (patch) => updateData((current) => ({
+  const patchCloud = (patch, options = {}) => updateData((current) => ({
     ...current,
     settings: { ...current.settings, cloudSync: { ...current.settings.cloudSync, ...patch } },
-  }));
+  }), options);
 
   const saveStaffPassword = async () => {
     const current = currentStaffPassword.normalize('NFKC').trim();
@@ -126,7 +126,7 @@ export default function Settings({ data, updateData, resetAppData }) {
     setSyncing(true);
     try {
       const result = await pushCloudData(data);
-      await patchCloud({ revision: result.revision, lastPushAt: result.updatedAt || new Date().toISOString() });
+      await patchCloud({ revision: result.revision, lastPushAt: result.updatedAt || new Date().toISOString(), lastAutoSyncAt: new Date().toISOString(), localChangedAt: '', autoSyncError: '' }, { skipCloudDirty: true });
       setNotice('تم رفع نسخة المنصة إلى السحابة');
     } catch (error) { setNotice(error.message); }
     finally { setSyncing(false); }
@@ -141,10 +141,10 @@ export default function Settings({ data, updateData, resetAppData }) {
         ...payload.data,
         settings: {
           ...payload.data.settings,
-          cloudSync: { ...data.settings.cloudSync, revision: payload.revision, lastPullAt: new Date().toISOString() }
+          cloudSync: { ...data.settings.cloudSync, revision: payload.revision, lastPullAt: new Date().toISOString(), lastAutoSyncAt: new Date().toISOString(), localChangedAt: '', autoSyncError: '' }
         }
       };
-      await updateData(restored);
+      await updateData(restored, { skipCloudDirty: true });
       setNotice('تم تنزيل النسخة السحابية واستعادتها');
     } catch (error) { setNotice(error.message); }
     finally { setSyncing(false); }
@@ -273,10 +273,13 @@ export default function Settings({ data, updateData, resetAppData }) {
         <label><span>رابط الخادم</span><input placeholder="https://mobdea-sync...workers.dev" value={cloud.endpoint || ''} onChange={(e)=>patchCloud({endpoint:e.target.value.trim()})}/></label>
         <label><span>مساحة العمل</span><input placeholder="mostafa-center-main" value={cloud.workspaceId || ''} onChange={(e)=>patchCloud({workspaceId:e.target.value.trim()})}/></label>
         <label><span>الرمز السري</span><input type="password" value={cloud.token || ''} onChange={(e)=>patchCloud({token:e.target.value})}/></label>
+        <label className="setting-row"><span>مزامنة تلقائية بين الأجهزة</span><input type="checkbox" checked={cloud.autoSync !== false} onChange={(e)=>patchCloud({autoSync:e.target.checked,autoSyncError:''})}/></label>
+        <label className="setting-row"><span>تكرار المزامنة</span><select value={cloud.autoSyncIntervalMinutes || 2} onChange={(e)=>patchCloud({autoSyncIntervalMinutes:Number(e.target.value)})}><option value="1">كل دقيقة</option><option value="2">كل دقيقتين</option><option value="5">كل 5 دقائق</option><option value="10">كل 10 دقائق</option></select></label>
         <label className="setting-row"><span>نسخ سحابي تلقائي</span><input type="checkbox" checked={cloud.autoBackup === true} onChange={(e)=>patchCloud({autoBackup:e.target.checked,autoBackupError:''})}/></label>
         <label className="setting-row"><span>تكرار النسخ التلقائي</span><select value={cloud.autoBackupIntervalHours || 24} onChange={(e)=>patchCloud({autoBackupIntervalHours:Number(e.target.value)})}><option value="6">كل 6 ساعات</option><option value="12">كل 12 ساعة</option><option value="24">يوميًا</option><option value="72">كل 3 أيام</option><option value="168">أسبوعيًا</option></select></label>
         <div className="backup-actions"><button className="secondary-btn" disabled={syncing} onClick={testCloud}>اختبار الاتصال</button><button className="primary-btn" disabled={syncing} onClick={pushCloud}>رفع الآن</button><button className="secondary-btn" disabled={syncing} onClick={pullCloud}>تنزيل الآن</button></div>
-        {(cloud.lastPushAt || cloud.lastPullAt || cloud.lastAutoBackupAt) && <small className="sync-times">آخر رفع: {cloud.lastPushAt || '—'}<br/>آخر تنزيل: {cloud.lastPullAt || '—'}<br/>آخر نسخة تلقائية: {cloud.lastAutoBackupAt || '—'}</small>}
+        {(cloud.lastPushAt || cloud.lastPullAt || cloud.lastAutoSyncAt || cloud.lastAutoBackupAt) && <small className="sync-times">آخر رفع: {cloud.lastPushAt || '—'}<br/>آخر تنزيل: {cloud.lastPullAt || '—'}<br/>آخر مزامنة تلقائية: {cloud.lastAutoSyncAt || '—'}<br/>آخر نسخة تلقائية: {cloud.lastAutoBackupAt || '—'}</small>}
+        {cloud.autoSyncError && <small className="settings-help danger-text">آخر خطأ في المزامنة: {cloud.autoSyncError}</small>}
         {cloud.autoBackupError && <small className="settings-help danger-text">آخر خطأ في النسخ التلقائي: {cloud.autoBackupError}</small>}
       </article>
 

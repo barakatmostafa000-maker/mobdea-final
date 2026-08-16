@@ -134,3 +134,27 @@ export async function copyToClipboard(text) {
     return false;
   }
 }
+
+export async function shareLink(url, title = 'منصة المُبدع', text = '') {
+  if (!url) return false;
+  const payload = {
+    title: safeTrim(title, 120) || 'منصة المُبدع',
+    text: safeTrim(text || title, 240),
+    url: String(url),
+  };
+  try {
+    const { Share } = await import('@capacitor/share');
+    await Share.share({ ...payload, dialogTitle: payload.title });
+    return true;
+  } catch {
+    try {
+      if (navigator.share) {
+        await navigator.share(payload);
+        return true;
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError') return false;
+    }
+  }
+  return copyToClipboard(url);
+}

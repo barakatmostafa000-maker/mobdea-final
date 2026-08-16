@@ -6,6 +6,7 @@ import { secureGet, secureRemove, secureSet } from './secureVault';
 import { clearAssets, ensureAssetMigration, importLegacyDataUrl } from './assetStore';
 import { decryptText, encryptText, isEncryptedEnvelope, resetLocalCryptoKey } from './localCrypto';
 import { migrateLibraryItems } from './libraryModel';
+import { normalizeStudentCodes } from './dataMerge';
 
 const KEY = 'mobdea_mobile_v4';
 const LEGACY_KEYS = ['mobdea_mobile_v3'];
@@ -46,6 +47,29 @@ const normalizeTextList = (value, limit = 20) => {
   if (typeof value === 'string') return value.split(/[,\n،]/g).map((item) => safeTrim(item, 120)).filter(Boolean).slice(0, limit);
   return [];
 };
+
+const normalizeOcrReviewQuestions = (value) => (Array.isArray(value) ? value : [])
+  .slice(0, 240)
+  .map((item, index) => ({
+    id: safeTrim(item.id || `ocr-review-${index}`, 120),
+    question: safeTrim(item.question || item.text || '', 500),
+    options: normalizeTextList(item.options, 8),
+    answer: safeTrim(item.answer || '', 300),
+    page: clampNumber(item.page ?? 0, 0, 100_000, 0) || null,
+    sourceKind: item.sourceKind === 'exams' ? 'exams' : 'textbook',
+    sourceAssetId: safeTrim(item.sourceAssetId || '', 100),
+    approved: Boolean(item.approved && String(item.answer || '').trim()),
+  }))
+  .filter((item) => item.question);
+
+const normalizeMultilineText = (value, maxLength = 50_000) => String(value ?? '')
+  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+  .replace(/\r\n?/g, '\n')
+  .split('\n')
+  .map((line) => line.replace(/[\t ]+/g, ' ').trimEnd())
+  .join('\n')
+  .trim()
+  .slice(0, maxLength);
 
 const normalizeSecretFields = (source = {}, fields = []) => Object.fromEntries(fields.map((field) => {
   const value = source[field];
@@ -146,8 +170,18 @@ const normalizeResource = (item = {}) => ({
   recordingFileName: safeTrim(item.recordingFileName || '', 180),
   notes: safeTrim(item.notes, 4000),
   homework: safeTrim(item.homework || '', 2000),
+  questionText: normalizeMultilineText(item.questionText || item.extractedText || '', 50_000),
+  extractedText: normalizeMultilineText(item.extractedText || '', 50_000),
+  ocrSourceKind: item.ocrSourceKind === 'exams' ? 'exams' : 'textbook',
+  ocrSourceAssetId: safeTrim(item.ocrSourceAssetId || '', 100),
+  ocrExtractedAt: safeTrim(item.ocrExtractedAt || '', 40),
+  ocrQuestionCount: clampNumber(item.ocrQuestionCount ?? 0, 0, 10000, 0),
+  ocrAnsweredCount: clampNumber(item.ocrAnsweredCount ?? 0, 0, 10000, 0),
+  ocrReviewQuestions: normalizeOcrReviewQuestions(item.ocrReviewQuestions),
   pageStart: item.pageStart ?? '',
   pageEnd: item.pageEnd ?? '',
+  questionPageStart: item.questionPageStart ?? item.pageStart ?? '',
+  questionPageEnd: item.questionPageEnd ?? item.pageEnd ?? '',
   tags: normalizeTags(item.tags),
   sequence: normalizeSequence(item.sequence),
   fileName: safeTrim(item.fileName || item.name || '', 180),
@@ -209,6 +243,9 @@ const normalizeLessonRecording = (recording = {}) => ({
   players: Array.isArray(recording.players) ? recording.players.slice(0, 30) : [],
   shareToken: safeTrim(recording.shareToken || '', 160),
   shareUrl: normalizeSecureUrl(recording.shareUrl, { allowRelative: true }),
+  visibleToStudents: recording.visibleToStudents !== false,
+  studentIds: Array.isArray(recording.studentIds) ? recording.studentIds.slice(0, 500).map((value) => Number(value)).filter(Number.isFinite) : [],
+  publishedAt: safeTrim(recording.publishedAt || recording.createdAt || '', 40),
   createdAt: recording.createdAt || new Date().toISOString(),
 });
 
@@ -262,13 +299,29 @@ const normalizeSettings = (settings = {}) => {
       endpoint: normalizeHttpUrl(settings.cloudSync?.endpoint),
       workspaceId: safeTrim(settings.cloudSync?.workspaceId, 80).replace(/[^a-zA-Z0-9_-]/g, ''),
       token: safeTrim(settings.cloudSync?.token, 260),
+      publicAppUrl: normalizeHttpUrl(settings.cloudSync?.publicAppUrl),
       revision: safeTrim(settings.cloudSync?.revision, 120),
       lastPushAt: safeTrim(settings.cloudSync?.lastPushAt, 40),
       lastPullAt: safeTrim(settings.cloudSync?.lastPullAt, 40),
+      autoSync: settings.cloudSync?.autoSync !== false,
+      autoSyncIntervalMinutes: clampNumber(settings.cloudSync?.autoSyncIntervalMinutes, 1, 60, 2),
+      lastAutoSyncAt: safeTrim(settings.cloudSync?.lastAutoSyncAt, 40),
+      localChangedAt: safeTrim(settings.cloudSync?.localChangedAt, 40),
+      autoSyncError: safeTrim(settings.cloudSync?.autoSyncError, 240),
       autoBackup: settings.cloudSync?.autoBackup === true,
       autoBackupIntervalHours: clampNumber(settings.cloudSync?.autoBackupIntervalHours, 1, 168, 24),
       lastAutoBackupAt: safeTrim(settings.cloudSync?.lastAutoBackupAt, 40),
       autoBackupError: safeTrim(settings.cloudSync?.autoBackupError, 240),
+    },
+    studentPortalSession: {
+      endpoint: normalizeHttpUrl(settings.studentPortalSession?.endpoint),
+      workspaceId: safeTrim(settings.studentPortalSession?.workspaceId, 80).replace(/[^a-zA-Z0-9_-]/g, ''),
+      studentToken: safeTrim(settings.studentPortalSession?.studentToken, 260),
+      expiresAt: safeTrim(settings.studentPortalSession?.expiresAt, 40),
+      studentId: settings.studentPortalSession?.studentId ?? null,
+      studentCode: safeTrim(settings.studentPortalSession?.studentCode, 24),
+      lastPullAt: safeTrim(settings.studentPortalSession?.lastPullAt, 40),
+      lastError: safeTrim(settings.studentPortalSession?.lastError, 240),
     },
     update: {
       ...seedSettings.update,
@@ -298,7 +351,7 @@ const normalizeSettings = (settings = {}) => {
 
 export function normalizeAppData(source) {
   const data = source && typeof source === 'object' ? source : clone(seedData);
-  const students = limitArray(data.students, MAX_STUDENTS).map((student, index) => normalizeStudent(student, index));
+  const students = normalizeStudentCodes(limitArray(data.students, MAX_STUDENTS).map((student, index) => normalizeStudent(student, index)));
   const migratedLibrary = migrateLibraryItems(limitArray(data.contentLibrary, MAX_LIBRARY));
   const contentLibrary = limitArray(migratedLibrary, MAX_LIBRARY).map(normalizeResource);
   return {

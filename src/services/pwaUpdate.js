@@ -34,7 +34,7 @@ async function cleanupDevelopmentServiceWorker() {
 }
 /* MOBDEA R3 DEV SW CLEANUP END */
 export function isServiceWorkerSupported() {
-  
+
   if (import.meta.env.DEV) return false;if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return false;
   // Capacitor's Android WebView must never register the PWA worker. A worker
   // cached inside the native app can serve chunks from an older release and
@@ -46,7 +46,7 @@ export function isServiceWorkerSupported() {
 
 
 export function registerServiceWorker(onReady) {
-  
+
   if (import.meta.env.DEV) {
     void cleanupDevelopmentServiceWorker();
     return () => {};

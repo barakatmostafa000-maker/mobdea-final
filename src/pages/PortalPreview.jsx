@@ -9,7 +9,11 @@ import {
   BookOpen,
   MapPinned,
   Gamepad2,
+  Video,
+  Cloud,
+  CloudOff,
 } from 'lucide-react';
+import LessonRecordingItem from '../components/classmode/LessonRecordingItem';
 
 const messageStatusLabel = { ready: 'جديدة', sent: 'تم الإرسال', postponed: 'مؤجلة', failed: 'فشل', cancelled: 'ألغيت' };
 const messageTypeLabel = { absence: 'تنبيه غياب', late: 'تنبيه تأخر', due: 'تذكير مستحقات', praise: 'تميز', followup: 'متابعة مستوى' };
@@ -107,6 +111,29 @@ export default function PortalPreview({ data, auth, navigate }) {
       .slice(0, 20);
   }, [data.notifications, role, student]);
 
+  const visibleRecordings = useMemo(() => {
+    if (!student) return [];
+    return (data.lessonRecordings || [])
+      .filter((recording) => {
+        if (recording.visibleToStudents === false) return false;
+        if (Array.isArray(recording.studentIds) && recording.studentIds.length) {
+          return recording.studentIds.some((value) => Number(value) === Number(student.id));
+        }
+        const gradeMatches = !recording.grade || !student.grade || String(recording.grade).trim() === String(student.grade).trim();
+        const groupMatches = !recording.group || !student.group || String(recording.group).trim() === String(student.group).trim();
+        return gradeMatches && groupMatches;
+      })
+      .sort((left, right) => String(right.publishedAt || right.createdAt || '').localeCompare(String(left.publishedAt || left.createdAt || '')))
+      .slice(0, 30);
+  }, [data.lessonRecordings, student]);
+
+  const studentSession = data.settings?.studentPortalSession || null;
+  const studentSyncLabel = studentSession?.lastError
+    ? studentSession.lastError
+    : studentSession?.lastPullAt
+      ? `آخر تحديث ناجح: ${new Date(studentSession.lastPullAt).toLocaleString('ar-EG')}`
+      : 'سيتم تحديث بيانات الحساب تلقائيًا عند الاتصال بالإنترنت.';
+
   if (!student) return <section className="page portal-page-v103"><div className="panel empty-state">{isRealUser ? 'تعذر العثور على بيانات الحساب المرتبط، تواصل مع المعلم.' : 'أضف طالبًا أولًا.'}</div></section>;
 
   const studentPermissions = student.permissions || {};
@@ -116,6 +143,10 @@ export default function PortalPreview({ data, auth, navigate }) {
   return <section className="page portal-page-v103">
     {!isRealUser && <div className="page-heading"><div><span className="eyebrow">معاينة الصلاحيات</span><h2>ما يراه الطالب وولي الأمر</h2><p>راجع الواجهة قبل إتاحتها للمستخدمين.</p></div></div>}
     {isRealUser && <div className="page-heading"><div><span className="eyebrow">{role === 'parent' ? 'بوابة ولي الأمر' : 'بوابة الطالب'}</span><h2>مرحبًا، {role === 'parent' ? 'ولي الأمر' : student.name}</h2><p>{role === 'parent' ? 'اختر أحد الأبناء المرتبطين بنفس رقم ولي الأمر لمراجعة حسابه.' : 'هذه بياناتك فقط، ولا تظهر لك بيانات أي طالب آخر.'}</p></div></div>}
+
+    {isRealUser && role === 'student' && <div className={`portal-sync-status panel ${studentSession?.lastError ? 'has-error' : 'is-synced'}`}>
+      {studentSession?.lastError ? <CloudOff size={18}/> : <Cloud size={18}/>}<span>{studentSyncLabel}</span>
+    </div>}
 
     {!isRealUser && <div className="portal-toolbar panel">
       <div className="portal-role-tabs">
@@ -164,6 +195,13 @@ export default function PortalPreview({ data, auth, navigate }) {
           <article><span>خصم/إعفاء</span><strong>{stats.adjustments} ج</strong></article>
           <article><span>المتبقي</span><strong>{stats.remaining} ج</strong><small>{stats.paymentStatus}</small></article>
         </div>
+      </div>}
+
+      {role === 'student' && canSee('content') && <div className="portal-recordings">
+        <h4><Video size={17}/> تسجيلات الحصص</h4>
+        {visibleRecordings.length ? <div className="portal-recordings-list">{visibleRecordings.map((recording) => (
+          <LessonRecordingItem key={recording.id} recording={recording} studentSession={studentSession} hideShareActions />
+        ))}</div> : <div className="empty-state">لا توجد تسجيلات منشورة لهذا الصف بعد.</div>}
       </div>}
 
       {role === 'parent' && <div className="portal-messages">

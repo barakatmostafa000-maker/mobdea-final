@@ -1,0 +1,210 @@
+/* MOBDEA R15 — premium classroom visuals, map furniture, layout-aware PPTX and OCR workflow. */
+
+/* ----- Premium historical / geography whiteboard ----- */
+.classmode-v103 .classmode-board-identity {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.classmode-v103 .classmode-board-theme-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.classmode-v103 .classmode-board-watermark,
+.classmode-v103 .classmode-history-ornament {
+  z-index: 1;
+}
+
+.classmode-v103 .board-theme-history {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(207,154,65,.12), transparent 19%),
+    radial-gradient(circle at 14% 78%, rgba(126,77,31,.07), transparent 25%),
+    linear-gradient(135deg, #f8efdc 0%, #fffaf0 48%, #efe0be 100%) !important;
+  box-shadow: inset 0 0 0 3px rgba(126,77,31,.16), inset 0 0 52px rgba(104,62,24,.10);
+}
+
+.classmode-v103 .board-theme-geography {
+  background:
+    radial-gradient(circle at 84% 17%, rgba(38,113,92,.12), transparent 20%),
+    radial-gradient(circle at 18% 68%, rgba(42,111,89,.07), transparent 27%),
+    linear-gradient(145deg, #eef6ec 0%, #fbfff9 58%, #deecdf 100%) !important;
+  box-shadow: inset 0 0 0 3px rgba(38,113,92,.15), inset 0 0 50px rgba(22,78,61,.09);
+}
+
+.classmode-v103 .board-theme-manuscript {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(170,115,48,.08), transparent 58%),
+    linear-gradient(145deg, #ead3a5 0%, #fff4da 50%, #e4c58b 100%) !important;
+  box-shadow: inset 0 0 0 3px rgba(116,74,30,.18), inset 0 0 60px rgba(87,47,16,.13);
+}
+
+.classmode-v103 .classmode-board-lesson-ribbon {
+  background: linear-gradient(90deg, rgba(8,9,12,.985), rgba(28,20,8,.985), rgba(8,9,12,.985));
+  border: 1px solid rgba(231,191,98,.62);
+  box-shadow: 0 8px 24px rgba(0,0,0,.34), inset 0 0 24px rgba(215,173,53,.08);
+}
+
+/* ----- Map is the hero, controls are secondary ----- */
+.classmode-v103 .classmode-map-embed {
+  background: radial-gradient(circle at 50% 35%, #12344a 0%, #071523 55%, #030a11 100%) !important;
+}
+
+.classmode-v103 .lesson-map-canvas-shell,
+.classmode-v103 .map-pro-stage {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(223,189,102,.28), 0 16px 40px rgba(0,0,0,.34);
+}
+
+.map-pro-reference-grid { pointer-events: none; }
+.map-pro-reference-grid line {
+  stroke: rgba(197,226,237,.18);
+  stroke-width: 1;
+  stroke-dasharray: 4 7;
+  vector-effect: non-scaling-stroke;
+}
+.map-pro-reference-grid text {
+  fill: rgba(230,245,249,.58);
+  font-size: 12px;
+  font-family: Tahoma, Arial, sans-serif;
+  paint-order: stroke;
+  stroke: rgba(3,15,24,.7);
+  stroke-width: 3px;
+}
+.map-pro-neatline {
+  fill: none;
+  stroke: rgba(230,194,101,.52) !important;
+  stroke-width: 2.3 !important;
+  stroke-dasharray: none !important;
+}
+
+.map-pro-furniture { pointer-events: none; }
+.map-pro-furniture .map-pro-compass circle { fill: rgba(4,17,27,.78); stroke: #e0b85a; stroke-width: 2.5; }
+.map-pro-furniture .map-pro-compass circle.inner { fill: none; stroke: rgba(224,184,90,.35); stroke-width: 1; }
+.map-pro-furniture .map-pro-compass path { fill: #e6c66e; stroke: #fff2bf; stroke-width: 1.2; }
+.map-pro-furniture .map-pro-compass path.minor { fill: rgba(188,218,225,.68); }
+.map-pro-furniture .map-pro-compass text { fill: #fff3c8; font-size: 16px; font-weight: 900; text-anchor: middle; paint-order: stroke; stroke: #07111a; stroke-width: 3px; }
+
+.map-pro-scale rect,
+.map-pro-region-plaque rect { fill: rgba(4,15,24,.80); stroke: rgba(224,184,90,.55); stroke-width: 1.5; }
+.map-pro-scale path { fill: none; stroke: #e5c66f; stroke-width: 2; }
+.map-pro-scale text { fill: #e7d6a6; font-size: 11px; font-weight: 700; }
+.map-pro-region-plaque text { font-family: Tahoma, Arial, sans-serif; }
+.map-pro-region-plaque .eyebrow { fill: #d8b867; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+.map-pro-region-plaque .title { fill: #fff4ce; font-size: 18px; font-weight: 900; }
+
+.map-pro-country {
+  stroke: rgba(239,224,175,.66) !important;
+  stroke-width: 1.35 !important;
+  vector-effect: non-scaling-stroke;
+  transition: filter .18s ease, opacity .18s ease;
+}
+.map-pro-country.clickable:hover,
+.map-pro-country.highlighted {
+  filter: brightness(1.14) saturate(1.2) drop-shadow(0 0 8px rgba(240,196,86,.55));
+}
+.map-pro-label,
+.map-pro-feature-label {
+  paint-order: stroke;
+  stroke: rgba(2,12,20,.9);
+  stroke-width: 4px;
+  fill: #fff7dc !important;
+  font-weight: 800;
+}
+
+/* ----- Layout-aware PowerPoint ----- */
+.classmode-v103 .pptx-slide.layout-aware {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: min(100%, 1280px);
+  height: auto;
+  max-height: 100%;
+  margin: auto;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.36), inset 0 0 0 1px rgba(0,0,0,.08);
+}
+
+.pptx-layout-canvas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #fff;
+}
+.pptx-layout-image,
+.pptx-layout-text,
+.pptx-layout-shape {
+  position: absolute;
+  box-sizing: border-box;
+}
+.pptx-layout-shape {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: .15em .25em;
+  overflow: hidden;
+  background: var(--pptx-shape-fill);
+  border: var(--pptx-shape-stroke-width) solid var(--pptx-shape-stroke);
+  transform-origin: center;
+  white-space: pre-wrap;
+  line-height: 1.12;
+}
+.pptx-layout-shape.shape-ellipse { border-radius: 50%; }
+.pptx-layout-shape.shape-roundRect { border-radius: 12%; }
+.pptx-layout-shape.shape-triangle {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  padding-top: 24%;
+}
+.pptx-layout-shape.shape-line {
+  height: 0 !important;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-top: max(1px, var(--pptx-shape-stroke-width)) solid var(--pptx-shape-stroke);
+}
+.pptx-layout-image {
+  object-fit: contain;
+  max-width: none;
+  max-height: none;
+}
+.pptx-layout-text {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  line-height: 1.18;
+  white-space: pre-wrap;
+  padding: .15em .25em;
+  font-family: Tahoma, Arial, sans-serif;
+  direction: auto;
+}
+
+/* ----- OCR automatic discovery ----- */
+.library-ocr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.library-ocr-actions .primary-btn,
+.library-ocr-actions .secondary-btn {
+  min-height: 42px;
+}
+.library-ocr-panel {
+  border: 1px solid rgba(215,173,53,.25);
+  background: linear-gradient(135deg, rgba(215,173,53,.07), rgba(255,255,255,.02));
+}
+
+@media (max-width: 900px), (max-height: 620px) and (orientation: landscape) {
+  .map-pro-region-plaque { transform: translate(28px, 28px) scale(.82); transform-origin: top left; }
+  .map-pro-furniture .map-pro-compass { transform: translate(936px, 64px) scale(.78); transform-origin: center; }
+  .map-pro-scale { display: none; }
+  .pptx-layout-text { line-height: 1.1; }
+  .library-ocr-actions { display: grid; grid-template-columns: 1fr 1fr; }
+}

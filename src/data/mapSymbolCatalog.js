@@ -1,0 +1,1569 @@
+// V13 map symbol catalog — 181 user-provided assets in 19 categories.
+// Original user artwork is preserved; assets are technically normalized for stable transparent app paths.
+
+export const MAP_SYMBOL_GROUPS = Object.freeze([
+  {
+    "id": "terrain",
+    "label": "التضاريس",
+    "items": [
+      {
+        "id": "terrain-single-mountain",
+        "label": "جبل منفرد",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-single-mountain.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "terrain-mountain-range",
+        "label": "سلسلة جبال",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-mountain-range.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "terrain-plateau",
+        "label": "هضبة",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-plateau.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "terrain-depression",
+        "label": "منخفض",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-depression.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "terrain-valley",
+        "label": "وادٍ",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-valley.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "terrain-dunes",
+        "label": "كثبان رملية",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-dunes.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "terrain-desert",
+        "label": "صحراء",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-desert.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "terrain-oasis",
+        "label": "واحة",
+        "hint": "التضاريس",
+        "asset": "/map-symbols/terrain-oasis.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "water",
+    "label": "المسطحات المائية",
+    "items": [
+      {
+        "id": "water-river",
+        "label": "نهر",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-river.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-river-branch",
+        "label": "فرع نهر",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-river-branch.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-river-source",
+        "label": "منبع نهر",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-river-source.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-river-mouth",
+        "label": "مصب نهر",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-river-mouth.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-delta",
+        "label": "دلتا",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-delta.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-lake",
+        "label": "بحيرة",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-lake.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-waterfall",
+        "label": "شلال",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-waterfall.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-sea",
+        "label": "بحر",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-sea.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-ocean",
+        "label": "محيط",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-ocean.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-gulf",
+        "label": "خليج",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-gulf.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-strait",
+        "label": "مضيق",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-strait.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-island",
+        "label": "جزيرة",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-island.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "water-peninsula",
+        "label": "شبه جزيرة",
+        "hint": "المسطحات المائية",
+        "asset": "/map-symbols/water-peninsula.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      }
+    ]
+  },
+  {
+    "id": "nile",
+    "label": "نهر النيل",
+    "items": [
+      {
+        "id": "nile-main-river",
+        "label": "نهر رئيسي",
+        "hint": "نهر النيل",
+        "asset": "/map-symbols/nile-main-river.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "nile-tributary",
+        "label": "رافد",
+        "hint": "نهر النيل",
+        "asset": "/map-symbols/nile-tributary.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "nile-confluence",
+        "label": "التقاء نهرين",
+        "hint": "نهر النيل",
+        "asset": "/map-symbols/nile-confluence.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "nile-dam",
+        "label": "سد",
+        "hint": "نهر النيل",
+        "asset": "/map-symbols/nile-dam.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "nile-reservoir",
+        "label": "خزان مياه",
+        "hint": "نهر النيل",
+        "asset": "/map-symbols/nile-reservoir.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "nile-dam-lake",
+        "label": "بحيرة خلف سد",
+        "hint": "نهر النيل",
+        "asset": "/map-symbols/nile-dam-lake.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      },
+      {
+        "id": "nile-cataracts",
+        "label": "شلال وجنادل",
+        "hint": "نهر النيل",
+        "asset": "/map-symbols/nile-cataracts.png",
+        "color": "#2f80ed",
+        "symbol": "≈"
+      }
+    ]
+  },
+  {
+    "id": "human-economic",
+    "label": "العناصر البشرية والاقتصادية",
+    "items": [
+      {
+        "id": "human-capital",
+        "label": "عاصمة",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-capital.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-city",
+        "label": "مدينة",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-city.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-village",
+        "label": "قرية",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-village.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-seaport",
+        "label": "ميناء بحري",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-seaport.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-airport",
+        "label": "مطار",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-airport.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-agricultural-area",
+        "label": "منطقة زراعية",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-agricultural-area.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-industrial-area",
+        "label": "منطقة صناعية",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-industrial-area.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-oil-well",
+        "label": "بئر بترول",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-oil-well.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-gas-field",
+        "label": "حقل غاز",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-gas-field.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-mine",
+        "label": "منجم",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-mine.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-trade-route",
+        "label": "طريق تجاري",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-trade-route.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-archaeological-site",
+        "label": "موقع أثري",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-archaeological-site.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "human-battle-site",
+        "label": "موقع معركة",
+        "hint": "العناصر البشرية والاقتصادية",
+        "asset": "/map-symbols/human-battle-site.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "minerals",
+    "label": "المعادن",
+    "items": [
+      {
+        "id": "mineral-iron",
+        "label": "حديد",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-iron.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-copper",
+        "label": "نحاس",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-copper.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-lead",
+        "label": "رصاص",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-lead.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-zinc",
+        "label": "زنك",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-zinc.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-tin",
+        "label": "قصدير",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-tin.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-bauxite-aluminium",
+        "label": "ألومنيوم بوكسيت",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-bauxite-aluminium.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-magnesium",
+        "label": "مغنيسيوم",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-magnesium.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-titanium",
+        "label": "تيتانيوم",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-titanium.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-manganese",
+        "label": "منجنيز",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-manganese.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-chromium",
+        "label": "كروم",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-chromium.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-nickel",
+        "label": "نيكل",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-nickel.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-cobalt",
+        "label": "كوبالت",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-cobalt.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-uranium",
+        "label": "يورانيوم",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-uranium.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-gold",
+        "label": "ذهب",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-gold.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-silver",
+        "label": "فضة",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-silver.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "mineral-diamond",
+        "label": "ماس",
+        "hint": "المعادن",
+        "asset": "/map-symbols/mineral-diamond.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "map-movement",
+    "label": "رموز الخرائط والحركة",
+    "items": [
+      {
+        "id": "map-marker",
+        "label": "Marker",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-marker.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "map-country-flag",
+        "label": "علم دولة",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-country-flag.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "map-direction-arrow",
+        "label": "سهم اتجاه",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-direction-arrow.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "map-migration-arrow",
+        "label": "سهم حركة/هجرة",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-migration-arrow.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "map-compass",
+        "label": "بوصلة",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-compass.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "map-north",
+        "label": "علامة الشمال",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-north.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "map-capital-point",
+        "label": "نقطة عاصمة",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-capital-point.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "map-city-point",
+        "label": "نقطة مدينة",
+        "hint": "رموز الخرائط والحركة",
+        "asset": "/map-symbols/map-city-point.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "energy",
+    "label": "الطاقة",
+    "items": [
+      {
+        "id": "energy-petroleum",
+        "label": "بترول",
+        "hint": "الطاقة",
+        "asset": "/map-symbols/energy-petroleum.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "energy-natural-gas",
+        "label": "غاز طبيعي",
+        "hint": "الطاقة",
+        "asset": "/map-symbols/energy-natural-gas.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "energy-coal",
+        "label": "فحم",
+        "hint": "الطاقة",
+        "asset": "/map-symbols/energy-coal.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "energy-solar",
+        "label": "طاقة شمسية",
+        "hint": "الطاقة",
+        "asset": "/map-symbols/energy-solar.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "energy-wind",
+        "label": "طاقة رياح",
+        "hint": "الطاقة",
+        "asset": "/map-symbols/energy-wind.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "energy-hydropower",
+        "label": "طاقة كهرومائية",
+        "hint": "الطاقة",
+        "asset": "/map-symbols/energy-hydropower.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "vegetation",
+    "label": "الغطاء النباتي",
+    "items": [
+      {
+        "id": "vegetation-tropical-forest",
+        "label": "غابة استوائية",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-tropical-forest.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-monsoon-forest",
+        "label": "غابة موسمية",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-monsoon-forest.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-coniferous-forest",
+        "label": "غابة مخروطية",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-coniferous-forest.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-deciduous-forest",
+        "label": "غابة نفضية",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-deciduous-forest.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-savanna",
+        "label": "حشائش السافانا",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-savanna.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-steppe",
+        "label": "حشائش الاستبس",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-steppe.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-desert-plants",
+        "label": "نباتات صحراوية",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-desert-plants.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-mediterranean-scrub",
+        "label": "أحراش البحر المتوسط",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-mediterranean-scrub.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "vegetation-mangrove",
+        "label": "مستنقعات مانجروف",
+        "hint": "الغطاء النباتي",
+        "asset": "/map-symbols/vegetation-mangrove.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "animals",
+    "label": "الحيوانات",
+    "items": [
+      {
+        "id": "animal-lion",
+        "label": "أسد",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-lion.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-elephant",
+        "label": "فيل",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-elephant.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-giraffe",
+        "label": "زرافة",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-giraffe.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-camel",
+        "label": "جمل",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-camel.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-gazelle",
+        "label": "غزال",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-gazelle.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-crocodile",
+        "label": "تمساح",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-crocodile.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-hippopotamus",
+        "label": "فرس نهر",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-hippopotamus.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-polar-bear",
+        "label": "دب قطبي",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-polar-bear.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-penguin",
+        "label": "بطريق",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-penguin.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "animal-reindeer",
+        "label": "رنة",
+        "hint": "الحيوانات",
+        "asset": "/map-symbols/animal-reindeer.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "crops",
+    "label": "المحاصيل",
+    "items": [
+      {
+        "id": "crop-wheat",
+        "label": "قمح",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-wheat.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-rice",
+        "label": "أرز",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-rice.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-corn",
+        "label": "ذرة",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-corn.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-cotton",
+        "label": "قطن",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-cotton.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-sugarcane",
+        "label": "قصب سكر",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-sugarcane.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-sugar-beet",
+        "label": "بنجر سكر",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-sugar-beet.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-date-palm",
+        "label": "نخيل",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-date-palm.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-olive",
+        "label": "زيتون",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-olive.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-coffee",
+        "label": "بن",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-coffee.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-tea",
+        "label": "شاي",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-tea.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-rubber",
+        "label": "مطاط",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-rubber.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-cocoa",
+        "label": "كاكاو",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-cocoa.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-grapes",
+        "label": "عنب",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-grapes.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "crop-citrus",
+        "label": "موالح",
+        "hint": "المحاصيل",
+        "asset": "/map-symbols/crop-citrus.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "population",
+    "label": "السكان",
+    "items": [
+      {
+        "id": "population-high-density",
+        "label": "كثافة سكانية مرتفعة",
+        "hint": "السكان",
+        "asset": "/map-symbols/population-high-density.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "population-low-density",
+        "label": "كثافة سكانية منخفضة",
+        "hint": "السكان",
+        "asset": "/map-symbols/population-low-density.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "population-medium-density",
+        "label": "كثافة سكانية متوسطة",
+        "hint": "السكان",
+        "asset": "/map-symbols/population-medium-density.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "population-sparse",
+        "label": "كثافة سكانية نادرة",
+        "hint": "السكان",
+        "asset": "/map-symbols/population-sparse.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "population-urban",
+        "label": "سكان حضر",
+        "hint": "السكان",
+        "asset": "/map-symbols/population-urban.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "population-rural",
+        "label": "سكان ريف",
+        "hint": "السكان",
+        "asset": "/map-symbols/population-rural.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "population-bedouin",
+        "label": "سكان بدو",
+        "hint": "السكان",
+        "asset": "/map-symbols/population-bedouin.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "migration",
+    "label": "الهجرة",
+    "items": [
+      {
+        "id": "migration-internal",
+        "label": "هجرة داخلية",
+        "hint": "الهجرة",
+        "asset": "/map-symbols/migration-internal.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "migration-external",
+        "label": "هجرة خارجية",
+        "hint": "الهجرة",
+        "asset": "/map-symbols/migration-external.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "transport",
+    "label": "النقل",
+    "items": [
+      {
+        "id": "transport-road",
+        "label": "طريق بري",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-road.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-highway",
+        "label": "طريق سريع",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-highway.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-railway",
+        "label": "سكة حديد",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-railway.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-train",
+        "label": "قطار",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-train.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-train-station",
+        "label": "محطة قطارات",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-train-station.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-truck",
+        "label": "شاحنة نقل",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-truck.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-navigation-route",
+        "label": "ممر ملاحي",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-navigation-route.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-cargo-ship",
+        "label": "سفينة تجارية",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-cargo-ship.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-river-port",
+        "label": "ميناء نهري",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-river-port.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-bridge",
+        "label": "جسر",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-bridge.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "transport-tunnel",
+        "label": "نفق",
+        "hint": "النقل",
+        "asset": "/map-symbols/transport-tunnel.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "borders",
+    "label": "الحدود السياسية والإدارية",
+    "items": [
+      {
+        "id": "border-international",
+        "label": "حدود دولية",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-international.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-administrative",
+        "label": "حدود داخلية إدارية",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-administrative.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-country",
+        "label": "دولة",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-country.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-region",
+        "label": "إقليم",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-region.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-governorate",
+        "label": "محافظة",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-governorate.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-admin-capital",
+        "label": "عاصمة إدارية",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-admin-capital.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-crossing",
+        "label": "معبر حدودي",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-crossing.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-point",
+        "label": "نقطة حدود",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-point.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-disputed-area",
+        "label": "منطقة متنازع عليها",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-disputed-area.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "border-influence-area",
+        "label": "منطقة نفوذ",
+        "hint": "الحدود السياسية والإدارية",
+        "asset": "/map-symbols/border-influence-area.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "tourism",
+    "label": "السياحة والمعالم",
+    "items": [
+      {
+        "id": "tourism-site",
+        "label": "موقع سياحي",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-site.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-temple",
+        "label": "معبد",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-temple.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-pyramid",
+        "label": "هرم",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-pyramid.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-castle",
+        "label": "قلعة",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-castle.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-museum",
+        "label": "متحف",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-museum.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-beach",
+        "label": "شاطئ سياحي",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-beach.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-nature-reserve",
+        "label": "محمية طبيعية",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-nature-reserve.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-historic-mosque",
+        "label": "مسجد أثري",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-historic-mosque.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-historic-church",
+        "label": "كنيسة أثرية",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-historic-church.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "tourism-landmark-tower",
+        "label": "برج معلم شهير",
+        "hint": "السياحة والمعالم",
+        "asset": "/map-symbols/tourism-landmark-tower.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "industry",
+    "label": "الصناعة",
+    "items": [
+      {
+        "id": "industry-steel",
+        "label": "مصنع حديد وصلب",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-steel.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-cement",
+        "label": "مصنع أسمنت",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-cement.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-textile",
+        "label": "مصنع نسيج",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-textile.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-food",
+        "label": "مصنع أغذية",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-food.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-fertilizer-chemicals",
+        "label": "مصنع أسمدة وكيماويات",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-fertilizer-chemicals.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-oil-refinery",
+        "label": "مصفاة بترول",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-oil-refinery.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-cars",
+        "label": "مصنع سيارات",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-cars.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-aluminium",
+        "label": "مصنع ألومنيوم",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-aluminium.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "industry-heavy-zone",
+        "label": "منطقة صناعات ثقيلة",
+        "hint": "الصناعة",
+        "asset": "/map-symbols/industry-heavy-zone.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "livestock",
+    "label": "الثروة الحيوانية",
+    "items": [
+      {
+        "id": "livestock-cattle",
+        "label": "أبقار",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-cattle.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-buffalo",
+        "label": "جاموس",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-buffalo.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-sheep",
+        "label": "أغنام",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-sheep.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-goats",
+        "label": "ماعز",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-goats.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-camels",
+        "label": "إبل",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-camels.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-poultry",
+        "label": "دواجن",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-poultry.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-cattle-farm",
+        "label": "مزرعة ماشية",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-cattle-farm.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-poultry-farm",
+        "label": "مزرعة دواجن",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-poultry-farm.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-natural-pasture",
+        "label": "مراعي طبيعية",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-natural-pasture.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "livestock-intensive",
+        "label": "تربية حيوانية مكثفة",
+        "hint": "الثروة الحيوانية",
+        "asset": "/map-symbols/livestock-intensive.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "fisheries",
+    "label": "الثروة السمكية",
+    "items": [
+      {
+        "id": "fisheries-sea-fishing",
+        "label": "صيد بحري",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-sea-fishing.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "fisheries-river-fishing",
+        "label": "صيد نهري",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-river-fishing.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "fisheries-fishing-lake",
+        "label": "بحيرة صيد",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-fishing-lake.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "fisheries-fish-farm",
+        "label": "مزرعة سمكية",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-fish-farm.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "fisheries-fishing-boat",
+        "label": "قارب صيد",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-fishing-boat.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "fisheries-fishing-port",
+        "label": "ميناء صيد",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-fishing-port.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "fisheries-cages",
+        "label": "أقفاص سمكية",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-cages.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "fisheries-rich-zone",
+        "label": "منطقة ثروة سمكية غنية",
+        "hint": "الثروة السمكية",
+        "asset": "/map-symbols/fisheries-rich-zone.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  },
+  {
+    "id": "agriculture",
+    "label": "الزراعة",
+    "items": [
+      {
+        "id": "agriculture-reclamation",
+        "label": "استصلاح أراض",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-reclamation.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-irrigated",
+        "label": "زراعة مروية",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-irrigated.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-rainfed",
+        "label": "زراعة مطرية",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-rainfed.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-greenhouse",
+        "label": "صوب زراعية",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-greenhouse.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-date-farms",
+        "label": "مزارع نخيل",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-date-farms.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-fruit-farms",
+        "label": "مزارع فاكهة",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-fruit-farms.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-large-fields",
+        "label": "حقول محاصيل واسعة",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-large-fields.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-terraces",
+        "label": "زراعة مدرجات",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-terraces.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-mixed",
+        "label": "زراعة مختلطة",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-mixed.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      },
+      {
+        "id": "agriculture-mechanized-harvest",
+        "label": "حصاد آلي",
+        "hint": "الزراعة",
+        "asset": "/map-symbols/agriculture-mechanized-harvest.png",
+        "color": "#d6ae38",
+        "symbol": "●"
+      }
+    ]
+  }
+]);
+
+export const MAP_SYMBOLS = Object.freeze(MAP_SYMBOL_GROUPS.flatMap((group) => group.items.map((item) => ({ ...item, groupId: group.id, groupLabel: group.label }))));

@@ -42,10 +42,11 @@ const lineStyles = [
   { value: 'calligraphy', label: 'لمسة خطاط' },
 ];
 const boardFonts = [
-  { value: 'Tahoma, Arial, sans-serif', label: 'العربية الأكاديمية' },
-  { value: 'Arial, Tahoma, sans-serif', label: 'العربية الحديثة' },
-  { value: 'Georgia, serif', label: 'العنوان التراثي' },
-  { value: 'serif', label: 'المخطوط الكلاسيكي' },
+  { value: 'Tahoma, Arial, sans-serif', label: 'واضح — شرح يومي' },
+  { value: "'Noto Naskh Arabic', 'Traditional Arabic', serif", label: 'نسخ — نصوص ودروس' },
+  { value: "'Aref Ruqaa', 'Arabic Typesetting', serif", label: 'رقعة — عناوين سريعة' },
+  { value: "'Noto Kufi Arabic', 'Droid Arabic Kufi', sans-serif", label: 'كوفي — عناوين قوية' },
+  { value: "Georgia, 'Times New Roman', serif", label: 'تراثي — تاريخ وحضارات' },
 ];
 
 function actionBounds(action) {
@@ -529,7 +530,7 @@ export default function Whiteboard({ data, updateData, navigate }) {
                 <span>{index + 1}</span>
                 <strong>{student.name}</strong>
                 <b>{student.points}</b>
-                <button type="button" onClick={() => setPoints((current) => ({ ...current, [student.id]: (current[student.id] || 0) + 5 }))}><Plus size={15} /></button>
+                <button type="button" onClick={() => setPoints((current) => ({ ...current, [student.id]: (current[student.id] || 0) + 1 }))}><Plus size={15} /></button>
               </div>
             ))}
           </div>

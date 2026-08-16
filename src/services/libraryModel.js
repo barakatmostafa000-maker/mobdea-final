@@ -1,6 +1,6 @@
 import { gradeOptions } from '../data/questionBank.js';
 
-export const EXTRA_LIBRARY_GRADES = ['الصف الثالث الإعدادي'];
+export const EXTRA_LIBRARY_GRADES = [];
 export const LIBRARY_GRADES = [...new Set([...gradeOptions.map((item) => item.label), ...EXTRA_LIBRARY_GRADES])];
 
 export const LIBRARY_KINDS = Object.freeze({
@@ -70,7 +70,10 @@ export function hasResourceSource(resource = {}) {
 }
 
 export function inferMediaType(file = {}) {
-  const mime = String(file.type || file.mimeType || '').toLowerCase();
+  const explicit = String(file.type || '').toLowerCase();
+  if (['image', 'video', 'audio', 'pdf', 'slides', 'document', 'file', 'link'].includes(explicit)) return explicit;
+  if (explicit === 'textbook' || explicit === 'exams') return 'pdf';
+  const mime = String(file.mimeType || file.type || '').toLowerCase();
   const name = String(file.name || file.fileName || '').toLowerCase();
   if (mime.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/.test(name)) return 'image';
   if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/.test(name)) return 'video';

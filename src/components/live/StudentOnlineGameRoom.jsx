@@ -10,6 +10,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { identity } from '../../config/identity';
+import { onlineQuestionSecondsLeft } from '../../services/onlineGame';
 
 /* MOBDEA_STUDENT_GAME_SERVER_V1 */
 import {
@@ -63,12 +64,18 @@ export default function StudentOnlineGameRoom({ payload, onGoHome }) {
 
   useEffect(() => {
     if (phase !== 'question' || !question || selectedChoice !== null) return undefined;
-    if (secondsLeft <= 0) {
-      setPhase('review');
-      setNotice('انتهى وقت الإجابة.');
-      return undefined;
-    }
-    const timer = setTimeout(() => setSecondsLeft((value) => value - 1), 1000);
+    const synchronized = Boolean(question.endsAt);
+    const tick = () => {
+      const remaining = synchronized
+        ? onlineQuestionSecondsLeft(question)
+        : Math.max(0, secondsLeft - 1);
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setPhase('review');
+        setNotice('انتهى وقت الإجابة.');
+      }
+    };
+    const timer = setTimeout(tick, synchronized ? 250 : 1000);
     return () => clearTimeout(timer);
   }, [phase, question, secondsLeft, selectedChoice]);
 
@@ -99,9 +106,10 @@ export default function StudentOnlineGameRoom({ payload, onGoHome }) {
               questionRef.current = nextQuestion;
               setSelectedChoice(null);
               setAnswerResult(null);
-              setSecondsLeft(Number(nextQuestion.durationSec || 25));
-              setPhase('question');
-              setNotice('');
+              const remaining = onlineQuestionSecondsLeft(nextQuestion);
+              setSecondsLeft(remaining);
+              setPhase(remaining > 0 ? 'question' : 'review');
+              setNotice(remaining > 0 ? '' : 'انتهى وقت الإجابة على هذا السؤال.');
             }
           }
           if (event.type === 'game-score') {
@@ -154,6 +162,28 @@ export default function StudentOnlineGameRoom({ payload, onGoHome }) {
       clearInterval(heartbeat);
     };
   }, [send, session]);
+
+  useEffect(() => {
+    if (!session || roomClosed) return undefined;
+    const requestReconnect = () => {
+      if (globalThis.document?.visibilityState === 'hidden') return;
+      setNotice('عاد الاتصال. جارٍ مزامنة السؤال والنتيجة مع المعلم…');
+      void send({
+        type: 'game-ready',
+        targetId: 'teacher',
+        data: { name: name.trim(), studentCode: studentCode.trim(), reconnect: true },
+      });
+    };
+    const onVisibility = () => {
+      if (globalThis.document?.visibilityState === 'visible') requestReconnect();
+    };
+    globalThis.addEventListener?.('online', requestReconnect);
+    globalThis.document?.addEventListener?.('visibilitychange', onVisibility);
+    return () => {
+      globalThis.removeEventListener?.('online', requestReconnect);
+      globalThis.document?.removeEventListener?.('visibilitychange', onVisibility);
+    };
+  }, [name, roomClosed, send, session, studentCode]);
 
   const join = async (event) => {
     event.preventDefault();

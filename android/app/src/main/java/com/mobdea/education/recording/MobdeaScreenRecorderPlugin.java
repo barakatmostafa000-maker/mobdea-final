@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.projection.MediaProjectionManager;
+import android.os.Environment;
 import android.os.Build;
 
 import androidx.activity.result.ActivityResult;
@@ -22,6 +23,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
+import java.io.File;
+
 @CapacitorPlugin(
     name = "MobdeaScreenRecorder",
     permissions = {
@@ -31,6 +34,7 @@ import com.getcapacitor.annotation.PermissionCallback;
 public class MobdeaScreenRecorderPlugin extends Plugin {
     private PluginCall pendingStopCall;
     private boolean active;
+    private boolean paused;
     private boolean receiverRegistered;
 
     private final BroadcastReceiver resultReceiver = new BroadcastReceiver() {
@@ -38,6 +42,7 @@ public class MobdeaScreenRecorderPlugin extends Plugin {
         public void onReceive(Context context, Intent intent) {
             if (!MobdeaScreenRecorderService.ACTION_RESULT.equals(intent.getAction())) return;
             active = false;
+            paused = false;
             PluginCall call = pendingStopCall;
             pendingStopCall = null;
             if (call == null) return;
@@ -65,11 +70,12 @@ public class MobdeaScreenRecorderPlugin extends Plugin {
     public void load() {
         super.load();
         IntentFilter filter = new IntentFilter(MobdeaScreenRecorderService.ACTION_RESULT);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getContext().registerReceiver(resultReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            getContext().registerReceiver(resultReceiver, filter);
-        }
+        ContextCompat.registerReceiver(
+            getContext(),
+            resultReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        );
         receiverRegistered = true;
     }
 
@@ -120,6 +126,7 @@ public class MobdeaScreenRecorderPlugin extends Plugin {
         try {
             ContextCompat.startForegroundService(getContext(), serviceIntent);
             active = true;
+            paused = false;
             JSObject response = new JSObject();
             response.put("ok", true);
             response.put("active", true);
@@ -147,13 +154,39 @@ public class MobdeaScreenRecorderPlugin extends Plugin {
 
     @PluginMethod
     public void pause(PluginCall call) {
+        if (!active) {
+            call.reject("لا يوجد تسجيل نشط لإيقافه مؤقتًا.");
+            return;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            call.reject("الإيقاف المؤقت للتسجيل يحتاج Android 7 أو أحدث.");
+            return;
+        }
+        if (paused) {
+            call.resolve();
+            return;
+        }
         sendControl(MobdeaScreenRecorderService.ACTION_PAUSE);
+        paused = true;
         call.resolve();
     }
 
     @PluginMethod
     public void resume(PluginCall call) {
+        if (!active) {
+            call.reject("لا يوجد تسجيل نشط لاستكماله.");
+            return;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            call.reject("استكمال التسجيل يحتاج Android 7 أو أحدث.");
+            return;
+        }
+        if (!paused) {
+            call.resolve();
+            return;
+        }
         sendControl(MobdeaScreenRecorderService.ACTION_RESUME);
+        paused = false;
         call.resolve();
     }
 
@@ -161,7 +194,33 @@ public class MobdeaScreenRecorderPlugin extends Plugin {
     public void status(PluginCall call) {
         JSObject result = new JSObject();
         result.put("active", active);
+        result.put("paused", paused);
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void release(PluginCall call) {
+        String rawPath = call.getString("path", "");
+        try {
+            File target = new File(rawPath).getCanonicalFile();
+            File externalMovies = getContext().getExternalFilesDir(Environment.DIRECTORY_MOVIES);
+            File externalDirectory = externalMovies == null ? null : new File(externalMovies, "lesson-recordings").getCanonicalFile();
+            File internalDirectory = new File(getContext().getFilesDir(), "movies/lesson-recordings").getCanonicalFile();
+            if (!insideDirectory(target, externalDirectory) && !insideDirectory(target, internalDirectory)) {
+                call.reject("مسار ملف التسجيل غير صالح.");
+                return;
+            }
+            JSObject result = new JSObject();
+            result.put("deleted", !target.exists() || target.delete());
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("تعذر تنظيف ملف التسجيل المؤقت.", error);
+        }
+    }
+
+    private boolean insideDirectory(File target, File directory) {
+        if (target == null || directory == null) return false;
+        return target.getPath().startsWith(directory.getPath() + File.separator);
     }
 
     private void sendControl(String action) {

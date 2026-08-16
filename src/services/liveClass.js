@@ -84,7 +84,7 @@ export function buildLiveStudentLink(payload, path = globalThis.location?.pathna
   if (!roomId || !joinCode || !/^https:\/\//i.test(endpoint) || !workspaceId) {
     throw new Error('بيانات رابط الحصة غير مكتملة. أعد إنشاء الغرفة.');
   }
-  const base = buildPublicAppUrl(path);
+  const base = buildPublicAppUrl('/join.html', globalThis.location, payload?.publicAppUrl || '');
   base.searchParams.set('shareKind', 'live');
   base.searchParams.set('shareData', encodeSharePayload({ ...payload, roomId, joinCode, endpoint, workspaceId }));
   const link = base.toString();
