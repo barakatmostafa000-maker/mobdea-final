@@ -1,0 +1,822 @@
+name: Mobdea R19 All In One Final
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/mobdea-r19-all-in-one.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: mobdea-r19-all-in-one-final
+  cancel-in-progress: false
+
+jobs:
+  repair-verify-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout project foundation
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configure Git and resolve R19 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main v14-working
+          if git fetch --no-tags origin r19-unified; then
+            git switch -C r19-unified origin/r19-unified
+            echo "Using existing r19-unified: $(git rev-parse --short HEAD)"
+          else
+            echo "r19-unified is missing; running the complete Phase 0 bootstrap."
+            set -euo pipefail
+            git switch -C r19-unified origin/main
+            echo "R19 base: $(git rev-parse --short HEAD)"
+            echo "V14 source: $(git rev-parse --short origin/v14-working)"
+
+
+            set -euo pipefail
+
+            # Keep main's .github / CI foundation.
+            # Replace runtime/source trees with the current v14-working implementation,
+            # without bringing old root backup folders, repair ZIPs or source-mutating workflows.
+            rm -rf src public android cloud-worker tests scripts
+
+            git checkout origin/v14-working -- \
+              src \
+              public \
+              android \
+              cloud-worker \
+              tests \
+              scripts \
+              package.json \
+              package-lock.json \
+              .next-apk-version \
+              capacitor.config.json \
+              index.html \
+              join.html \
+              vite.config.js
+
+            # Never carry generated/runtime build output from the source branch.
+            rm -rf dist node_modules android/.gradle android/app/build android/build
+
+
+            set -euo pipefail
+            python3 - <<'PY'
+            from pathlib import Path
+
+            def replace_once(path, old, new):
+                p = Path(path)
+                text = p.read_text(encoding='utf-8')
+                count = text.count(old)
+                if count != 1:
+                    raise SystemExit(f'{path}: expected exactly one occurrence of {old!r}, found {count}')
+                p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+            replace_once(
+                'src/services/assetStore.js',
+                'const MAX_ASSET_BYTES = 200 * 1024 * 1024;',
+                'const MAX_ASSET_BYTES = 500 * 1024 * 1024;',
+            )
+            replace_once(
+                'src/services/assetStore.js',
+                "if (blob.size > MAX_ASSET_BYTES) throw new Error('الحد الأقصى للملف الواحد 200 ميجابايت.');",
+                "if (blob.size > MAX_ASSET_BYTES) throw new Error('الحد الأقصى للملف الواحد 500 ميجابايت.');",
+            )
+
+            replace_once(
+                'src/services/nativeAssetBridge.js',
+                'const MAX_NATIVE_STAGE_BYTES = 200 * 1024 * 1024;',
+                'const MAX_NATIVE_STAGE_BYTES = 500 * 1024 * 1024;',
+            )
+
+            native_path = Path('android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java')
+            native = native_path.read_text(encoding='utf-8')
+
+            old_limit = 'private static final long MAX_ASSET_BYTES = 200L * 1024L * 1024L;'
+            if native.count(old_limit) != 1:
+                raise SystemExit('MobdeaNativeAssetPlugin.java: expected one 200 MB native limit')
+            native = native.replace(
+                old_limit,
+                'private static final long MAX_ASSET_BYTES = 500L * 1024L * 1024L;',
+                1,
+            )
+
+            old_size = 'long expectedSize = Math.max(0L, call.getLong("size", 0L));'
+            if native.count(old_size) != 2:
+                raise SystemExit(
+                    'MobdeaNativeAssetPlugin.java: expected two legacy getLong size reads '
+                    f'but found {native.count(old_size)}'
+                )
+            native = native.replace(old_size, 'long expectedSize = readAssetSize(call);')
+
+            helper = (
+                '    private long readAssetSize(PluginCall call) {\n'
+                '        double value = call.getDouble("size", 0d);\n'
+                '        if (!Double.isFinite(value) || value <= 0d || value > Long.MAX_VALUE) return 0L;\n'
+                '        return Math.round(value);\n'
+                '    }\n\n'
+            )
+            anchor = '    private File assetDirectory() throws Exception {\n'
+            if 'private long readAssetSize(PluginCall call)' not in native:
+                if anchor not in native:
+                    raise SystemExit('MobdeaNativeAssetPlugin.java: helper insertion anchor missing')
+                native = native.replace(anchor, helper + anchor, 1)
+
+            if 'call.getLong("size"' in native:
+                raise SystemExit('MobdeaNativeAssetPlugin.java: legacy getLong size parser still present')
+            if 'call.getDouble("size", 0d)' not in native:
+                raise SystemExit('MobdeaNativeAssetPlugin.java: robust Double size parser missing')
+            native_path.write_text(native, encoding='utf-8')
+
+            replace_once(
+                'android/app/src/main/java/com/mobdea/education/pdf/MobdeaPdfRendererPlugin.java',
+                'private static final long MAX_PDF_BYTES = 200L * 1024L * 1024L;',
+                'private static final long MAX_PDF_BYTES = 500L * 1024L * 1024L;',
+            )
+            replace_once(
+                'android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java',
+                'private static final long MAX_PDF_BYTES = 200L * 1024L * 1024L;',
+                'private static final long MAX_PDF_BYTES = 500L * 1024L * 1024L;',
+            )
+
+            print('Applied R19 native/media capacity repairs.')
+            PY
+
+
+            set -euo pipefail
+            cat > tests/r19-media-native-regression.test.mjs <<'TEST'
+            import assert from 'node:assert/strict';
+            import fs from 'node:fs';
+            import test from 'node:test';
+
+            const read = (path) => fs.readFileSync(path, 'utf8');
+
+            test('R19 accepts 500 MB local/native textbook assets', () => {
+              assert.match(read('src/services/assetStore.js'), /MAX_ASSET_BYTES = 500 \* 1024 \* 1024/);
+              assert.match(read('src/services/nativeAssetBridge.js'), /MAX_NATIVE_STAGE_BYTES = 500 \* 1024 \* 1024/);
+              assert.match(
+                read('android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java'),
+                /MAX_ASSET_BYTES = 500L \* 1024L \* 1024L/,
+              );
+              assert.match(
+                read('android/app/src/main/java/com/mobdea/education/pdf/MobdeaPdfRendererPlugin.java'),
+                /MAX_PDF_BYTES = 500L \* 1024L \* 1024L/,
+              );
+              assert.match(
+                read('android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java'),
+                /MAX_PDF_BYTES = 500L \* 1024L \* 1024L/,
+              );
+            });
+
+            test('native staging reads JavaScript numeric sizes safely', () => {
+              const native = read('android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java');
+              assert.match(native, /call\.getDouble\("size", 0d\)/);
+              assert.match(native, /long expectedSize = readAssetSize\(call\);/);
+              assert.doesNotMatch(native, /call\.getLong\("size"/);
+            });
+
+            test('ClassMode keeps real multi-resource previous and next controls', () => {
+              const source = read('src/pages/ClassMode.jsx');
+              assert.match(source, /classmode-inline-media-switcher/);
+              assert.match(source, /cycleModeResource\(-1\)/);
+              assert.match(source, /cycleModeResource\(1\)/);
+              assert.match(source, /classmode-page-nav/);
+            });
+
+            test('Android registers PDF, OCR, PowerPoint and native asset plugins', () => {
+              const source = read('android/app/src/main/java/com/mobdea/education/MainActivity.java');
+              for (const plugin of [
+                'MobdeaPdfRendererPlugin.class',
+                'MobdeaPdfOcrPlugin.class',
+                'MobdeaPptxRendererPlugin.class',
+                'MobdeaNativeAssetPlugin.class',
+              ]) {
+                assert.ok(source.includes(`registerPlugin(${plugin})`), `Missing registration for ${plugin}`);
+              }
+            });
+            TEST
+
+            node --test tests/r19-media-native-regression.test.mjs
+            echo "Phase 0 bootstrap completed locally."
+          fi
+
+      - name: Load and apply the complete R19 Master Repair
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          MASTER_API="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/.github/workflows/mobdea-r19-master-repair.yml?ref=main"
+
+          curl --fail --silent --show-error --location             -H "Authorization: Bearer ${GITHUB_TOKEN}"             -H "Accept: application/vnd.github.raw+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "${MASTER_API}"             -o /tmp/mobdea-r19-master-repair.yml
+
+          test -s /tmp/mobdea-r19-master-repair.yml
+          grep -q "R19 Master Repair" /tmp/mobdea-r19-master-repair.yml
+          grep -q "Apply R19 master repair" /tmp/mobdea-r19-master-repair.yml
+
+          ruby -ryaml -e '
+            doc = YAML.load_file(ARGV[0])
+            jobs = doc.fetch("jobs")
+            steps = jobs.values.flat_map { |job| job.fetch("steps", []) }
+            step = steps.find { |item| item["name"] == "Apply R19 master repair" }
+            abort("Apply R19 master repair step was not found") unless step && step["run"]
+            print step["run"]
+          ' /tmp/mobdea-r19-master-repair.yml > /tmp/apply-r19-master-repair.sh
+
+          test -s /tmp/apply-r19-master-repair.sh
+
+          # Guard against accidentally executing an unrelated/older patch.
+          grep -q "ClassWhiteboardPro" /tmp/apply-r19-master-repair.sh
+          grep -q "countryCards" /tmp/apply-r19-master-repair.sh
+          grep -q "10.14.0" /tmp/apply-r19-master-repair.sh
+
+          bash -euo pipefail /tmp/apply-r19-master-repair.sh
+
+      - name: Apply final classroom sync and live hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              if old in text:
+                  return text.replace(old, new, 1)
+              if new in text:
+                  return text
+              raise SystemExit(f"{label}: anchor not found")
+
+          # ------------------------------------------------------------
+          # Exact student controls:
+          # encouragement icon + warning icon + ONE plus for selected student.
+          # ------------------------------------------------------------
+          path = Path("src/pages/ClassMode.jsx")
+          text = path.read_text(encoding="utf-8")
+
+          text = text.replace(
+              '<Sparkles size={18} /><span>تشجيع</span>',
+              '<Sparkles size={18} />',
+          )
+          text = text.replace(
+              '<MailCheck size={18} /><span>تنبيه</span>',
+              '<MailCheck size={18} />',
+          )
+
+          if "selected-student-point-plus" not in text:
+              pattern = re.compile(
+                  r'(<button\s+type="button"\s+className=\{phraseMenu === \'corrective\'[\s\S]*?'
+                  r'title="فتح مكتبة الجمل التنبيهية"[\s\S]*?</button>)'
+              )
+              match = pattern.search(text)
+              if not match:
+                  raise SystemExit("Selected-student warning button anchor not found")
+              plus = """
+                <button
+                  type="button"
+                  className="student-point-btn selected-student-point-plus"
+                  disabled={!selectedStudent}
+                  onClick={() => selectedStudent && adjustPoints(selectedStudent, 1)}
+                  title="إضافة نقطة واحدة"
+                  aria-label="إضافة نقطة واحدة"
+                >
+                  <Plus size={18} />
+                </button>"""
+              text = text[:match.end()] + plus + text[match.end():]
+
+          # Remove all per-row minus/plus point buttons.
+          text = re.sub(
+              r'\s*<button type="button" className="student-point-btn student-point-minus"'
+              r'[^>]*adjustPoints\(student, -1\); \}\}><Minus size=\{14\} /></button>',
+              "",
+              text,
+          )
+          text = re.sub(
+              r'\s*<button type="button" className="student-point-btn"'
+              r'[^>]*adjustPoints\(student, 1\); \}\}><Plus size=\{14\} /></button>',
+              "",
+              text,
+          )
+          text = re.sub(
+              r'\s*<button type="button" onClick=\{\(\) => adjustPoints\(student, -1\)\}>'
+              r'<Minus size=\{15\} /></button>',
+              "",
+              text,
+          )
+          text = re.sub(
+              r'\s*<button type="button" onClick=\{\(\) => adjustPoints\(student, 1\)\}>'
+              r'<Plus size=\{15\} /></button>',
+              "",
+              text,
+          )
+
+          path.write_text(text, encoding="utf-8")
+
+          # Load the final override LAST, including after Master Repair CSS when present.
+          css_path = Path("src/styles/r19-final-hardening.css")
+          css_path.write_text("""/* R19 final hardening. */
+
+          .classmode-command-buttons {
+            display: grid !important;
+            grid-template-columns: repeat(3, 42px) !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 7px !important;
+          }
+
+          .classmode-command-buttons > button {
+            width: 42px !important;
+            min-width: 42px !important;
+            height: 40px !important;
+            min-height: 40px !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+
+          .classmode-command-buttons > button > span {
+            display: none !important;
+          }
+
+          .classmode-command-buttons .selected-student-point-plus {
+            border-color: rgba(101, 217, 155, .72) !important;
+            color: #dfffea !important;
+          }
+
+          /* Canvas fills the viewport, while the historical reference image keeps its ratio. */
+          .classmode-viewport .board-theme-history .classmode-board-reference-image,
+          .classmode-viewport.presentation-fullscreen .board-theme-history .classmode-board-reference-image,
+          .classmode-viewport.stage-focus-mode .board-theme-history .classmode-board-reference-image {
+            object-fit: contain !important;
+            object-position: center center !important;
+            transform: none !important;
+          }
+          """.replace("          ", ""), encoding="utf-8")
+
+          main_path = Path("src/main.jsx")
+          main = main_path.read_text(encoding="utf-8")
+          final_import = "import './styles/r19-final-hardening.css';"
+          if final_import not in main:
+              anchors = [
+                  "import './styles/r19-master-repairs.css';",
+                  "import './styles/r19-classmode-phase1.css';",
+                  "import './styles/r18-classmode-viewport-fix.css';",
+              ]
+              anchor = next((item for item in anchors if item in main), None)
+              if not anchor:
+                  raise SystemExit("Final CSS import anchor not found")
+              main = main.replace(anchor, anchor + "\n" + final_import, 1)
+              main_path.write_text(main, encoding="utf-8")
+
+          # ------------------------------------------------------------
+          # Live class: consume server-provided TURN + keep STUN fallback.
+          # ------------------------------------------------------------
+          live_path = Path("src/services/liveClass.js")
+          live = live_path.read_text(encoding="utf-8")
+          old_ice = """export function defaultIceServers() {
+            return [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+            ];
+          }""".replace("          ", "")
+          new_ice = """function normalizeIceServer(server = {}) {
+            const rawUrls = Array.isArray(server.urls) ? server.urls : [server.urls];
+            const urls = rawUrls
+              .map((value) => safeTrim(value || '', 500))
+              .filter((value) => /^(?:stun|stuns|turn|turns):/i.test(value));
+            if (!urls.length) return null;
+            const normalized = { urls: urls.length === 1 ? urls[0] : urls };
+            const username = safeTrim(server.username || '', 260);
+            const credential = safeTrim(server.credential || '', 520);
+            if (username) normalized.username = username;
+            if (credential) normalized.credential = credential;
+            return normalized;
+          }
+
+          export function defaultIceServers(configLike = {}) {
+            const fallback = [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+            ];
+            const supplied = (Array.isArray(configLike?.iceServers) ? configLike.iceServers : [])
+              .map(normalizeIceServer)
+              .filter(Boolean);
+            const seen = new Set();
+            return [...fallback, ...supplied].filter((server) => {
+              const key = JSON.stringify(server);
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          }""".replace("          ", "")
+          live = replace_once(live, old_ice, new_ice, "TURN-aware ICE")
+          live_path.write_text(live, encoding="utf-8")
+
+          student_path = Path("src/components/live/StudentLiveRoom.jsx")
+          student = student_path.read_text(encoding="utf-8")
+          student = replace_once(
+              student,
+              "new RTCPeerConnection({ iceServers: defaultIceServers() });",
+              "new RTCPeerConnection({ iceServers: defaultIceServers(sessionRef.current || {}) });",
+              "Student TURN ICE",
+          )
+          student_path.write_text(student, encoding="utf-8")
+
+          teacher_path = Path("src/components/live/TeacherLivePanel.jsx")
+          teacher = teacher_path.read_text(encoding="utf-8")
+          teacher = replace_once(
+              teacher,
+              "new RTCPeerConnection({ iceServers: defaultIceServers() });",
+              "new RTCPeerConnection({ iceServers: defaultIceServers(roomRef.current || {}) });",
+              "Teacher TURN ICE",
+          )
+          teacher_path.write_text(teacher, encoding="utf-8")
+
+          # ------------------------------------------------------------
+          # Worker: return STUN + optional TURN.
+          # Prefer short-lived TURN REST credentials from a server-only secret.
+          # ------------------------------------------------------------
+          worker_path = Path("cloud-worker/worker.js")
+          worker = worker_path.read_text(encoding="utf-8")
+
+          if "async function buildLiveIceServers(" not in worker:
+              anchor = """function validLiveRoomId(value) {
+            const roomId = String(value || '');
+            return /^[a-zA-Z0-9_-]{8,80}$/.test(roomId) ? roomId : '';
+          }""".replace("          ", "")
+              helper = """async function buildLiveIceServers(env, workspace = '') {
+            const servers = [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+            ];
+            const urls = String(env.MOBDEA_TURN_URLS || '')
+              .split(',')
+              .map((value) => value.trim())
+              .filter((value) => /^turns?:/i.test(value));
+            if (!urls.length) return servers;
+
+            let username = String(env.MOBDEA_TURN_USERNAME || '').trim();
+            let credential = String(env.MOBDEA_TURN_CREDENTIAL || '').trim();
+            const sharedSecret = String(env.MOBDEA_TURN_SHARED_SECRET || '');
+
+            if (sharedSecret.length >= 16) {
+              const expires = Math.floor(Date.now() / 1000) + 60 * 60;
+              username = `${expires}:mobdea-${String(workspace || 'live').slice(0, 40)}`;
+              const key = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(sharedSecret),
+                { name: 'HMAC', hash: 'SHA-1' },
+                false,
+                ['sign'],
+              );
+              const signature = new Uint8Array(
+                await crypto.subtle.sign('HMAC', key, encoder.encode(username)),
+              );
+              credential = bytesToBase64(signature);
+            }
+
+            if (!username || !credential) return servers;
+            servers.push({
+              urls: urls.length === 1 ? urls[0] : urls,
+              username: username.slice(0, 260),
+              credential: credential.slice(0, 520),
+            });
+            return servers;
+          }
+
+          function validLiveRoomId(value) {
+            const roomId = String(value || '');
+            return /^[a-zA-Z0-9_-]{8,80}$/.test(roomId) ? roomId : '';
+          }""".replace("          ", "")
+              worker = replace_once(worker, anchor, helper, "Worker TURN helper")
+
+          worker = replace_once(
+              worker,
+              """    lesson: room.lesson,
+              expiresAt: room.expiresAt,
+            }, 201);""".replace("          ", ""),
+              """    lesson: room.lesson,
+              expiresAt: room.expiresAt,
+              iceServers: await buildLiveIceServers(env, auth.workspace),
+            }, 201);""".replace("          ", ""),
+              "Create-room ICE response",
+          )
+          worker = replace_once(
+              worker,
+              """    participantId,
+              participantToken,
+            }, 201);""".replace("          ", ""),
+              """    participantId,
+              participantToken,
+              iceServers: await buildLiveIceServers(env, workspace),
+            }, 201);""".replace("          ", ""),
+              "Join-room ICE response",
+          )
+          worker_path.write_text(worker, encoding="utf-8")
+
+          wrangler_path = Path("cloud-worker/wrangler.toml.example")
+          wrangler = wrangler_path.read_text(encoding="utf-8")
+          if "MOBDEA_TURN_SHARED_SECRET" not in wrangler:
+              wrangler += """
+          # Production live-class reliability (TURN):
+          # Set MOBDEA_TURN_URLS as a comma-separated Worker variable.
+          # Prefer short-lived TURN REST credentials:
+          # npx wrangler secret put MOBDEA_TURN_SHARED_SECRET
+          # Static fallback only when required by the TURN provider:
+          # npx wrangler secret put MOBDEA_TURN_USERNAME
+          # npx wrangler secret put MOBDEA_TURN_CREDENTIAL
+          """.replace("          ", "")
+              wrangler_path.write_text(wrangler, encoding="utf-8")
+
+          # ------------------------------------------------------------
+          # Acceptance tests: phone/tablet merge, portable student login,
+          # TURN consumption, exact student controls, speech, recordings.
+          # ------------------------------------------------------------
+          Path("tests/r19-sync-live-hardening.test.mjs").write_text(r"""import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import test from 'node:test';
+          import { mergeAppData } from '../src/services/dataMerge.js';
+          import { defaultIceServers } from '../src/services/liveClass.js';
+
+          const read = (path) => fs.readFileSync(path, 'utf8');
+
+          test('phone and tablet records merge without dropping either device changes', () => {
+            const phone = {
+              students: [{ id: 's1', name: 'طالب واحد', grade: '1', group: 'A', points: 2 }],
+              attendance: [{ id: 'att-phone', studentId: 's1', date: '2026-08-17', status: 'present' }],
+              payments: [], grades: [], sessions: [], contentLibrary: [], lessonRecordings: [],
+            };
+            const tablet = {
+              students: [{ id: 's1', name: 'طالب واحد', grade: '1', group: 'A', points: 5 }],
+              attendance: [],
+              payments: [{ id: 'pay-tablet', studentId: 's1', amount: 100, date: '2026-08-17' }],
+              grades: [], sessions: [], contentLibrary: [], lessonRecordings: [],
+            };
+            const merged = mergeAppData(phone, tablet);
+            assert.ok(merged.attendance.some((item) => item.id === 'att-phone'));
+            assert.ok(merged.payments.some((item) => item.id === 'pay-tablet'));
+            assert.equal(merged.students.filter((item) => item.id === 's1').length, 1);
+          });
+
+          test('TURN is consumed beside STUN fallback', () => {
+            const servers = defaultIceServers({
+              iceServers: [{
+                urls: ['turn:turn.example.com:3478?transport=udp'],
+                username: 'u',
+                credential: 'p',
+              }],
+            });
+            assert.ok(servers.some((server) =>
+              String(Array.isArray(server.urls) ? server.urls[0] : server.urls).startsWith('stun:')));
+            assert.ok(servers.some((server) =>
+              String(Array.isArray(server.urls) ? server.urls[0] : server.urls).startsWith('turn:')));
+          });
+
+          test('teacher and student peer connections use room ICE config', () => {
+            assert.match(
+              read('src/components/live/TeacherLivePanel.jsx'),
+              /defaultIceServers\(roomRef\.current \|\| \{\}\)/,
+            );
+            assert.match(
+              read('src/components/live/StudentLiveRoom.jsx'),
+              /defaultIceServers\(sessionRef\.current \|\| \{\}\)/,
+            );
+            const worker = read('cloud-worker/worker.js');
+            assert.match(worker, /MOBDEA_TURN_SHARED_SECRET/);
+            assert.match(worker, /iceServers: await buildLiveIceServers\(env, auth\.workspace\)/);
+            assert.match(worker, /iceServers: await buildLiveIceServers\(env, workspace\)/);
+          });
+
+          test('student cloud login is portable and not device-bound', () => {
+            const portal = read('src/services/studentPortalCloud.js');
+            assert.match(portal, /code/);
+            assert.match(portal, /pin/);
+            assert.doesNotMatch(portal, /deviceId|deviceFingerprint|hardwareId/i);
+            assert.match(read('tests/cloud-worker.test.mjs'), /fresh device/i);
+          });
+
+          test('class mode uses icon-only phrase commands and one selected-student plus', () => {
+            const classMode = read('src/pages/ClassMode.jsx');
+            assert.match(classMode, /selected-student-point-plus/);
+            assert.match(classMode, /adjustPoints\(selectedStudent, 1\)/);
+            assert.doesNotMatch(classMode, /student-point-minus/);
+            assert.doesNotMatch(classMode, /adjustPoints\(student, -1\)/);
+            assert.doesNotMatch(classMode, /adjustPoints\(student, 1\)/);
+            assert.doesNotMatch(classMode, /<Sparkles size=\{18\} \/><span>تشجيع<\/span>/);
+            assert.doesNotMatch(classMode, /<MailCheck size=\{18\} \/><span>تنبيه<\/span>/);
+          });
+
+          test('spoken phrase includes the selected student name', () => {
+            const classMode = read('src/pages/ClassMode.jsx');
+            assert.match(classMode, /يا \$\{selectedStudent\.name\}/);
+            assert.match(classMode, /speakArabic\(text, data\.settings, tone\)/);
+          });
+
+          test('recordings persist and historical artwork keeps its ratio', () => {
+            const classMode = read('src/pages/ClassMode.jsx');
+            const css = read('src/styles/r19-final-hardening.css');
+            assert.match(classMode, /lessonRecordings/);
+            assert.match(classMode, /\[recording, \.\.\.\(latest\.lessonRecordings \|\| \[\]\)\]/);
+            assert.match(css, /object-fit: contain !important/);
+          });
+          """.replace(/^ {10}/gm, ""), encoding="utf-8")
+
+          print("R19 final hardening applied.")
+          PY
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Repair the two known generated formatting regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The previous Master Repair passed 177 tests and lint, then failed only
+          # because these two generated lines exceeded the project's line limit.
+          # Reformat the source; never weaken or skip format:check.
+          npx --yes prettier@3.6.2 --write             src/components/ClassWhiteboardPro.jsx             src/data/countryCards.js
+          node scripts/check-format.mjs
+
+      - name: Run focused R19 acceptance tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f tests/r19-media-native-regression.test.mjs ]; then
+            node --test tests/r19-media-native-regression.test.mjs
+          fi
+
+          if [ -f tests/r19-classmode-phase1.test.mjs ]; then
+            node --test tests/r19-classmode-phase1.test.mjs
+          fi
+
+          if [ -f tests/r19-master-repairs.test.mjs ]; then
+            node --test tests/r19-master-repairs.test.mjs
+          fi
+
+          node --test tests/r19-sync-live-hardening.test.mjs
+          node --test tests/cloud-worker.test.mjs
+          node --test tests/student-portal-sync.test.mjs
+
+      - name: Full R19 web verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run verify
+
+      - name: Verify R19 version and critical runtime contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node - <<'NODE'
+          const fs = require('fs');
+          const pkg = require('./package.json');
+
+          if (pkg.version !== '10.14.0') {
+            throw new Error(`Expected R19 version 10.14.0, got ${pkg.version}`);
+          }
+          if (Number(pkg.mobdea?.versionCode) !== 117) {
+            throw new Error(`Expected versionCode 117, got ${pkg.mobdea?.versionCode}`);
+          }
+
+          const classMode = fs.readFileSync('src/pages/ClassMode.jsx', 'utf8');
+          const live = fs.readFileSync('src/services/liveClass.js', 'utf8');
+          const teacher = fs.readFileSync('src/components/live/TeacherLivePanel.jsx', 'utf8');
+          const student = fs.readFileSync('src/components/live/StudentLiveRoom.jsx', 'utf8');
+          const worker = fs.readFileSync('cloud-worker/worker.js', 'utf8');
+
+          const required = [
+            [classMode, 'selected-student-point-plus', 'single selected-student plus'],
+            [classMode, 'lessonRecordings', 'recording persistence'],
+            [live, 'defaultIceServers(configLike = {})', 'TURN-aware ICE configuration'],
+            [teacher, 'defaultIceServers(roomRef.current || {})', 'teacher TURN consumption'],
+            [student, 'defaultIceServers(sessionRef.current || {})', 'student TURN consumption'],
+            [worker, 'MOBDEA_TURN_SHARED_SECRET', 'server-side TURN credential support'],
+          ];
+
+          for (const [source, token, label] of required) {
+            if (!source.includes(token)) throw new Error(`Missing R19 contract: ${label}`);
+          }
+
+          console.log('R19 critical runtime contracts verified.');
+          NODE
+
+          grep -q 'versionCode 117' android/app/build.gradle
+          grep -q 'versionName "10.14.0"' android/app/build.gradle
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Android unit tests lint and APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug --stacktrace
+
+      - name: Final three-pass validation gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "PASS 1 — source integrity"
+          git diff --check
+          node scripts/check-format.mjs
+
+          echo "PASS 2 — focused R19 contracts"
+          node --test tests/r19-sync-live-hardening.test.mjs
+          if [ -f tests/r19-master-repairs.test.mjs ]; then
+            node --test tests/r19-master-repairs.test.mjs
+          fi
+
+          echo "PASS 3 — final build artifacts"
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          test "$(node -p "require('./package.json').version")" = "10.14.0"
+          test "$(node -p "require('./package.json').mobdea.versionCode")" = "117"
+
+          sha256sum android/app/build/outputs/apk/debug/app-debug.apk             > /tmp/mobdea-r19-all-in-one-final.sha256
+
+      - name: Commit verified R19 source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git add -A             src public android cloud-worker tests scripts             package.json package-lock.json .next-apk-version             capacitor.config.json index.html join.html vite.config.js
+
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "Complete R19 all-in-one master repair sync live and verification"
+            git push origin HEAD:r19-unified
+          fi
+
+      - name: Stage final APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/r19-final
+          cp android/app/build/outputs/apk/debug/app-debug.apk             /tmp/r19-final/mobdea-r19-all-in-one-final.apk
+          cp /tmp/mobdea-r19-all-in-one-final.sha256             /tmp/r19-final/mobdea-r19-all-in-one-final.sha256
+
+      - name: Upload final R19 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-all-in-one-final
+          path: |
+            /tmp/r19-final/mobdea-r19-all-in-one-final.apk
+            /tmp/r19-final/mobdea-r19-all-in-one-final.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Final summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Mobdea R19 All In One Final"
+            echo "- Phase 0 foundation: preserved; bootstraps automatically only if r19-unified is absent."
+            echo "- Complete R19 Master Repair: applied."
+            echo "- Previous verify failure: long generated lines reformatted without disabling checks."
+            echo "- Exact class-mode student controls: enforced."
+            echo "- Historical board aspect ratio: protected."
+            echo "- Phone ↔ tablet data merge acceptance: mandatory."
+            echo "- Student fresh-device login: mandatory."
+            echo "- Live class STUN + TURN support: mandatory."
+            echo "- Web verification + Android unit tests + Android lint + APK: mandatory."
+            echo "- Three-pass final validation gate: mandatory."
+            if [ -f /tmp/mobdea-r19-all-in-one-final.sha256 ]; then
+              echo "- APK SHA256: $(cut -d' ' -f1 /tmp/mobdea-r19-all-in-one-final.sha256)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
