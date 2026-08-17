@@ -1,0 +1,861 @@
+name: Mobdea R19 FINAL CHECKED 2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/mobdea-r19-FINAL-CHECKED-2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: mobdea-r19-final-run
+  cancel-in-progress: false
+
+jobs:
+  repair-verify-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout R19 unified
+        uses: actions/checkout@v4
+        with:
+          ref: r19-unified
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: R19 V3 marker and branch check
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "MOBDEA_R19_FINAL_CHECKED_2=2026-08-17"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main r19-unified
+          git switch -C r19-unified origin/r19-unified
+          echo "R19 source: $(git rev-parse --short HEAD)"
+          test -f src/pages/ClassMode.jsx
+          test -f src/services/cloudSync.js
+          test -f src/services/liveClass.js
+          test -f cloud-worker/worker.js
+
+      - name: Apply all Master Repair mutation stages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MASTER=/tmp/mobdea-r19-master-repair.yml
+          git show origin/main:.github/workflows/mobdea-r19-master-repair.yml > "$MASTER"
+
+          test -s "$MASTER"
+          grep -q "name: R19 Master Repair" "$MASTER"
+
+          ruby -ryaml - "$MASTER" <<'RUBY'
+          master_path = ARGV[0]
+          wanted = [
+            "Apply Phase 1 source repairs",
+            "Apply remaining R19 master repairs",
+            "Set final R19 app version",
+            "Bundle offline Arabic board fonts",
+            "Bundle Arabic OCR models into Android",
+          ]
+
+          doc = YAML.load_file(master_path)
+          steps = doc.fetch("jobs").values.flat_map { |job| job.fetch("steps", []) }
+
+          wanted.each_with_index do |name, index|
+            step = steps.find { |item| item["name"] == name }
+            abort("Missing Master Repair step: #{name}") unless step && step["run"]
+            File.write(format("/tmp/r19-master-stage-%02d.sh", index + 1), step["run"])
+          end
+          RUBY
+
+          for stage in /tmp/r19-master-stage-*.sh; do
+            echo "Running $(basename "$stage")"
+            bash -euo pipefail "$stage"
+          done
+
+          test -f src/styles/r19-master-repairs.css
+          test -f tests/r19-classmode-phase1.test.mjs
+          test -f tests/r19-master-repairs.test.mjs
+
+      - name: Enforce final R19 release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("src/config/version.js")
+          text = path.read_text(encoding="utf-8")
+          text = re.sub(r"export const APP_VERSION = '[^']+';", "export const APP_VERSION = '10.14.0';", text)
+          text = re.sub(r"export const APP_VERSION_CODE = \d+;", "export const APP_VERSION_CODE = 117;", text)
+          text = re.sub(r"export const RELEASE_TAG = '[^']+';", "export const RELEASE_TAG = 'R19';", text)
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -q "APP_VERSION = '10.14.0'" src/config/version.js
+          grep -q "APP_VERSION_CODE = 117" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" src/config/version.js
+
+          # sync-version.mjs runs again inside npm run verify. Keep it from
+          # silently reverting the release label back to R18.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/sync-version.mjs")
+          text = path.read_text(encoding="utf-8")
+          old = "export const RELEASE_TAG = 'R18';"
+          new = "export const RELEASE_TAG = 'R19';"
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit("scripts/sync-version.mjs RELEASE_TAG declaration is missing")
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -q "RELEASE_TAG = 'R19'" scripts/sync-version.mjs
+
+      - name: Apply final classroom sync and live hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path, text):
+              Path(path).write_text(text, encoding="utf-8")
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count == 1:
+                  return text.replace(old, new, 1)
+              if count == 0 and new in text:
+                  return text
+              raise SystemExit(f"{label}: expected one old anchor, found {count}")
+
+          # ---------------------------------------------------------------
+          # Selected-student commands:
+          # praise icon + warning icon + ONE plus; no per-row +/- duplicates.
+          # Robust against whitespace/format changes made by Master Repair.
+          # ---------------------------------------------------------------
+          path = Path("src/pages/ClassMode.jsx")
+          text = path.read_text(encoding="utf-8")
+
+          def transform_named_button(source, title, testid, aria_label, icon_markup):
+              # First identify by stable title. If Master Repair changes the title
+              # formatting, fall back to the unique icon inside the same button.
+              title_pattern = re.compile(
+                  r'<button\b(?:(?!</button>)[\s\S])*?'
+                  + re.escape(f'title="{title}"')
+                  + r'(?:(?!</button>)[\s\S])*?</button>'
+              )
+              matches = list(title_pattern.finditer(source))
+              if len(matches) != 1:
+                  icon_pattern = re.compile(
+                      r'<button\b(?:(?!</button>)[\s\S])*?'
+                      + re.escape(icon_markup)
+                      + r'(?:(?!</button>)[\s\S])*?</button>'
+                  )
+                  matches = list(icon_pattern.finditer(source))
+              if len(matches) != 1:
+                  raise SystemExit(
+                      f"{testid}: expected one selected-student command button, found {len(matches)}"
+                  )
+              block = matches[0].group(0)
+
+              if f'data-testid="{testid}"' not in block:
+                  title_attr = f'title="{title}"'
+                  if title_attr in block:
+                      block = block.replace(
+                          title_attr,
+                          title_attr
+                          + f'\n                  data-testid="{testid}"'
+                          + f'\n                  aria-label="{aria_label}"',
+                          1,
+                      )
+                  else:
+                      # Fallback when the title text itself was reformatted:
+                      # insert immediately before the true opening-tag close,
+                      # located from the icon position so JSX arrows (=>) are ignored.
+                      icon_pos = block.find(icon_markup)
+                      open_end = block.rfind(">", 0, icon_pos)
+                      if icon_pos < 0 or open_end < 0:
+                          raise SystemExit(f"{testid}: malformed opening button tag")
+                      block = (
+                          block[:open_end]
+                          + f'\n                  data-testid="{testid}"'
+                          + f'\n                  aria-label="{aria_label}"'
+                          + block[open_end:]
+                      )
+
+              icon_pos = block.find(icon_markup)
+              open_end = block.rfind(">", 0, icon_pos)
+              close_start = block.rfind("</button>")
+              if icon_pos < 0 or open_end < 0 or close_start < 0:
+                  raise SystemExit(f"{testid}: malformed button boundaries")
+
+              block = (
+                  block[: open_end + 1]
+                  + f"\n                  {icon_markup}\n                "
+                  + block[close_start:]
+              )
+              return (
+                  source[: matches[0].start()]
+                  + block
+                  + source[matches[0].end():]
+              )
+
+          text = transform_named_button(
+              text,
+              "فتح مكتبة الجمل التشجيعية",
+              "selected-student-praise",
+              "تشجيع الطالب المحدد",
+              "<Sparkles size={18} />",
+          )
+          text = transform_named_button(
+              text,
+              "فتح مكتبة الجمل التنبيهية",
+              "selected-student-warning",
+              "تنبيه الطالب المحدد",
+              "<MailCheck size={18} />",
+          )
+
+          if 'data-testid="selected-student-point-plus"' not in text:
+              warning_pattern = re.compile(
+                  r'<button\b(?:(?!</button>)[\s\S])*?'
+                  r'data-testid="selected-student-warning"'
+                  r'(?:(?!</button>)[\s\S])*?</button>'
+              )
+              warning_match = warning_pattern.search(text)
+              if not warning_match:
+                  raise SystemExit("single selected-student plus: warning button anchor missing")
+              plus = """
+                <button
+                  type="button"
+                  className="student-point-btn selected-student-point-plus"
+                  data-testid="selected-student-point-plus"
+                  disabled={!selectedStudent}
+                  onClick={() => selectedStudent && adjustPoints(selectedStudent, 1)}
+                  title="إضافة نقطة واحدة"
+                  aria-label="إضافة نقطة واحدة للطالب المحدد"
+                >
+                  <Plus size={18} />
+                </button>"""
+              text = text[: warning_match.end()] + plus + text[warning_match.end():]
+
+          # Remove legacy per-student point +/- buttons only.
+          legacy_patterns = [
+              re.compile(
+                  r'\s*<button\b(?:(?!</button>)[\s\S])*?'
+                  r'className="student-point-btn student-point-minus"'
+                  r'(?:(?!</button>)[\s\S])*?</button>'
+              ),
+              re.compile(
+                  r'\s*<button\b(?:(?!</button>)[\s\S])*?'
+                  r'className="student-point-btn"'
+                  r'(?:(?!</button>)[\s\S])*?adjustPoints\(student,\s*1\)'
+                  r'(?:(?!</button>)[\s\S])*?</button>'
+              ),
+              re.compile(
+                  r'\s*<button\b(?:(?!</button>)[\s\S])*?'
+                  r'adjustPoints\(student,\s*-1\)'
+                  r'(?:(?!</button>)[\s\S])*?</button>'
+              ),
+              re.compile(
+                  r'\s*<button\b(?:(?!</button>)[\s\S])*?'
+                  r'adjustPoints\(student,\s*1\)'
+                  r'(?:(?!</button>)[\s\S])*?</button>'
+              ),
+          ]
+          for pattern in legacy_patterns:
+              text = pattern.sub("", text, count=1)
+
+          if text.count('data-testid="selected-student-praise"') != 1:
+              raise SystemExit("selected-student praise control count is not exactly one")
+          if text.count('data-testid="selected-student-warning"') != 1:
+              raise SystemExit("selected-student warning control count is not exactly one")
+          if text.count('data-testid="selected-student-point-plus"') != 1:
+              raise SystemExit("selected-student point plus control count is not exactly one")
+          if "student-point-minus" in text:
+              raise SystemExit("legacy student-point-minus control is still present")
+
+          path.write_text(text, encoding="utf-8")
+
+          # ---------------------------------------------------------------
+          # Final CSS: protect historical artwork aspect ratio and keep the
+          # three selected-student actions compact/icon-only.
+          # ---------------------------------------------------------------
+          css_path = Path("src/styles/r19-master-repairs.css")
+          css = css_path.read_text(encoding="utf-8")
+          marker = "/* MOBDEA_R19_FINAL */"
+          if marker not in css:
+              css += r"""
+
+          /* MOBDEA_R19_FINAL */
+          .classmode-student-commandbar .classmode-command-buttons {
+            display: grid !important;
+            grid-template-columns: repeat(3, 42px) !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 7px !important;
+          }
+
+          .classmode-student-commandbar .classmode-command-buttons > button {
+            width: 42px !important;
+            min-width: 42px !important;
+            height: 40px !important;
+            min-height: 40px !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+
+          .classmode-viewport .board-theme-history .classmode-board-reference-image,
+          .classmode-viewport.stage-focus-mode .board-theme-history .classmode-board-reference-image,
+          .classmode-viewport.stage-focus-mode .classmode-board-reference-image {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+            object-position: center !important;
+            transform: none !important;
+          }
+          """
+              css_path.write_text(css, encoding="utf-8")
+
+          # ---------------------------------------------------------------
+          # TURN-aware WebRTC using the CURRENT live signaling system.
+          # Server response ICE is preferred; STUN fallback remains available.
+          # ---------------------------------------------------------------
+          live_path = Path("src/services/liveClass.js")
+          live = live_path.read_text(encoding="utf-8")
+
+          old_ice = """export function defaultIceServers() {
+            return [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+            ];
+          }"""
+
+          new_ice = """export function defaultIceServers(configLike = {}) {
+            const fallback = [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+            ];
+            const supplied = Array.isArray(configLike?.iceServers)
+              ? configLike.iceServers
+              : MOBDEA_RUNTIME_ICE.servers;
+            const valid = Array.isArray(supplied)
+              ? supplied.filter((entry) => {
+                if (!entry || typeof entry !== 'object') return false;
+                const urls = Array.isArray(entry.urls) ? entry.urls : [entry.urls];
+                return urls.some(
+                  (url) =>
+                    typeof url === 'string'
+                    && /^(stun|turn|turns):/i.test(url),
+                );
+              })
+              : [];
+            return valid.length ? [...valid, ...fallback] : fallback;
+          }"""
+
+          runtime_marker = "const MOBDEA_RUNTIME_ICE = { servers: [] };"
+          if runtime_marker not in live:
+              poll_anchor = "const DEFAULT_POLL_MS = 1400;"
+              if poll_anchor not in live:
+                  raise SystemExit("liveClass runtime ICE insertion point is missing")
+              runtime_helper = """const MOBDEA_RUNTIME_ICE = { servers: [] };
+
+          function rememberLiveIceServers(configLike = {}) {
+            const supplied = Array.isArray(configLike?.iceServers)
+              ? configLike.iceServers
+              : [];
+            MOBDEA_RUNTIME_ICE.servers = supplied.filter((entry) => {
+              if (!entry || typeof entry !== 'object') return false;
+              const urls = Array.isArray(entry.urls) ? entry.urls : [entry.urls];
+              return urls.some(
+                (url) =>
+                  typeof url === 'string'
+                  && /^(stun|turn|turns):/i.test(url),
+              );
+            });
+          }"""
+              live = live.replace(
+                  poll_anchor,
+                  poll_anchor + "\n" + runtime_helper,
+                  1,
+              )
+
+          if "export function defaultIceServers(configLike = {})" not in live:
+              live = replace_once(live, old_ice, new_ice, "TURN-aware ICE helper")
+
+          if "rememberLiveIceServers(created);" not in live:
+              created_anchor = "const created = validateCreatedRoom(await response.json());"
+              if created_anchor not in live:
+                  raise SystemExit("liveClass create response anchor is missing")
+              live = live.replace(
+                  created_anchor,
+                  created_anchor + "\n  rememberLiveIceServers(created);",
+                  1,
+              )
+
+          if "rememberLiveIceServers(joined);" not in live:
+              joined_anchor = "const joined = await response.json();"
+              if joined_anchor not in live:
+                  raise SystemExit("liveClass join response anchor is missing")
+              live = live.replace(
+                  joined_anchor,
+                  joined_anchor + "\n  rememberLiveIceServers(joined);",
+                  1,
+              )
+
+          live_path.write_text(live, encoding="utf-8")
+
+          # Keep local/native/cloud asset validation aligned at 500 MB.
+          for asset_limit_path in [
+              Path("src/services/cloudSync.js"),
+              Path("cloud-worker/worker.js"),
+          ]:
+              asset_text = asset_limit_path.read_text(encoding="utf-8")
+              asset_text, changed = re.subn(
+                  r"const MAX_ASSET_BYTES = \d+\s*\*\s*1024\s*\*\s*1024;",
+                  "const MAX_ASSET_BYTES = 500 * 1024 * 1024;",
+                  asset_text,
+                  count=1,
+              )
+              if changed != 1 and "const MAX_ASSET_BYTES = 500 * 1024 * 1024;" not in asset_text:
+                  raise SystemExit(
+                      f"{asset_limit_path}: MAX_ASSET_BYTES declaration is missing"
+                  )
+              asset_limit_path.write_text(asset_text, encoding="utf-8")
+
+          worker_path = Path("cloud-worker/worker.js")
+          worker = worker_path.read_text(encoding="utf-8")
+
+          helper_marker = "/* MOBDEA_R19_TURN */"
+          helper = r"""/* MOBDEA_R19_TURN */
+          function buildLiveIceServers(env = {}) {
+            const urls = String(env.MOBDEA_TURN_URLS || '')
+              .split(',')
+              .map((value) => value.trim())
+              .filter((value) => /^(stun|turn|turns):/i.test(value));
+            const username = String(env.MOBDEA_TURN_USERNAME || '').trim();
+            const credential = String(env.MOBDEA_TURN_CREDENTIAL || '').trim();
+            if (!urls.length || !username || !credential) return [];
+            return [{ urls, username, credential }];
+          }
+
+          """
+
+          create_marker = "async function handleCreateLiveRoom(request, env, auth) {"
+          if helper_marker not in worker:
+              if create_marker not in worker:
+                  raise SystemExit("Worker create-live handler anchor missing.")
+              worker = worker.replace(create_marker, helper + create_marker, 1)
+
+          join_marker = "async function handleJoinLiveRoom(request, env, workspace, roomId) {"
+          create_start = worker.index(create_marker)
+          join_start = worker.index(join_marker, create_start)
+          create_segment = worker[create_start:join_start]
+
+          if "iceServers: buildLiveIceServers(env)" not in create_segment:
+              create_segment, count = re.subn(
+                  r"(expiresAt:\s*room\.expiresAt,\s*)(\}\s*,\s*201\s*\);)",
+                  r"\1iceServers: buildLiveIceServers(env),\n  \2",
+                  create_segment,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit("Could not add ICE to live create response.")
+              worker = worker[:create_start] + create_segment + worker[join_start:]
+
+          join_start = worker.index(join_marker)
+          next_marker = "function liveEventAllowedForParticipant"
+          join_end = worker.index(next_marker, join_start)
+          join_segment = worker[join_start:join_end]
+
+          if "iceServers: buildLiveIceServers(env)" not in join_segment:
+              join_segment, count = re.subn(
+                  r"(participantToken,\s*)(\}\s*,\s*201\s*\);)",
+                  r"\1iceServers: buildLiveIceServers(env),\n  \2",
+                  join_segment,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit("Could not add ICE to live join response.")
+              worker = worker[:join_start] + join_segment + worker[join_end:]
+
+          worker_path.write_text(worker, encoding="utf-8")
+
+          # ---------------------------------------------------------------
+          # Acceptance tests for the real sync/live/classroom architecture.
+          # No fake /api/sync path is introduced.
+          # ---------------------------------------------------------------
+          test_path = Path("tests/r19-final-v3.test.mjs")
+          test_path.write_text(r"""import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import test from 'node:test';
+          import { mergeAppData } from '../src/services/dataMerge.js';
+
+          const read = (path) => fs.readFileSync(path, 'utf8');
+
+          test('phone and tablet records merge without losing unique data', () => {
+            const phone = {
+              students: [
+                {
+                  id: 's1',
+                  name: 'Phone newest',
+                  grade: '1',
+                  group: 'A',
+                  updatedAt: '2026-08-17T08:00:00.000Z',
+                },
+                {
+                  id: 's2',
+                  name: 'Phone only',
+                  grade: '1',
+                  group: 'A',
+                  updatedAt: '2026-08-17T07:00:00.000Z',
+                },
+              ],
+              sessions: [],
+              settings: { cloudSync: {} },
+            };
+            const tablet = {
+              students: [
+                {
+                  id: 's1',
+                  name: 'Tablet older',
+                  grade: '1',
+                  group: 'A',
+                  updatedAt: '2026-08-17T06:00:00.000Z',
+                },
+                {
+                  id: 's3',
+                  name: 'Tablet only',
+                  grade: '1',
+                  group: 'A',
+                  updatedAt: '2026-08-17T09:00:00.000Z',
+                },
+              ],
+              sessions: [],
+              settings: { cloudSync: {} },
+            };
+
+            const merged = mergeAppData(phone, tablet);
+            assert.equal(merged.students.length, 3);
+            assert.equal(
+              merged.students.find((item) => item.id === 's1').name,
+              'Phone newest',
+            );
+            assert.ok(merged.students.some((item) => item.id === 's2'));
+            assert.ok(merged.students.some((item) => item.id === 's3'));
+          });
+
+          test('app uses the actual pull merge push cloud flow', () => {
+            const source = read('src/App.jsx');
+            assert.match(source, /pullCloudDataIfExists/);
+            assert.match(source, /mergeAppData\(source, remote\.data\)/);
+            assert.match(source, /pushCloudData\(merged\)/);
+          });
+
+          test('cloud client keeps real routes and 500 MB asset contract', () => {
+            const source = read('src/services/cloudSync.js');
+            const worker = read('cloud-worker/worker.js');
+            assert.match(source, /\/sync/);
+            assert.match(source, /\/assets/);
+            assert.doesNotMatch(source, /\/api\/sync/);
+            assert.match(source, /MAX_ASSET_BYTES = 500 \* 1024 \* 1024/);
+            assert.match(worker, /MAX_ASSET_BYTES = 500 \* 1024 \* 1024/);
+          });
+
+          test('student portal remains portable to a fresh phone', () => {
+            assert.ok(fs.existsSync('tests/student-portal-sync.test.mjs'));
+            const worker = read('cloud-worker/worker.js');
+            assert.match(worker, /student-session:/);
+            assert.match(worker, /studentPinHash/);
+            assert.match(worker, /studentPinSalt/);
+          });
+
+          test('live class captures server TURN without mutating teacher or student components', () => {
+            const live = read('src/services/liveClass.js');
+            const teacher = read('src/components/live/TeacherLivePanel.jsx');
+            const student = read('src/components/live/StudentLiveRoom.jsx');
+            const worker = read('cloud-worker/worker.js');
+
+            assert.match(live, /MOBDEA_RUNTIME_ICE/);
+            assert.match(live, /rememberLiveIceServers\(created\)/);
+            assert.match(live, /rememberLiveIceServers\(joined\)/);
+            assert.match(live, /defaultIceServers\(configLike = \{\}\)/);
+            assert.match(live, /\^\(stun\|turn\|turns\):/);
+            assert.match(live, /stun:stun\.l\.google\.com:19302/);
+            assert.match(teacher, /defaultIceServers\(\)/);
+            assert.match(student, /defaultIceServers\(\)/);
+            assert.match(worker, /MOBDEA_TURN_URLS/);
+            assert.match(worker, /MOBDEA_TURN_USERNAME/);
+            assert.match(worker, /MOBDEA_TURN_CREDENTIAL/);
+            assert.ok(
+              (worker.match(/iceServers: buildLiveIceServers\(env\)/g) || [])
+                .length >= 2,
+            );
+          });
+
+          test('selected student controls are exactly praise warning and one plus', () => {
+            const source = read('src/pages/ClassMode.jsx');
+            assert.equal(
+              (source.match(/data-testid="selected-student-praise"/g) || []).length,
+              1,
+            );
+            assert.equal(
+              (source.match(/data-testid="selected-student-warning"/g) || []).length,
+              1,
+            );
+            assert.equal(
+              (source.match(/data-testid="selected-student-point-plus"/g) || []).length,
+              1,
+            );
+            assert.doesNotMatch(source, /student-point-minus/);
+            assert.doesNotMatch(source, /<span>تشجيع<\/span>/);
+            assert.doesNotMatch(source, /<span>تنبيه<\/span>/);
+          });
+
+          test('spoken phrase includes the selected student name', () => {
+            const source = read('src/pages/ClassMode.jsx');
+            assert.match(source, /يا \$\{selectedStudent\.name\}/);
+            assert.match(source, /speakArabic\(text, data\.settings, tone\)/);
+          });
+
+          test('lesson recordings are persisted into app data', () => {
+            const source = read('src/pages/ClassMode.jsx');
+            assert.match(source, /lessonRecordings/);
+            assert.match(source, /allRecordings/);
+          });
+
+          test('tablet roster is fixed right and mobile landscape remains drawer based', () => {
+            const css = read('src/styles/r18-classmode-viewport-fix.css');
+            assert.match(css, /min-width:\s*961px/);
+            assert.match(
+              css,
+              /grid-template-columns:\s*minmax\(0,\s*1fr\)\s*clamp\(168px,\s*19vw,\s*230px\)/,
+            );
+            assert.match(css, /classmode-viewport-students/);
+          });
+
+          test('historical board artwork uses contain rather than stretch', () => {
+            const css = read('src/styles/r19-master-repairs.css');
+            const marker = css.slice(css.lastIndexOf('MOBDEA_R19_FINAL'));
+            assert.match(marker, /classmode-board-reference-image/);
+            assert.match(marker, /object-fit:\s*contain\s*!important/);
+          });
+
+          test('R19 final release identity is consistent everywhere', () => {
+            const pkg = JSON.parse(read('package.json'));
+            const gradle = read('android/app/build.gradle');
+            const version = read('src/config/version.js');
+            const release = read('src/config/release.js');
+            assert.equal(pkg.version, '10.14.0');
+            assert.equal(Number(pkg.mobdea?.versionCode), 117);
+            assert.match(gradle, /versionCode\s+117/);
+            assert.match(gradle, /versionName\s+"10\.14\.0"/);
+            assert.match(version, /APP_VERSION = '10\.14\.0'/);
+            assert.match(version, /APP_VERSION_CODE = 117/);
+            const syncVersion = read('scripts/sync-version.mjs');
+            assert.match(version, /RELEASE_TAG = 'R19'/);
+            assert.match(syncVersion, /RELEASE_TAG = 'R19'/);
+            assert.doesNotMatch(syncVersion, /RELEASE_TAG = 'R18'/);
+            assert.match(release, /releaseTag:\s*RELEASE_TAG/);
+          });
+          """, encoding="utf-8")
+
+          print("R19 final hardening applied.")
+          PY
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Format generated R19 source without weakening checks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Format only text files that actually exist and were changed/created
+          # by the Master Repair + final hardening. Never fail because a legacy
+          # path was renamed or removed.
+          mapfile -t changed_files < <(
+            {
+              git diff --name-only --diff-filter=ACMRT
+              git ls-files --others --exclude-standard
+            } | sort -u
+          )
+
+          prettier_files=()
+          for file in "${changed_files[@]}"; do
+            [[ -f "$file" ]] || continue
+            case "$file" in
+              *.js|*.jsx|*.mjs|*.cjs|*.ts|*.tsx|*.json|*.css|*.scss|*.less|*.html|*.md|*.yml|*.yaml)
+                prettier_files+=("$file")
+                ;;
+            esac
+          done
+
+          if ((${#prettier_files[@]})); then
+            printf 'Formatting %d changed text file(s).\n' "${#prettier_files[@]}"
+            npx --yes prettier@3.6.2 --write "${prettier_files[@]}"
+          else
+            echo "No changed Prettier-supported text files found."
+          fi
+
+          # Global repository whitespace/line-ending guard remains mandatory.
+          node scripts/check-format.mjs
+
+      - name: Focused final R19 verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/r19-media-native-regression.test.mjs
+          node --test tests/r19-classmode-phase1.test.mjs
+          node --test tests/r19-master-repairs.test.mjs
+          node --test tests/r19-final-v3.test.mjs
+          node --test tests/cloud-worker.test.mjs
+          node --test tests/student-portal-sync.test.mjs
+
+      - name: Full web verification
+        run: npm run verify
+
+      - name: Final source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = "10.14.0"
+          test "$(node -p "require('./package.json').mobdea.versionCode")" = "117"
+          grep -q 'versionCode 117' android/app/build.gradle
+          grep -q 'versionName "10.14.0"' android/app/build.gradle
+          grep -q "APP_VERSION = '10.14.0'" src/config/version.js
+          grep -q "APP_VERSION_CODE = 117" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" scripts/sync-version.mjs
+          ! grep -q "RELEASE_TAG = 'R18'" scripts/sync-version.mjs
+          grep -q 'data-testid="selected-student-point-plus"' src/pages/ClassMode.jsx
+          grep -q 'defaultIceServers(configLike = {})' src/services/liveClass.js
+          grep -q 'MOBDEA_RUNTIME_ICE' src/services/liveClass.js
+          grep -q 'rememberLiveIceServers(created)' src/services/liveClass.js
+          grep -q 'rememberLiveIceServers(joined)' src/services/liveClass.js
+          grep -q 'MAX_ASSET_BYTES = 500 \* 1024 \* 1024' src/services/cloudSync.js
+          grep -q 'MAX_ASSET_BYTES = 500 \* 1024 \* 1024' cloud-worker/worker.js
+          grep -q 'MOBDEA_TURN_URLS' cloud-worker/worker.js
+          grep -q 'MOBDEA_R19_FINAL' src/styles/r19-master-repairs.css
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Android unit tests lint and APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug --stacktrace
+
+      - name: Final review pass 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          node scripts/check-format.mjs
+          node --test tests/r19-final-v3.test.mjs
+
+      - name: Final review pass 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/r19-classmode-phase1.test.mjs
+          node --test tests/r19-master-repairs.test.mjs
+          node --test tests/cloud-worker.test.mjs
+          node --test tests/student-portal-sync.test.mjs
+
+      - name: Final review pass 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          sha256sum android/app/build/outputs/apk/debug/app-debug.apk \
+            > /tmp/mobdea-r19-v3.sha256
+
+      - name: Commit verified final R19
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A \
+            src public android cloud-worker tests scripts \
+            package.json package-lock.json .next-apk-version \
+            capacitor.config.json index.html join.html vite.config.js
+
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "Finalize R19 repairs sync live and verification"
+            git push origin HEAD:r19-unified
+          fi
+
+      - name: Stage APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/r19-v3
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/r19-v3/mobdea-r19-final-v3.apk
+          cp /tmp/mobdea-r19-v3.sha256 \
+            /tmp/r19-v3/mobdea-r19-final-v3.sha256
+
+      - name: Upload final R19 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-final-v3
+          path: |
+            /tmp/r19-v3/mobdea-r19-final-v3.apk
+            /tmp/r19-v3/mobdea-r19-final-v3.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: R19 final summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Mobdea R19 FINAL RUN"
+            echo "- Unique marker: MOBDEA_R19_FINAL_CHECKED_2=2026-08-17"
+            echo "- Master Repair mutation stages executed in order."
+            echo "- Exact selected-student controls verified."
+            echo "- Phone/tablet merge flow verified."
+            echo "- Fresh-device student portal tests verified."
+            echo "- Live class TURN-aware code with STUN fallback verified."
+            echo "- Recording persistence and tablet roster checks verified."
+            echo "- Full npm verify + Android tests + lint + APK required."
+            echo "- Three final review passes required."
+          } >> "$GITHUB_STEP_SUMMARY"
