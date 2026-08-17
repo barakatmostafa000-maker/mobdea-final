@@ -1,0 +1,441 @@
+name: Mobdea R19 FINAL-CHECKED-3
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/mobdea-r19-FINAL-CHECKED-3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobdea-r19-final-checked-3
+  cancel-in-progress: false
+
+jobs:
+  repair-verify-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout R19 unified
+        uses: actions/checkout@v4
+        with:
+          ref: r19-unified
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply complete pinned R19 repair payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Immutable reviewed payload snapshots from repository history.
+          # They are addressed by Git object SHA, so this workflow does NOT
+          # depend on any older workflow file remaining on main.
+          MASTER_PAYLOAD_BLOB="e2cea3bf1c04667b69d027989bc5dd5a0ef62c79"
+          FINAL_PAYLOAD_BLOB="4f2d284618e28b13d03fec5571ca59a8c08a294a"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main r19-unified
+          git switch -C r19-unified origin/r19-unified
+
+          # If a prior successful run already committed the full R19 repair stack,
+          # skip anchor-based mutation replay and continue with idempotent final checks.
+          if test -f src/styles/r19-classmode-phase1.css \
+            && test -f src/styles/r19-master-repairs.css \
+            && test -f tests/r19-final-v3.test.mjs \
+            && grep -q "APP_VERSION = '10.14.0'" src/config/version.js \
+            && grep -q "APP_VERSION_CODE = 117" src/config/version.js \
+            && grep -q "RELEASE_TAG = 'R19'" src/config/version.js \
+            && grep -q "MOBDEA_RUNTIME_ICE" src/services/liveClass.js \
+            && grep -q 'data-testid="selected-student-point-plus"' src/pages/ClassMode.jsx \
+            && ! grep -q "student-point-minus" src/pages/ClassMode.jsx; then
+            echo "Complete R19 repair stack already committed; mutation replay not needed."
+          else
+            git cat-file -e "${MASTER_PAYLOAD_BLOB}^{blob}"
+            git cat-file -e "${FINAL_PAYLOAD_BLOB}^{blob}"
+            git cat-file blob "$MASTER_PAYLOAD_BLOB" > /tmp/r19-master-payload.yml
+            git cat-file blob "$FINAL_PAYLOAD_BLOB" > /tmp/r19-final-payload.yml
+
+            ruby -ryaml - <<'RUBY'
+          master = YAML.safe_load(File.read('/tmp/r19-master-payload.yml'), aliases: true)
+          final = YAML.safe_load(File.read('/tmp/r19-final-payload.yml'), aliases: true)
+
+          master_steps = master.dig('jobs', 'repair-build', 'steps') || []
+          final_steps = final.dig('jobs', 'repair-verify-build', 'steps') || []
+
+          wanted_master = [
+            'Apply Phase 1 source repairs',
+            'Apply remaining R19 master repairs',
+            'Set final R19 app version',
+            'Bundle offline Arabic board fonts',
+            'Bundle Arabic OCR models into Android',
+          ]
+          wanted_final_before = ['R19 V3 marker and branch check']
+          wanted_final_after = [
+            'Enforce final R19 release identity',
+            'Apply final classroom sync and live hardening',
+          ]
+
+          jobs = []
+          wanted_final_before.each do |name|
+            step = final_steps.find { |item| item['name'] == name }
+            abort("Missing pinned final stage: #{name}") unless step && step['run']
+            jobs << [name, step['run']]
+          end
+          wanted_master.each do |name|
+            step = master_steps.find { |item| item['name'] == name }
+            abort("Missing pinned master stage: #{name}") unless step && step['run']
+            jobs << [name, step['run']]
+          end
+          wanted_final_after.each do |name|
+            step = final_steps.find { |item| item['name'] == name }
+            abort("Missing pinned final stage: #{name}") unless step && step['run']
+            jobs << [name, step['run']]
+          end
+
+          jobs.each_with_index do |(name, run), index|
+            path = format('/tmp/r19-payload-stage-%02d.sh', index + 1)
+            File.write(path, run)
+            puts format('%02d. %s', index + 1, name)
+          end
+          RUBY
+
+            for script in /tmp/r19-payload-stage-*.sh; do
+              echo "=== Running $(basename "$script") ==="
+              bash -euo pipefail "$script"
+            done
+          fi
+
+          # Prove that the complete repair payloads were applied before the
+          # final CHECKED-3-only corrections and verification stages continue.
+          test -f src/styles/r19-classmode-phase1.css
+          test -f src/styles/r19-master-repairs.css
+          test -f tests/r19-classmode-phase1.test.mjs
+          test -f tests/r19-master-repairs.test.mjs
+          test -f tests/r19-final-v3.test.mjs
+          test -f src/data/countryCards.js
+          grep -q "APP_VERSION = '10.14.0'" src/config/version.js
+          grep -q "APP_VERSION_CODE = 117" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" scripts/sync-version.mjs
+          grep -q "MAX_ASSET_BYTES = 500 \* 1024 \* 1024" src/services/cloudSync.js
+          grep -q "MAX_ASSET_BYTES = 500 \* 1024 \* 1024" cloud-worker/worker.js
+          grep -q "MOBDEA_RUNTIME_ICE" src/services/liveClass.js
+          grep -q "MOBDEA_TURN_URLS" cloud-worker/worker.js
+
+      - name: Enforce final Class Mode selected-student contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('src/pages/ClassMode.jsx')
+          text = path.read_text(encoding='utf-8')
+
+          # A previous final repair used an older regex for a button that has since
+          # changed shape. Remove only the obsolete per-student -1 control.
+          if 'student-point-minus' in text:
+              opening = re.compile(
+                  r'<button\b'
+                  r'(?=[^>]*\bclassName="[^"]*\bstudent-point-minus\b[^"]*")'
+                  r'(?=[^>]*\bdata-testid=\{`student-point-minus-\$\{student\.id\}`\})'
+                  r'[^>]*>',
+                  re.S,
+              )
+              matches = list(opening.finditer(text))
+              if len(matches) != 1:
+                  raise SystemExit(
+                      f'Expected exactly one obsolete per-student minus button; found {len(matches)}.'
+                  )
+
+              match = matches[0]
+              close_at = text.find('</button>', match.end())
+              if close_at < 0:
+                  raise SystemExit('Obsolete student minus button has no closing </button>.')
+              if text.find('<button', match.end(), close_at) >= 0:
+                  raise SystemExit('Unexpected nested <button> in obsolete student minus control.')
+
+              start = text.rfind('\n', 0, match.start()) + 1
+              end = close_at + len('</button>')
+              if end < len(text) and text[end] == '\n':
+                  end += 1
+              text = text[:start] + text[end:]
+              path.write_text(text, encoding='utf-8')
+              print('Removed obsolete per-student -1 control.')
+          else:
+              print('Obsolete per-student -1 control already absent.')
+
+          final = path.read_text(encoding='utf-8')
+          if 'student-point-minus' in final:
+              raise SystemExit('student-point-minus still exists after final Class Mode enforcement.')
+
+          required = (
+              'data-testid="selected-student-point-plus"',
+              'data-testid="selected-student-praise"',
+              'data-testid="selected-student-warning"',
+          )
+          missing = [token for token in required if token not in final]
+          if missing:
+              raise SystemExit(f'Missing final selected-student controls: {missing}')
+          PY
+
+      - name: Align legacy Phase 1 tests with final board contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          old = 'object-fit: fill !important'
+          new = 'object-fit: contain !important'
+          changed = []
+          replacements = 0
+          for path in sorted(Path('tests').glob('r19-*.test.mjs')):
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count:
+                  path.write_text(text.replace(old, new), encoding='utf-8')
+                  changed.append(str(path))
+                  replacements += count
+
+          remaining_old = []
+          final_contract_tests = []
+          for path in sorted(Path('tests').glob('r19-*.test.mjs')):
+              current = path.read_text(encoding='utf-8')
+              if old in current:
+                  remaining_old.append(str(path))
+              if new in current:
+                  final_contract_tests.append(str(path))
+
+          if remaining_old:
+              raise SystemExit(f'Obsolete fill contract still exists in: {remaining_old}')
+          if not final_contract_tests:
+              raise SystemExit('No R19 test asserts the final contain board contract.')
+
+          if replacements:
+              print(f'Updated {replacements} stale object-fit assertion(s): {changed}')
+          else:
+              print('Legacy Phase 1 tests already use the final contain contract.')
+
+          css = Path('src/styles/r19-master-repairs.css').read_text(encoding='utf-8')
+          marker_at = css.rfind('MOBDEA_R19_FINAL')
+          if marker_at < 0:
+              raise SystemExit('MOBDEA_R19_FINAL marker is missing from source CSS.')
+          marker = css[marker_at:]
+          if 'object-fit: contain !important' not in marker:
+              raise SystemExit('Final historical-board contain contract is missing from source CSS.')
+
+          PY
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Format generated R19 source without weakening checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed_files < <(
+            {
+              git diff --name-only --diff-filter=ACMRT
+              git ls-files --others --exclude-standard
+            } | sort -u
+          )
+
+          prettier_files=()
+          for file in "${changed_files[@]}"; do
+            [[ -f "$file" ]] || continue
+            case "$file" in
+              *.js|*.jsx|*.mjs|*.cjs|*.ts|*.tsx|*.json|*.css|*.scss|*.less|*.html|*.md|*.yml|*.yaml)
+                prettier_files+=("$file")
+                ;;
+            esac
+          done
+
+          if ((${#prettier_files[@]})); then
+            npx --yes prettier@3.6.2 --write "${prettier_files[@]}"
+          fi
+          node scripts/check-format.mjs
+          git diff --check
+
+      - name: Focused final R19 verification
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/r19-test-logs
+          status=0
+          tests=(
+            tests/r19-media-native-regression.test.mjs
+            tests/r19-classmode-phase1.test.mjs
+            tests/r19-master-repairs.test.mjs
+            tests/r19-final-v3.test.mjs
+            tests/cloud-worker.test.mjs
+            tests/student-portal-sync.test.mjs
+          )
+
+          for test_file in "${tests[@]}"; do
+            log_file="/tmp/r19-test-logs/$(basename "$test_file").log"
+            echo "=== $test_file ===" | tee "$log_file"
+            if node --test "$test_file" 2>&1 | tee -a "$log_file"; then
+              echo "PASS: $test_file" | tee -a "$log_file"
+            else
+              echo "FAIL: $test_file" | tee -a "$log_file"
+              status=1
+            fi
+          done
+
+          exit "$status"
+
+      - name: Upload focused test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-focused-test-logs
+          path: /tmp/r19-test-logs
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Full web verification
+        run: npm run verify
+
+      - name: Final source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = "10.14.0"
+          test "$(node -p "require('./package.json').mobdea.versionCode")" = "117"
+          grep -q 'versionCode 117' android/app/build.gradle
+          grep -q 'versionName "10.14.0"' android/app/build.gradle
+          grep -q "APP_VERSION = '10.14.0'" src/config/version.js
+          grep -q "APP_VERSION_CODE = 117" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" scripts/sync-version.mjs
+          ! grep -q "RELEASE_TAG = 'R18'" scripts/sync-version.mjs
+          grep -q 'data-testid="selected-student-point-plus"' src/pages/ClassMode.jsx
+          ! grep -q 'student-point-minus' src/pages/ClassMode.jsx
+          grep -q 'defaultIceServers(configLike = {})' src/services/liveClass.js
+          grep -q 'MOBDEA_RUNTIME_ICE' src/services/liveClass.js
+          grep -q 'rememberLiveIceServers(created)' src/services/liveClass.js
+          grep -q 'rememberLiveIceServers(joined)' src/services/liveClass.js
+          grep -q 'MAX_ASSET_BYTES = 500 \* 1024 \* 1024' src/services/cloudSync.js
+          grep -q 'MAX_ASSET_BYTES = 500 \* 1024 \* 1024' cloud-worker/worker.js
+          grep -q 'MOBDEA_TURN_URLS' cloud-worker/worker.js
+          grep -q 'MOBDEA_R19_FINAL' src/styles/r19-master-repairs.css
+          grep -q 'object-fit: contain !important' src/styles/r19-master-repairs.css
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Android unit tests lint and APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug --stacktrace
+
+      - name: Final review pass 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          node scripts/check-format.mjs
+          node --test tests/r19-final-v3.test.mjs
+
+      - name: Final review pass 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/r19-media-native-regression.test.mjs
+          node --test tests/r19-classmode-phase1.test.mjs
+          node --test tests/r19-master-repairs.test.mjs
+          node --test tests/cloud-worker.test.mjs
+          node --test tests/student-portal-sync.test.mjs
+
+      - name: Final review pass 3
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          sha256sum android/app/build/outputs/apk/debug/app-debug.apk > /tmp/mobdea-r19-v3.sha256
+
+      - name: Commit verified final R19
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A src public android cloud-worker tests scripts package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "Finalize R19 verified repair contracts"
+            git push origin HEAD:r19-unified
+          fi
+
+      - name: Stage APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/r19-v3
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/r19-v3/mobdea-r19-final-v3.apk
+          cp /tmp/mobdea-r19-v3.sha256 /tmp/r19-v3/mobdea-r19-final-v3.sha256
+
+      - name: Upload final R19 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-final-v3
+          path: |
+            /tmp/r19-v3/mobdea-r19-final-v3.apk
+            /tmp/r19-v3/mobdea-r19-final-v3.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Optional Cloudflare Worker deploy
+        continue-on-error: true
+        working-directory: cloud-worker
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo "Cloudflare deploy skipped: CLOUDFLARE_API_TOKEN is not configured."
+            exit 0
+          fi
+          npx --yes wrangler@4 deploy
+
+      - name: R19 final summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Mobdea R19 FINAL-CHECKED-3"
+            echo "- Final board contract: contain (no stretch)"
+            echo "- Focused + full verification required"
+            echo "- Android unit/lint/APK required"
+            echo "- Three final review passes required"
+            echo "- Source target: r19-unified"
+          } >> "$GITHUB_STEP_SUMMARY"
