@@ -13,7 +13,7 @@ if (!Number.isInteger(versionCode) || versionCode <= 0)
     "package.json mobdea.versionCode must be a positive integer.",
   );
 
-const versionFile = `export const APP_VERSION = '${version}';\nexport const APP_VERSION_CODE = ${versionCode};\nexport const DATA_SCHEMA_VERSION = 13;\nexport const RELEASE_CHANNEL = 'stable';\nexport const RELEASE_TAG = 'R19';\n`;
+const versionFile = `export const APP_VERSION = "${version}";\nexport const APP_VERSION_CODE = ${versionCode};\nexport const DATA_SCHEMA_VERSION = 13;\nexport const RELEASE_CHANNEL = "stable";\nexport const RELEASE_TAG = "R19";\n`;
 fs.writeFileSync(path.join(root, "src/config/version.js"), versionFile);
 
 const gradlePath = path.join(root, "android/app/build.gradle");
