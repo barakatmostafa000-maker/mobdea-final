@@ -1,0 +1,228 @@
+/* R19 Phase 1: board geometry, true fullscreen and card editing. */
+
+.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head),
+.classmode-viewport.stage-focus-mode .board-template-history .class-board-canvas-shell.board-theme-history:not(.has-resource-head),
+.classmode-viewport .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  margin: 0 !important;
+  transform: scale(var(--board-zoom, 1)) !important;
+  transform-origin: center center !important;
+  overflow: hidden !important;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(255,251,231,.995) 0 45%, rgba(238,211,160,.985) 77%, rgba(151,96,38,.96) 100%),
+    repeating-linear-gradient(4deg, rgba(93,53,19,.035) 0 1px, transparent 1px 8px),
+    #e7c98d !important;
+}
+
+.classmode-v103 .board-theme-history .classmode-board-reference-image,
+.classmode-viewport .board-theme-history .classmode-board-reference-image {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: fill !important;
+  object-position: center center !important;
+  transform: none !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.classmode-viewport .class-board-canvas-shell .class-board-canvas,
+.classmode-viewport .class-board-canvas-shell .board-card-layer {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: none !important;
+}
+
+.classmode-viewport .class-board-canvas-shell .class-board-canvas {
+  z-index: 6 !important;
+  touch-action: none !important;
+}
+
+.classmode-viewport .class-board-canvas-shell .board-card-layer {
+  z-index: 9 !important;
+}
+
+.board-card-overlay,
+.country-card-overlay {
+  container-type: inline-size !important;
+  touch-action: none !important;
+}
+
+.board-card-field {
+  padding: 2px 5px !important;
+  box-sizing: border-box !important;
+  line-height: 1.18 !important;
+  overflow: hidden !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+.board-card-field.placeholder {
+  opacity: .72 !important;
+  font-style: italic !important;
+}
+.board-card-field.tone-ink { background: rgba(255,246,220,.92) !important; }
+.board-card-field.tone-brown { background: rgba(115,61,14,.92) !important; color:#fff4c8 !important; }
+.board-card-field.tone-navy { background: rgba(31,48,72,.94) !important; color:#fff3b7 !important; }
+.board-card-field.tone-gold { background: rgba(39,26,18,.90) !important; color:#ffe68c !important; }
+.board-card-field.tone-cream { background: rgba(84,43,10,.90) !important; color:#fff4c8 !important; }
+
+.country-card-field-editor,
+.country-card-field-text {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  line-height: 1.08 !important;
+}
+.country-card-field-editor {
+  resize: none !important;
+  padding: 1px 3px !important;
+}
+.country-card-meta-strip {
+  position: absolute !important;
+  left: 8% !important;
+  right: 8% !important;
+  bottom: 4.2% !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1.35fr !important;
+  gap: 1.5% !important;
+  align-items: center !important;
+  direction: rtl !important;
+  pointer-events: none !important;
+  z-index: 4 !important;
+}
+.country-card-meta-strip span {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  color: #f8e3a7 !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
+  font-weight: 800 !important;
+  font-size: clamp(8px, 2.25cqw, 16px) !important;
+}
+
+.classmode-text-size-btn {
+  width: 32px !important;
+  min-width: 32px !important;
+  padding: 4px !important;
+}
+.classmode-text-size-value {
+  min-width: 44px !important;
+  text-align: center !important;
+  font-weight: 900 !important;
+  color: #f3d783 !important;
+  font-size: 11px !important;
+}
+
+.classmode-viewport-stage .classmode-toolbar {
+  padding: 5px !important;
+  gap: 4px !important;
+  max-height: min(28%, 94px) !important;
+}
+.classmode-viewport-stage .classmode-tool-group.compact {
+  gap: 4px !important;
+}
+.classmode-viewport-stage .classmode-tool-group.compact button {
+  min-height: 31px !important;
+  padding: 4px 7px !important;
+  font-size: 11px !important;
+}
+.classmode-viewport-stage .classmode-board-sidebar-left {
+  width: 44px !important;
+}
+.classmode-viewport-stage .classmode-board-sidebar-left button {
+  min-width: 34px !important;
+  width: 34px !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 4px !important;
+}
+
+/* Native/fallback fullscreen is presentation-only: content owns the viewport. */
+.classmode-viewport.presentation-fullscreen {
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  padding:
+    max(2px, var(--mobdea-safe-top))
+    max(2px, var(--mobdea-safe-right))
+    max(2px, var(--mobdea-safe-bottom))
+    max(2px, var(--mobdea-safe-left)) !important;
+}
+.classmode-viewport.presentation-fullscreen > .classmode-viewport-header,
+.classmode-viewport.presentation-fullscreen > .classmode-viewport-footer,
+.classmode-viewport.presentation-fullscreen .classmode-viewport-students,
+.classmode-viewport.presentation-fullscreen .classmode-board-topbar,
+.classmode-viewport.presentation-fullscreen .classmode-board-lesson-ribbon,
+.classmode-viewport.presentation-fullscreen .classmode-resource-card,
+.classmode-viewport.presentation-fullscreen .classmode-session-plan,
+.classmode-viewport.presentation-fullscreen .classmode-board-tools-toggle,
+.classmode-viewport.presentation-fullscreen .classmode-card-drawer-toggle,
+.classmode-viewport.presentation-fullscreen .classmode-stage-focus-toggle,
+.classmode-viewport.presentation-fullscreen .classmode-board-sidebar-left,
+.classmode-viewport.presentation-fullscreen .classmode-toolbar,
+.classmode-viewport.presentation-fullscreen .classmode-card-drawer,
+.classmode-viewport.presentation-fullscreen .resource-preview-head {
+  display: none !important;
+}
+.classmode-viewport.presentation-fullscreen > .classmode-viewport-body,
+.classmode-viewport.presentation-fullscreen .classmode-viewport-stage,
+.classmode-viewport.presentation-fullscreen .classmode-board-panel,
+.classmode-viewport.presentation-fullscreen .classmode-board-frame,
+.classmode-viewport.presentation-fullscreen .classmode-board-surface,
+.classmode-viewport.presentation-fullscreen .classmode-board-stage,
+.classmode-viewport.presentation-fullscreen .classmode-resource-preview,
+.classmode-viewport.presentation-fullscreen .resource-preview-body,
+.classmode-viewport.presentation-fullscreen .unified-media-renderer,
+.classmode-viewport.presentation-fullscreen .classmode-map-embed,
+.classmode-viewport.presentation-fullscreen .classmode-games-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.classmode-fullscreen-exit {
+  display: none;
+}
+.classmode-viewport.presentation-fullscreen .classmode-fullscreen-exit {
+  display: inline-flex !important;
+  position: fixed !important;
+  top: max(7px, var(--mobdea-safe-top)) !important;
+  right: max(7px, var(--mobdea-safe-right)) !important;
+  z-index: 5000 !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(246,208,111,.68) !important;
+  background: rgba(7,10,15,.78) !important;
+  color: #ffe8a2 !important;
+  box-shadow: 0 5px 18px rgba(0,0,0,.42) !important;
+}
+
+/* Always mask template sample/placeholder text inside editable zones. */
+.board-card-field.empty-mask { color: transparent !important; text-shadow: none !important; }

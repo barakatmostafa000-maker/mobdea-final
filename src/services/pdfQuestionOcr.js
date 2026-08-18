@@ -22,7 +22,7 @@ async function loadPdfAsset(assetId) {
   ensureNativeOcr();
   const blob = await getAssetBlob(assetId);
   if (!(blob instanceof Blob)) throw new Error('تعذر قراءة ملف PDF من ذاكرة المنصة.');
-  if (blob.size > 200 * 1024 * 1024) throw new Error('حجم ملف PDF أكبر من الحد المدعوم لاستخراج الأسئلة (200 ميجابايت).');
+  if (blob.size > 500 * 1024 * 1024) throw new Error('حجم ملف PDF أكبر من الحد المدعوم لاستخراج الأسئلة (500 ميجابايت).');
   return blob;
 }
 

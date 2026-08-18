@@ -1,6 +1,6 @@
 const MAX_SYNC_BYTES = 8_000_000;
 const MAX_SHARE_BYTES = 6_000_000;
-const MAX_ASSET_BYTES = 200 * 1024 * 1024;
+const MAX_ASSET_BYTES = 500 * 1024 * 1024;
 const MAX_ASSET_COUNT = 500;
 const MAX_READS_PER_MINUTE = 90;
 const MAX_WRITES_PER_MINUTE = 25;
@@ -1914,6 +1914,18 @@ async function handlePostGameEvent(
   );
 }
 
+/* MOBDEA_R19_TURN */
+function buildLiveIceServers(env = {}) {
+  const urls = String(env.MOBDEA_TURN_URLS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => /^(stun|turn|turns):/i.test(value));
+  const username = String(env.MOBDEA_TURN_USERNAME || '').trim();
+  const credential = String(env.MOBDEA_TURN_CREDENTIAL || '').trim();
+  if (!urls.length || !username || !credential) return [];
+  return [{ urls, username, credential }];
+}
+
 async function handleCreateLiveRoom(request, env, auth) {
   if (!(await rateLimit(request, env, auth.workspace, true, 20, 'live-create'))) {
     return json(request, env, { error: 'rate_limited' }, 429, { 'Retry-After': '60' });
@@ -1952,6 +1964,7 @@ async function handleCreateLiveRoom(request, env, auth) {
     grade: room.grade,
     lesson: room.lesson,
     expiresAt: room.expiresAt,
+  iceServers: buildLiveIceServers(env),
   }, 201);
 }
 
@@ -2013,6 +2026,7 @@ async function handleJoinLiveRoom(request, env, workspace, roomId) {
     },
     participantId,
     participantToken,
+  iceServers: buildLiveIceServers(env),
   }, 201);
 }
 

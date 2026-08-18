@@ -229,7 +229,13 @@ export default function PptxPreview({ url, blob, title, onOpenExternal }) {
     if (!blob && !url) return () => {};
 
     const parser = globalThis.Capacitor?.isNativePlatform?.() && blob
-      ? parsePptxNative(blob)
+      ? parsePptxNative(blob).catch(async (nativeError) => {
+          try {
+            return await parsePptxInBrowser(blob, url);
+          } catch {
+            throw nativeError;
+          }
+        })
       : parsePptxInBrowser(blob, url);
 
     parser.then((result) => {

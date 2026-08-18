@@ -23,8 +23,8 @@ function trimNativePdfCache(activeAssetKey) {
 
 async function renderBlob(blob, page = 1, maxWidth = 1600, cacheKey = '') {
   if (!(blob instanceof Blob) || !globalThis.Capacitor?.isNativePlatform?.()) return null;
-  if (blob.size > 200 * 1024 * 1024) {
-    throw new Error('حجم ملف PDF أكبر من الحد المدعوم للعرض داخل السبورة (200 ميجابايت).');
+  if (blob.size > 500 * 1024 * 1024) {
+    throw new Error('حجم ملف PDF أكبر من الحد المدعوم للعرض داخل السبورة (500 ميجابايت).');
   }
   const normalizedPage = Math.max(1, Number(page) || 1);
   const assetKey = cacheKey || `${blob.type}:${blob.size}`;

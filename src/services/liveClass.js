@@ -13,6 +13,22 @@ const LIVE_WORKSPACE_HEADER = 'X-Mobdea-Workspace';
 const LIVE_CLIENT_HEADER = 'X-Mobdea-Client';
 const MAX_EVENT_BYTES = 180_000;
 const DEFAULT_POLL_MS = 1400;
+const MOBDEA_RUNTIME_ICE = { servers: [] };
+
+function rememberLiveIceServers(configLike = {}) {
+  const supplied = Array.isArray(configLike?.iceServers)
+    ? configLike.iceServers
+    : [];
+  MOBDEA_RUNTIME_ICE.servers = supplied.filter((entry) => {
+    if (!entry || typeof entry !== 'object') return false;
+    const urls = Array.isArray(entry.urls) ? entry.urls : [entry.urls];
+    return urls.some(
+      (url) =>
+        typeof url === 'string'
+        && /^(stun|turn|turns):/i.test(url),
+    );
+  });
+}
 
 function readErrorBody(response, fallback) {
   return response.json()
@@ -110,6 +126,7 @@ export async function createLiveRoom(settings, metadata = {}) {
     throw new Error(await readErrorBody(response, `تعذر إنشاء الحصة المباشرة (${response.status}).`));
   }
   const created = validateCreatedRoom(await response.json());
+  rememberLiveIceServers(created);
   return { ...created, endpoint: config.endpoint, workspaceId: config.workspaceId };
 }
 
@@ -132,6 +149,7 @@ export async function joinLiveRoom(configLike, roomId, joinCode, profile = {}) {
     throw new Error(await readErrorBody(response, `تعذر دخول الحصة (${response.status}).`));
   }
   const joined = await response.json();
+  rememberLiveIceServers(joined);
   const roomIdValue = safeTrim(joined.roomId || roomId || '', 120);
   const participantToken = safeTrim(joined.participantToken || '', 260);
   const participantId = safeTrim(joined.participantId || joined.id || '', 120);
@@ -273,9 +291,24 @@ export function createLivePoller({
   };
 }
 
-export function defaultIceServers() {
-  return [
+export function defaultIceServers(configLike = {}) {
+  const fallback = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
   ];
+  const supplied = Array.isArray(configLike?.iceServers)
+    ? configLike.iceServers
+    : MOBDEA_RUNTIME_ICE.servers;
+  const valid = Array.isArray(supplied)
+    ? supplied.filter((entry) => {
+      if (!entry || typeof entry !== 'object') return false;
+      const urls = Array.isArray(entry.urls) ? entry.urls : [entry.urls];
+      return urls.some(
+        (url) =>
+          typeof url === 'string'
+          && /^(stun|turn|turns):/i.test(url),
+      );
+    })
+    : [];
+  return valid.length ? [...valid, ...fallback] : fallback;
 }

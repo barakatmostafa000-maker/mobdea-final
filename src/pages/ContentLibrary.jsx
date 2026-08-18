@@ -884,8 +884,8 @@ ${extracted}` : extracted,
             <label>الصفحات إلى<input type="number" min={form.pageStart || 1} value={form.pageEnd} onChange={(event) => setForm({ ...form, pageEnd: event.target.value })}/></label>
             <label className="span-2">ملاحظات الدرس<textarea rows="4" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="أهداف الدرس والنقاط المهمة وخطة الشرح..."/></label>
             <label className="span-2">الواجب المنزلي<textarea rows="3" value={form.homework || ''} onChange={(event) => setForm({ ...form, homework: event.target.value })} placeholder="اكتب واجب الدرس؛ سيظهر في تسجيل الحصة والتقارير."/></label>
-            <label>صفحات أسئلة نهاية الدرس من<input type="number" min={form.pageStart || 1} value={form.questionPageStart || form.pageStart || 1} onChange={(event) => setForm({ ...form, questionPageStart: event.target.value })}/></label>
-            <label>إلى<input type="number" min={form.questionPageStart || form.pageStart || 1} value={form.questionPageEnd || form.pageEnd || 1} onChange={(event) => setForm({ ...form, questionPageEnd: event.target.value })}/></label>
+            <label>صفحات أسئلة نهاية الدرس من<input type="number" min={form.pageStart || 1} value={form.questionPageStart ?? ''} onChange={(event) => setForm({ ...form, questionPageStart: event.target.value })}/></label>
+            <label>إلى<input type="number" min={form.questionPageStart || form.pageStart || 1} value={form.questionPageEnd ?? ''} onChange={(event) => setForm({ ...form, questionPageEnd: event.target.value })}/></label>
             <div className="span-2 library-ocr-panel">
               <div><ScanText size={24}/><span><strong>استخراج الأسئلة بـ OCR العربي</strong><small>يكتشف صفحات الأسئلة تلقائيًا قرب نهاية الدرس، أو يقرأ نطاقًا تحدده يدويًا، ثم يضع الأسئلة هنا للمراجعة قبل إدخالها بنك الألعاب.</small></span></div>
               <label className="library-ocr-source">مصدر PDF

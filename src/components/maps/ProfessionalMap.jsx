@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { geometryPath, featureCenter, getCountryFeatureId, getCountryName } from '../../data/geography';
 
 function mapItemColor(layerKey) {
@@ -236,10 +236,10 @@ function MapFurniture({ region }) {
         <path d="M16 22h130M16 15v14m65-14v14m65-14v14"/>
         <text x="154" y="25">مقياس تعليمي</text>
       </g>
-      <g className="map-pro-region-plaque" transform="translate(36 34)">
-        <rect width="250" height="54" rx="13"/>
-        <text x="16" y="23" className="eyebrow">خريطة الشرح</text>
-        <text x="16" y="43" className="title">{region?.title || 'العالم'}</text>
+      <g className="map-pro-region-plaque" transform="translate(385 18)">
+        <rect width="230" height="46" rx="11"/>
+        <text x="115" y="18" textAnchor="middle" className="eyebrow">خريطة الشرح</text>
+        <text x="115" y="37" textAnchor="middle" className="title">{region?.title || 'العالم'}</text>
       </g>
     </g>
   );
@@ -305,8 +305,63 @@ export default function ProfessionalMap({
   pointFeatures = [],
   highlightCountryIsos = [],
 }) {
+  const stageRef = useRef(null);
   const transformRef = useRef(null);
   const draggingPlacementRef = useRef('');
+  const panPointerRef = useRef(null);
+  const suppressStageClickRef = useRef(false);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    panPointerRef.current = null;
+    setPan({ x: 0, y: 0 });
+  }, [region?.title]);
+
+  useEffect(() => {
+    if (Number(zoom || 1) <= 1) setPan({ x: 0, y: 0 });
+  }, [zoom]);
+
+  const startMapPan = (event) => {
+    if (Number(zoom || 1) <= 1) return;
+    if (event.button != null && event.button !== 0) return;
+    if (event.target?.closest?.('.map-pro-placement, .map-pro-placement-actions, .map-pro-draw-canvas.active')) return;
+    panPointerRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      panX: Number(pan.x || 0),
+      panY: Number(pan.y || 0),
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const moveMapPan = (event) => {
+    const pending = panPointerRef.current;
+    if (!pending || pending.pointerId !== event.pointerId) return;
+    const dx = Number(event.clientX) - pending.startX;
+    const dy = Number(event.clientY) - pending.startY;
+    if (!pending.moved && Math.hypot(dx, dy) < 5) return;
+    pending.moved = true;
+    event.preventDefault();
+    const rect = stageRef.current?.getBoundingClientRect?.();
+    if (!rect?.width || !rect?.height) return;
+    const scale = Math.max(1, Number(zoom || 1));
+    const maxX = (rect.width * (scale - 1)) / 2;
+    const maxY = (rect.height * (scale - 1)) / 2;
+    setPan({
+      x: Math.max(-maxX, Math.min(maxX, pending.panX + dx)),
+      y: Math.max(-maxY, Math.min(maxY, pending.panY + dy)),
+    });
+  };
+
+  const finishMapPan = (event) => {
+    const pending = panPointerRef.current;
+    if (!pending || pending.pointerId !== event.pointerId) return;
+    panPointerRef.current = null;
+    if (pending.moved) suppressStageClickRef.current = true;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
 
   const movePlacementFromPointer = (placementId, event) => {
     if (!placementId || !onMovePlacement || !transformRef.current) return;
@@ -336,8 +391,24 @@ export default function ProfessionalMap({
   };
 
   return (
-    <div className={`map-pro-stage map-style-${mapStyle} ${silent ? 'silent-map' : ''}`} onClick={onStageClick} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
-      <div ref={transformRef} className="map-pro-transform" style={{ transform: `scale(${zoom})` }}>
+    <div
+      ref={stageRef}
+      className={`map-pro-stage map-style-${mapStyle} ${silent ? 'silent-map' : ''} ${Number(zoom || 1) > 1 ? 'can-pan' : ''}`}
+      onClickCapture={(event) => {
+        if (!suppressStageClickRef.current) return;
+        suppressStageClickRef.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onClick={onStageClick}
+      onPointerDown={startMapPan}
+      onPointerMove={moveMapPan}
+      onPointerUp={finishMapPan}
+      onPointerCancel={finishMapPan}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={handleDrop}
+    >
+      <div ref={transformRef} className="map-pro-transform" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
         <svg viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" className="map-pro-svg" role="img" aria-label={ariaLabel}>
           <MapDefs />
           <rect className="map-pro-ocean" width="1000" height="620" fill="url(#mapOcean)" filter={mapStyle === 'relief' ? 'url(#mapOceanTexture)' : undefined} />

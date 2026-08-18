@@ -13,6 +13,8 @@ import './styles/v110.css';
 import './styles/v111.css';
 import './styles/student-cards-print.css';
 import './styles/r18-classmode-viewport-fix.css';
+import './styles/r19-classmode-phase1.css';
+import './styles/r19-master-repairs.css';
 import { installViewportMetrics } from './services/viewport';
 
 installViewportMetrics();

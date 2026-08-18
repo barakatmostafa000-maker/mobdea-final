@@ -9,7 +9,7 @@ import { buildCloudUrl, timeoutFetch } from './cloudTransport.js';
 export { buildCloudUrl, timeoutFetch } from './cloudTransport.js';
 
 const MAX_SYNC_BYTES = 8_000_000;
-const MAX_ASSET_BYTES = 200 * 1024 * 1024;
+const MAX_ASSET_BYTES = 500 * 1024 * 1024;
 const MAX_SYNC_ASSETS = 500;
 
 export const validateCloudConfig = (settings = {}) => {

@@ -140,7 +140,7 @@ const historicalSymbolOptions = [
   { key: 'compass', label: 'بوصلة أثرية' },
   { key: 'sphinx', label: 'أبو الهول' },
   { key: 'temple', label: 'بوابة معبد' },
-  { key: 'mobdea-seal', label: 'ختم المُبدع' },
+  { key: 'mobdea-seal', label: 'شعار المُبدع' },
 ];
 const geographicalSymbolOptions = [
   { key: 'mountain', label: 'جبل مجسم' },
@@ -153,20 +153,25 @@ const geographicalSymbolOptions = [
   { key: 'map-sheet', label: 'خريطة مطوية' },
 ];
 const boardFontOptions = [
-  { value: "'Noto Naskh Arabic', 'Traditional Arabic', serif", probe: 'Noto Naskh Arabic', label: 'نسخ حقيقي — واضح وسلس' },
-  { value: "'Aref Ruqaa', 'Arabic Typesetting', serif", probe: 'Aref Ruqaa', label: 'رقعة حقيقي — كتابة سريعة' },
-  { value: "'Amiri', 'Traditional Arabic', serif", probe: 'Amiri', label: 'أميري — تاريخي أنيق' },
-  { value: "'Noto Kufi Arabic', Tahoma, sans-serif", probe: 'Noto Kufi Arabic', label: 'كوفي حقيقي — عناوين قوية' },
-  { value: "'Reem Kufi', 'Noto Kufi Arabic', sans-serif", probe: 'Reem Kufi', label: 'ريم كوفي — عرض مميز' },
+  { value: "'Noto Naskh Arabic', 'Droid Arabic Naskh', 'Traditional Arabic', serif", probe: 'Noto Naskh Arabic', label: 'نسخ — واضح وسلس' },
+  { value: "'Aref Ruqaa', 'Urdu Typesetting', 'Segoe Print', cursive", probe: 'Aref Ruqaa', label: 'رقعة — كتابة سريعة' },
+  { value: "'Amiri', 'Noto Naskh Arabic', 'Times New Roman', serif", probe: 'Amiri', label: 'أميري — تاريخي أنيق' },
+  { value: "'Noto Kufi Arabic', 'Droid Arabic Kufi', 'Noto Sans Arabic', sans-serif", probe: 'Noto Kufi Arabic', label: 'كوفي — عناوين قوية' },
+  { value: "'Reem Kufi', 'Noto Sans Arabic', Arial, sans-serif", probe: 'Reem Kufi', label: 'ريم كوفي — عرض مميز' },
 ];
 
 const BOARD_CANVAS_WIDTH = 1536;
 const BOARD_CANVAS_HEIGHT = 1024;
+const MOBDEA_LOGO_IMAGE = typeof Image !== 'undefined' ? new Image() : null;
+if (MOBDEA_LOGO_IMAGE) {
+  MOBDEA_LOGO_IMAGE.decoding = 'async';
+  MOBDEA_LOGO_IMAGE.src = identity.logo;
+}
 const BOARD_TEXT_PRESETS = Object.freeze([
-  { key: 'main', label: 'رئيسي', size: 60, weight: 900, lineHeight: 1.22 },
-  { key: 'heading', label: 'عنوان', size: 44, weight: 800, lineHeight: 1.28 },
-  { key: 'explanation', label: 'شرح', size: 31, weight: 700, lineHeight: 1.4 },
-  { key: 'note', label: 'ملاحظة', size: 23, weight: 700, lineHeight: 1.35 },
+  { key: 'main', label: 'رئيسي', size: 84, weight: 900, lineHeight: 1.18 },
+  { key: 'heading', label: 'عنوان', size: 64, weight: 800, lineHeight: 1.22 },
+  { key: 'explanation', label: 'شرح', size: 46, weight: 700, lineHeight: 1.34 },
+  { key: 'note', label: 'ملاحظة', size: 34, weight: 700, lineHeight: 1.32 },
 ]);
 const BOARD_TEXT_PRESET_MAP = Object.freeze(Object.fromEntries(BOARD_TEXT_PRESETS.map((item) => [item.key, item])));
 
@@ -753,8 +758,34 @@ function drawStamp(ctx, stamp) {
       ctx.fillStyle=stone;for(const x of [35,65,96,126]){ctx.fillRect(x,45,18,58);ctx.strokeRect(x,45,18,58);ctx.save();ctx.globalAlpha=.35;ctx.strokeStyle='#ffe9bc';ctx.beginPath();ctx.moveTo(x+5,49);ctx.lineTo(x+5,98);ctx.stroke();ctx.restore();}
       ctx.fillStyle=gold;ctx.beginPath();ctx.moveTo(16,21);ctx.lineTo(150,21);ctx.lineTo(143,34);ctx.lineTo(23,34);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillRect(18,103,132,11);ctx.strokeRect(18,103,132,11);
     } else if (kind === 'mobdea-seal') {
-      const seal=ctx.createRadialGradient(82,58,8,82,62,55);seal.addColorStop(0,'#241608');seal.addColorStop(.62,'#0b0d10');seal.addColorStop(.82,'#b67b1f');seal.addColorStop(1,'#422508');ctx.fillStyle=seal;ctx.strokeStyle='#f0cf72';ctx.lineWidth=5;ctx.beginPath();ctx.arc(82,62,52,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.strokeStyle='#9f6a1d';ctx.lineWidth=2;ctx.beginPath();ctx.arc(82,62,41,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#f5d47c';ctx.textAlign='center';ctx.font='900 22px Georgia, Tahoma, serif';ctx.fillText('المُبدع',82,56);ctx.font='700 11px Tahoma, Arial, sans-serif';ctx.fillText('مصطفى بركات',82,76);ctx.fillStyle='#fff0b4';ctx.beginPath();ctx.arc(82,88,3,0,Math.PI*2);ctx.fill();
+      if (MOBDEA_LOGO_IMAGE?.complete && MOBDEA_LOGO_IMAGE.naturalWidth > 0) {
+        const ratio = MOBDEA_LOGO_IMAGE.naturalWidth / Math.max(1, MOBDEA_LOGO_IMAGE.naturalHeight);
+        const maxWidth = 138;
+        const maxHeight = 104;
+        let logoWidth = maxWidth;
+        let logoHeight = logoWidth / ratio;
+        if (logoHeight > maxHeight) {
+          logoHeight = maxHeight;
+          logoWidth = logoHeight * ratio;
+        }
+        ctx.save();
+        ctx.globalAlpha = 0.98;
+        ctx.drawImage(MOBDEA_LOGO_IMAGE, 82 - logoWidth / 2, 62 - logoHeight / 2, logoWidth, logoHeight);
+        ctx.restore();
+      } else {
+        ctx.fillStyle='rgba(8,10,14,.86)';
+        ctx.strokeStyle='#d7ad35';
+        ctx.lineWidth=4;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(20,18,124,88,14);
+        else ctx.rect(20,18,124,88);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle='#f5d47c';
+        ctx.textAlign='center';
+        ctx.font='800 16px Tahoma, Arial, sans-serif';
+        ctx.fillText('شعار المُبدع',82,68);
+      }
     } else {
       ctx.fillStyle='rgba(12,22,28,.96)';ctx.strokeStyle='#d7ad35';ctx.lineWidth=5;ctx.beginPath();ctx.arc(82,62,48,0,Math.PI*2);ctx.fill();ctx.stroke();
       const needle=ctx.createLinearGradient(70,18,94,105);needle.addColorStop(0,'#fff1aa');needle.addColorStop(.52,'#d5a234');needle.addColorStop(.53,'#9a2f27');needle.addColorStop(1,'#5d1717');ctx.fillStyle=needle;ctx.beginPath();ctx.moveTo(82,15);ctx.lineTo(92,62);ctx.lineTo(82,109);ctx.lineTo(72,62);ctx.closePath();ctx.fill();
@@ -926,6 +957,12 @@ function drawBoardAction(ctx, action, selected = false) {
 }
 
 
+function boardCardFieldScale(field, value) {
+  const length = String(value || '').trim().length;
+  const density = length > 150 ? 0.48 : length > 100 ? 0.58 : length > 70 ? 0.68 : length > 45 ? 0.78 : length > 28 ? 0.88 : 1;
+  return Math.max(1.7, ((Number(field?.size || 24) / 650) * 100) * density);
+}
+
 function BoardCardOverlay({ action, selected, onSelect, onChange }) {
   const template = BOARD_CARD_TEMPLATE_MAP[action.templateKey];
   const dragRef = useRef(null);
@@ -954,11 +991,10 @@ function BoardCardOverlay({ action, selected, onSelect, onChange }) {
     event.preventDefault(); event.stopPropagation(); onSelect(action.id);
     const point = event.touches?.[0] || event;
     dragRef.current = { x: point.clientX, y: point.clientY, startX: action.x, startY: action.y };
+    const host = event.currentTarget.parentElement?.getBoundingClientRect?.();
     const onMove = (moveEvent) => {
-      if (!dragRef.current) return;
+      if (!dragRef.current || !host?.width || !host?.height) return;
       const p = moveEvent.touches?.[0] || moveEvent;
-      const host = event.currentTarget.parentElement?.getBoundingClientRect?.();
-      if (!host?.width || !host?.height) return;
       const dx = ((p.clientX - dragRef.current.x) / host.width) * BOARD_CANVAS_WIDTH;
       const dy = ((p.clientY - dragRef.current.y) / host.height) * BOARD_CANVAS_HEIGHT;
       onChange({ ...action, x: Math.max(0, Math.min(BOARD_CANVAS_WIDTH - action.width, dragRef.current.startX + dx)), y: Math.max(0, Math.min(BOARD_CANVAS_HEIGHT - action.height, dragRef.current.startY + dy)) });
@@ -975,7 +1011,7 @@ function BoardCardOverlay({ action, selected, onSelect, onChange }) {
       const p = moveEvent.touches?.[0] || moveEvent;
       if (!resizeRef.current || !host?.width) return;
       const delta = ((p.clientX - resizeRef.current.x) / host.width) * BOARD_CANVAS_WIDTH;
-      const width = Math.max(280, Math.min(1050, resizeRef.current.width + delta));
+      const width = Math.max(220, Math.min(1050, resizeRef.current.width + delta));
       onChange({ ...action, width, height: width / template.ratio });
     };
     const onEnd = () => { resizeRef.current = null; window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onEnd); };
@@ -992,8 +1028,8 @@ function BoardCardOverlay({ action, selected, onSelect, onChange }) {
       {template.imageZone && action.mediaDataUrl && <img className="board-card-user-media" src={action.mediaDataUrl} alt="" draggable="false" style={{ left:`${template.imageZone.x}%`, top:`${template.imageZone.y}%`, width:`${template.imageZone.w}%`, height:`${template.imageZone.h}%`, borderRadius:`${template.imageZone.radius || 8}%` }} />}
       {template.fields.map((field) => {
         const value = String(action.fields?.[field.key] || '');
-        if (!value) return null;
-        return <div key={field.key} className={`board-card-field tone-${field.tone || 'ink'}`} style={{ left:`${field.x}%`, top:`${field.y}%`, width:`${field.w}%`, height:`${field.h}%`, fontSize:`clamp(10px, ${(field.size || 24) / BOARD_CANVAS_WIDTH * 100}vw, ${field.size || 24}px)` }}>{value.split('\\n').map((line, index) => <span key={index}>{line}</span>)}</div>;
+        const displayValue = value || (selected ? field.label : '');
+        return <div key={field.key} className={`board-card-field tone-${field.tone || 'ink'} ${value ? '' : 'placeholder'} ${displayValue ? '' : 'empty-mask'}`} style={{ left:`${field.x}%`, top:`${field.y}%`, width:`${field.w}%`, height:`${field.h}%`, fontSize:`clamp(8px, ${boardCardFieldScale(field, displayValue || field.label)}cqw, ${field.size || 24}px)` }}>{displayValue ? displayValue.split('\n').map((line, index) => <span key={index}>{line}</span>) : null}</div>;
       })}
       {selected && <div className="board-card-actions" onPointerDown={(event) => event.stopPropagation()}><button type="button" onClick={updateFields}>تعديل النص</button>{template.imageZone && <label className="board-card-media-button">تغيير الصورة<input type="file" accept="image/*" hidden onChange={changeMedia}/></label>}<span className="board-card-resize-handle" onPointerDown={onResizeStart} title="تغيير الحجم">↘</span></div>}
     </div>
@@ -1021,7 +1057,7 @@ async function drawBoardCardToCanvas(ctx, action) {
   }
   ctx.save(); ctx.direction='rtl'; ctx.textAlign='center'; ctx.textBaseline='middle';
   for (const field of template.fields) {
-    const value=String(action.fields?.[field.key] || '').trim(); if (!value) continue;
+    const value=String(action.fields?.[field.key] || '').trim();
     const fx=x+width*(field.x+field.w/2)/100; const fy=y+height*(field.y+field.h/2)/100;
     const fw=width*field.w/100; const fh=height*field.h/100; const size=Math.max(12,(field.size||24)*(width/650));
     if (field.tone==='ink') { ctx.fillStyle='rgba(255,246,220,.82)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#2e1609'; }
@@ -1029,6 +1065,7 @@ async function drawBoardCardToCanvas(ctx, action) {
     else if (field.tone==='navy') { ctx.fillStyle='rgba(31,48,72,.94)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#fff3b7'; }
     else if (field.tone==='gold') { ctx.fillStyle='rgba(39,26,18,.86)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#ffe68c'; }
     else { ctx.fillStyle='rgba(84,43,10,.88)'; ctx.fillRect(fx-fw/2,fy-fh/2,fw,fh); ctx.fillStyle='#fff4c8'; }
+    if (!value) continue;
     ctx.font=`800 ${size}px 'Noto Naskh Arabic','Amiri','Traditional Arabic',serif`;
     const lines=value.split(/\\n/).slice(0,6); const lineHeight=size*1.22; const startY=fy-((lines.length-1)*lineHeight)/2;
     lines.forEach((line,index)=>ctx.fillText(line,fx,startY+index*lineHeight,fw-10));
@@ -1049,6 +1086,8 @@ const COUNTRY_CARD_DEFAULT_FIELDS = Object.freeze([
   { key: 'info2', label: 'المعلومة الثانية', x: 54, y: 57.5, w: 31, h: 8 },
   { key: 'info3', label: 'المعلومة الثالثة', x: 54, y: 67.5, w: 31, h: 8 },
   { key: 'info4', label: 'المعلومة الرابعة', x: 54, y: 77.2, w: 31, h: 8 },
+  { key: 'capital', label: 'العاصمة', x: 7, y: 76, w: 35, h: 7 },
+  { key: 'language', label: 'اللغة الرسمية', x: 7, y: 85, w: 35, h: 7 },
 ]);
 
 function countryCardFields(card) {
@@ -1097,7 +1136,7 @@ function CountryCardOverlay({ action, selected, onSelect, onChange }) {
     const onMove = (moveEvent) => {
       if (!resizeRef.current || !host?.width) return;
       const delta = ((moveEvent.clientX - resizeRef.current.x) / host.width) * BOARD_CANVAS_WIDTH;
-      const width = Math.max(360, Math.min(1120, resizeRef.current.width + delta));
+      const width = Math.max(240, Math.min(1120, resizeRef.current.width + delta));
       onChange({ ...action, width, height: width * 0.75 });
     };
     const onEnd = () => { resizeRef.current = null; window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onEnd); };
@@ -1112,11 +1151,18 @@ function CountryCardOverlay({ action, selected, onSelect, onChange }) {
       <img src={card.asset} alt={card.name} draggable="false" />
       {fields.map((field) => {
         const value = String(action.fields?.[field.key] || '');
-        const style = { left:`${field.x}%`, top:`${field.y}%`, width:`${field.w}%`, height:`${field.h}%`, fontSize:`${countryCardFontSize(action, value || field.label, field.title)}px` };
+        const style = { left:`${field.x}%`, top:`${field.y}%`, width:`${field.w}%`, height:`${field.h}%`, fontSize:`clamp(8px, ${field.title ? 5.2 : 3.6}cqw, ${field.title ? 38 : 27}px)` };
         if (selected) return <textarea key={field.key} className={`country-card-field-editor ${field.title ? 'title' : ''}`} dir="rtl" rows={1} value={value} placeholder={field.label} style={style} onPointerDown={(event) => event.stopPropagation()} onChange={(event) => onChange({ ...action, fields: { ...(action.fields || {}), [field.key]: event.target.value } })} />;
         if (!value) return null;
         return <div key={field.key} className={`country-card-field-text ${field.title ? 'title' : ''}`} style={style}>{value}</div>;
       })}
+      {!card.isDefault && (
+        <div className="country-card-meta-strip">
+          {[['الدولة', card.name], ['العاصمة', card.capital], ['اللغة', card.language]].map(([label, value]) => (
+            <span key={label}>{label}: {value}</span>
+          ))}
+        </div>
+      )}
       {selected && <div className="country-card-actions" onPointerDown={(event) => event.stopPropagation()}><strong>{card.name}</strong><span className="country-card-resize-handle" onPointerDown={onResizeStart} title="تغيير الحجم">↘</span></div>}
     </div>
   );
@@ -1162,6 +1208,19 @@ async function drawCountryCardToCanvas(ctx, action) {
     const textX = field.title ? fx + fw / 2 : fx + fw - 4;
     ctx.fillText(value, textX, fy + fh / 2, fw - 8);
   }
+  if (!card.isDefault) {
+    const meta = [`الدولة: ${card.name}`, `العاصمة: ${card.capital}`, `اللغة: ${card.language}`];
+    const metaY = y + height * 0.925;
+    const segment = width * 0.28;
+    const centers = [x + width * 0.25, x + width * 0.53, x + width * 0.81];
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f8e3a7';
+    meta.forEach((value, index) => {
+      const size = fitCountryCanvasText(ctx, value, segment, Math.max(12, width * 0.024), family, 800);
+      ctx.font = `800 ${size}px ${family}`;
+      ctx.fillText(value, centers[index], metaY, segment);
+    });
+  }
   ctx.restore();
 }
 
@@ -1193,16 +1252,29 @@ function CanvasOverlay({ actions, onDrawAction, onMoveAction, onSelectAction, se
   }, [fontFamily, actions]);
 
   useEffect(() => {
+    const image = MOBDEA_LOGO_IMAGE;
+    if (!image || image.complete) return undefined;
+    const onLoad = () => render();
+    image.addEventListener('load', onLoad);
+    return () => image.removeEventListener('load', onLoad);
+  }, [actions, selectedActionId]);
+
+  useEffect(() => {
     if (!boardReady && canvasRef.current) setBoardReady(true);
   }, [boardReady, setBoardReady]);
 
   const getPoint = (event) => {
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvas?.getBoundingClientRect?.();
     const point = event.touches?.[0] || event;
+    if (!canvas || !rect?.width || !rect?.height || !Number.isFinite(Number(point?.clientX)) || !Number.isFinite(Number(point?.clientY))) {
+      return { x: 0, y: 0 };
+    }
+    const localX = Math.max(0, Math.min(rect.width, Number(point.clientX) - rect.left));
+    const localY = Math.max(0, Math.min(rect.height, Number(point.clientY) - rect.top));
     return {
-      x: ((point.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((point.clientY - rect.top) / rect.height) * canvas.height,
+      x: (localX / rect.width) * canvas.width,
+      y: (localY / rect.height) * canvas.height,
     };
   };
 
@@ -1493,6 +1565,31 @@ export default function ClassMode({ data, updateData, navigate }) {
     () => rankStudentsByPoints(students, points),
     [students, points],
   );
+  const [studentSortMode, setStudentSortMode] = useState('points');
+  const pointSessionKey = `${current?.id || 'standalone-class'}:${today}`;
+  const previousPointSession = useMemo(() => {
+    const history = (Array.isArray(data.classPointSessions) ? data.classPointSessions : [])
+      .filter((item) => String(item?.id || '') !== pointSessionKey)
+      .filter((item) => !current?.group || !item?.group || String(item.group) === String(current.group))
+      .slice()
+      .sort((left, right) => new Date(right?.updatedAt || right?.date || 0).getTime() - new Date(left?.updatedAt || left?.date || 0).getTime());
+    return history[0] || null;
+  }, [data.classPointSessions, current?.group, pointSessionKey]);
+  const studentProgress = useMemo(() => Object.fromEntries(students.map((student) => {
+    const currentPoints = Math.max(0, Number(points[student.id] || 0));
+    const previousPoints = previousPointSession?.points && Object.prototype.hasOwnProperty.call(previousPointSession.points, student.id)
+      ? Math.max(0, Number(previousPointSession.points[student.id] || 0))
+      : currentPoints;
+    return [student.id, { current: currentPoints, previous: previousPoints, delta: currentPoints - previousPoints }];
+  })), [students, points, previousPointSession]);
+  const displayedStudents = useMemo(() => {
+    if (studentSortMode !== 'improved') return rankedStudents;
+    return rankedStudents.slice().sort((left, right) =>
+      Number(studentProgress[right.id]?.delta || 0) - Number(studentProgress[left.id]?.delta || 0)
+      || Number(points[right.id] || 0) - Number(points[left.id] || 0)
+      || String(left.name || '').localeCompare(String(right.name || ''), 'ar')
+    );
+  }, [rankedStudents, studentSortMode, studentProgress, points]);
   useEffect(() => {
     setPoints((currentPoints) => {
       const next = { ...currentPoints };
@@ -1510,6 +1607,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [notes, setNotes] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
   const [stageFocus, setStageFocus] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(() => Number(globalThis.innerWidth || 1024) >= 961);
   const [contentMode, setContentMode] = useState('pdf');
   const [clockTime, setClockTime] = useState(() => new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }));
   useEffect(() => {
@@ -1635,6 +1733,13 @@ export default function ClassMode({ data, updateData, navigate }) {
     setRedoStack([]);
   };
 
+  const adjustBoardTextSize = (delta) => {
+    const nextSize = Math.max(18, Math.min(112, Number(fontSize || 46) + Number(delta || 0)));
+    setFontSize(nextSize);
+    updateSelectedTextFormatting({ fontSize: nextSize, textPreset: 'custom' });
+    setTextPreset('custom');
+  };
+
   const selectTextPreset = (key) => {
     const preset = BOARD_TEXT_PRESET_MAP[key] || BOARD_TEXT_PRESET_MAP.explanation;
     setTextPreset(preset.key);
@@ -1662,6 +1767,9 @@ export default function ClassMode({ data, updateData, navigate }) {
     if (preset) {
       setTextPreset(preset.key);
       setFontSize(preset.size);
+    } else if (Number.isFinite(Number(action.fontSize))) {
+      setTextPreset('custom');
+      setFontSize(Number(action.fontSize));
     }
   };
 
@@ -1679,6 +1787,10 @@ export default function ClassMode({ data, updateData, navigate }) {
 
   const toggleFullscreen = async () => {
     const node = sceneRef.current;
+    if (fullscreen && !document.fullscreenElement) {
+      setFullscreen(false);
+      return;
+    }
     if (!node) { setFullscreen((value) => !value); return; }
     try {
       if (!document.fullscreenElement) {
@@ -2337,12 +2449,29 @@ export default function ClassMode({ data, updateData, navigate }) {
       ...previous,
       [student.id]: Math.max(0, Number(previous[student.id] || 0) + change),
     }));
-    void updateData((latest) => ({
-      ...latest,
-      students: (latest.students || []).map((item) => String(item.id) === String(student.id)
+    void updateData((latest) => {
+      const nextStudents = (latest.students || []).map((item) => String(item.id) === String(student.id)
         ? { ...item, points: Math.max(0, Number(item.points || 0) + change), updatedAt: new Date().toISOString() }
-        : item),
-    }));
+        : item);
+      const scopedStudents = current?.group
+        ? nextStudents.filter((item) => String(item.group || '') === String(current.group))
+        : nextStudents;
+      const sessionRecord = {
+        id: pointSessionKey,
+        sessionId: current?.id || null,
+        group: current?.group || '',
+        grade: currentGrade || current?.grade || '',
+        date: today,
+        updatedAt: new Date().toISOString(),
+        points: Object.fromEntries(scopedStudents.map((item) => [item.id, Math.max(0, Number(item.points || 0))])),
+      };
+      const classPointSessions = [
+        sessionRecord,
+        ...(Array.isArray(latest.classPointSessions) ? latest.classPointSessions : [])
+          .filter((item) => String(item?.id || '') !== pointSessionKey),
+      ].slice(0, 240);
+      return { ...latest, students: nextStudents, classPointSessions };
+    });
   };
 
   const randomStudent = async () => {
@@ -2816,7 +2945,8 @@ export default function ClassMode({ data, updateData, navigate }) {
         setShareNotice('التعرّف لم يكن واضحًا بما يكفي؛ أبقيت خط اليد كما هو حتى لا يضيع كلامك.');
         return;
       }
-      try { await document.fonts?.load?.(`${fontWeight} ${fontSize}px ${fontFamily}`, text); } catch { /* keep the declared fallback */ }
+      const correctedFontSize = Math.max(36, Number(fontSize || 46));
+      try { await document.fonts?.load?.(`${fontWeight} ${correctedFontSize}px ${fontFamily}`, text); } catch { /* keep the declared fallback */ }
       const nextAction = {
         id: Date.now() + Math.random(),
         kind: 'text',
@@ -2824,7 +2954,7 @@ export default function ClassMode({ data, updateData, navigate }) {
         x: Math.min(BOARD_CANVAS_WIDTH - 24, snapshot.bounds.maxX),
         y: Math.max(20, snapshot.bounds.minY),
         color: annotationColor,
-        fontSize,
+        fontSize: correctedFontSize,
         fontFamily,
         fontWeight,
         lineHeight: activeTextPreset.lineHeight,
@@ -2837,7 +2967,7 @@ export default function ClassMode({ data, updateData, navigate }) {
         ...current.filter((action) => !snapshot.ids.has(action.id)),
         nextAction,
       ]);
-      setSelectedBoardActionId(null);
+      setSelectedBoardActionId(nextAction.id);
       setRedoStack([]);
       setTextStyle('plain');
       setTool('pen');
@@ -2879,7 +3009,7 @@ export default function ClassMode({ data, updateData, navigate }) {
     setBoardActions((current) => [...current, next]);
     setSelectedBoardActionId(next.id);
     setRedoStack([]);
-    setTool('select');
+    setTool('pen');
     setTextStyle('plain');
     setCardsDrawerOpen(false);
   };
@@ -2890,7 +3020,7 @@ export default function ClassMode({ data, updateData, navigate }) {
     const width = 690;
     const height = width * 0.75;
     const fields = { info1: '', info2: '', info3: '', info4: '' };
-    if (card.isDefault) fields.title = '';
+    if (card.isDefault) { fields.title = ''; fields.capital = ''; fields.language = ''; }
     const next = {
       id: Date.now() + Math.random(),
       kind: 'country-card',
@@ -2904,7 +3034,8 @@ export default function ClassMode({ data, updateData, navigate }) {
     setBoardActions((current) => [...current, next]);
     setSelectedBoardActionId(next.id);
     setRedoStack([]);
-    setTool('select');
+    setTool('pen');
+    setTextStyle('plain');
     setCardsDrawerOpen(false);
   };
 
@@ -2914,11 +3045,15 @@ export default function ClassMode({ data, updateData, navigate }) {
     setSelectedBoardActionId(['stroke', 'text'].includes(action.kind) ? null : next.id);
     setRedoStack([]);
     if (action.kind === 'stroke') setTool(action.tool || 'pen');
+    if (['historical-symbol', 'geographical-symbol', 'shape', 'arrow'].includes(action.kind)) {
+      setTool('pen');
+      setTextStyle('plain');
+    }
     if (action.kind === 'text' && action.textStyle && action.textStyle !== 'plain') {
       setTextStyle('plain');
       setBoardText('');
-      setTool('select');
-      setShareNotice('تمت إضافة البطاقة، وعادت السبورة إلى أداة التحديد. اختر «كتابة عادية» لكتابة نص جديد.');
+      setTool('pen');
+      setShareNotice('تمت إضافة العنصر، وعادت السبورة إلى القلم للشرح مباشرة.');
     }
   };
 
@@ -2966,7 +3101,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const currentCount = students.length;
 
   return (
-    <ClassModeViewport className={`page classmode-scene classmode-final-layout ${fullscreen ? 'fullscreen' : ''} ${stageFocus ? 'stage-focus-mode' : ''}`} sceneRef={sceneRef}>
+    <ClassModeViewport className={`page classmode-scene classmode-final-layout ${fullscreen ? 'fullscreen presentation-fullscreen stage-focus-mode' : ''} ${!fullscreen && stageFocus ? 'stage-focus-mode' : ''} ${managementOpen ? 'management-open' : 'management-closed'}`} sceneRef={sceneRef}>
       <ClassModeViewport.Header>
         <div className="classmode-top-header">
         <div className="classmode-header-brand">
@@ -2995,6 +3130,8 @@ export default function ClassMode({ data, updateData, navigate }) {
       </ClassModeViewport.Header>
       <ClassModeViewport.Body>
         <ClassModeViewport.Stage>
+          {!fullscreen && <button type="button" className={`classmode-management-toggle ${managementOpen ? 'active' : ''}`} onClick={() => setManagementOpen((value) => !value)} title={managementOpen ? 'طي إدارة الحصة' : 'فتح إدارة الحصة'} aria-label={managementOpen ? 'طي إدارة الحصة' : 'فتح إدارة الحصة'}><Users size={17}/><span>{managementOpen ? 'طي' : 'إدارة الحصة'}</span></button>}
+          {fullscreen && <button type="button" className="classmode-fullscreen-exit" onClick={toggleFullscreen} title="الخروج من ملء الشاشة" aria-label="الخروج من ملء الشاشة"><X size={18}/></button>}
           <section className="classmode-board-panel">
           <div className="classmode-board-topbar">
             <div className="classmode-current-badge live-badge">● حصة مباشرة</div>
@@ -3059,6 +3196,19 @@ export default function ClassMode({ data, updateData, navigate }) {
           )}
 
           <div className="classmode-board-frame">
+            {displayResource && modeResources.length > 1 && (
+              <div className="classmode-media-edge-nav" role="group" aria-label="التبديل بين ملفات الدرس">
+                <button type="button" className="previous" onClick={() => cycleModeResource(-1)} title="الملف السابق" aria-label="الملف السابق">‹</button>
+                <button type="button" className="next" onClick={() => cycleModeResource(1)} title="الملف التالي" aria-label="الملف التالي">›</button>
+              </div>
+            )}
+            {displayResource && ['pdf', 'textbook'].includes(displayResource.type) && (
+              <div className="classmode-pdf-edge-nav" role="group" aria-label="التنقل بين صفحات PDF">
+                <button type="button" onClick={() => setClassPage((p) => clampLessonPage((p || 1) - 1, displayResource, renderedPdf.pageCount || Infinity))} disabled={(classPage || 1) <= Number(displayResource.pageStart || 1)} title="الصفحة السابقة" aria-label="الصفحة السابقة">‹</button>
+                <span>{classPage || 1}{displayResource.pageEnd ? ` / ${displayResource.pageEnd}` : renderedPdf.pageCount ? ` / ${renderedPdf.pageCount}` : ''}</span>
+                <button type="button" onClick={() => setClassPage((p) => clampLessonPage((p || 1) + 1, displayResource, renderedPdf.pageCount || Infinity))} disabled={(classPage || 1) >= Number(displayResource.pageEnd || renderedPdf.pageCount || Infinity)} title="الصفحة التالية" aria-label="الصفحة التالية">›</button>
+              </div>
+            )}
             {boardToolsAvailable && (
               <button
                 type="button"
@@ -3271,6 +3421,9 @@ export default function ClassMode({ data, updateData, navigate }) {
             </div>
             <div className="classmode-tool-group compact classmode-text-style-row">
               {BOARD_TEXT_PRESETS.map((preset) => <button key={preset.key} className={textPreset === preset.key ? 'active' : ''} onClick={() => selectTextPreset(preset.key)} type="button" title={`حجم ${preset.label}: ${preset.size}px`}>{preset.label}</button>)}
+              <button type="button" className="classmode-text-size-btn" onClick={() => adjustBoardTextSize(-4)} title="تصغير النص المحدد"><Minus size={14}/></button>
+              <span className="classmode-text-size-value">{Math.round(fontSize)}px</span>
+              <button type="button" className="classmode-text-size-btn" onClick={() => adjustBoardTextSize(4)} title="تكبير النص المحدد"><Plus size={14}/></button>
               <button className={textStyle === 'plain' && tool === 'normal-text' ? 'active' : ''} onClick={() => activateStyledText('plain')} type="button"><Type size={15} /> كتابة نصية</button>
               <button className="classmode-handwriting-polish" onClick={convertRecentHandwriting} disabled={handwritingBusy} type="button" title="تحويل آخر خط يد إلى نص منظم بالحجم والنوع المختارين"><Sparkles size={15}/>{handwritingBusy ? 'جارٍ القراءة…' : 'تصحيح خط اليد'}</button>
               <button type="button" className={`classmode-open-card-drawer ${cardsDrawerOpen ? 'active' : ''}`} onClick={() => setCardsDrawerOpen(true)}><StickyNote size={15}/> البطاقات</button>
@@ -3312,6 +3465,21 @@ export default function ClassMode({ data, updateData, navigate }) {
 
         <ClassModeViewport.Students>
           <aside className="classmode-side-column">
+          <article className="panel classmode-side-panel classmode-management-actions-panel">
+            <div className="panel-heading compact"><div><span className="eyebrow">إدارة الحصة</span><h3>الأونلاين والتسجيل والحفظ</h3></div><LayoutGrid size={18}/></div>
+            <div className="classmode-management-actions-grid">
+              <button type="button" className={`secondary-btn ${recordingWithAudio ? 'active' : ''}`} disabled={recordingActive || recordingBusy} onClick={() => setRecordingWithAudio((value) => !value)}>{recordingWithAudio ? <Mic size={16}/> : <MicOff size={16}/>}<span>{recordingWithAudio ? 'المايك يعمل' : 'المايك مغلق'}</span></button>
+              <button type="button" className={`secondary-btn ${recordingActive ? 'recording-active' : ''}`} disabled={recordingBusy} onClick={toggleClassRecording}><CircleDot size={16}/><span>{recordingBusy ? 'جارٍ التشغيل…' : recordingActive ? `إيقاف ${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}` : 'تسجيل الحصة'}</span></button>
+              {recordingActive && recordingBackend && <button type="button" className="secondary-btn" onClick={toggleRecordingPause}>{recordingPaused ? <CirclePlay size={16}/> : <CirclePause size={16}/>}<span>{recordingPaused ? 'استكمال التسجيل' : 'إيقاف مؤقت'}</span></button>}
+              {hasPendingNativeRecording && <button type="button" className="secondary-btn" disabled={recordingBusy} onClick={retryPendingNativeRecording}><Save size={16}/><span>إعادة حفظ الفيديو</span></button>}
+              <button type="button" className="secondary-btn" onClick={persistCurrentBoardLayer}><Save size={16}/><span>حفظ السبورة</span></button>
+              <button type="button" className="secondary-btn" onClick={saveBoard}><Camera size={16}/><span>لقطة شاشة</span></button>
+              <button type="button" className="secondary-btn classmode-live-shortcut" onClick={() => setLiveStartRequest(Date.now())}><Radio size={16}/><span>الحصة أونلاين</span></button>
+              <button type="button" className="secondary-btn" onClick={() => navigate('sessions')}><Presentation size={16}/><span>التسجيلات</span></button>
+              <button type="button" className="secondary-btn" onClick={() => navigate('contentLibrary')}><BookOpen size={16}/><span>المكتبة</span></button>
+              <button type="button" className="secondary-btn" onClick={() => navigate('settings')}><LayoutGrid size={16}/><span>الإعدادات</span></button>
+            </div>
+          </article>
           <TeacherLivePanel
             cloudSync={data.settings?.cloudSync}
             roomMeta={{
@@ -3358,8 +3526,12 @@ export default function ClassMode({ data, updateData, navigate }) {
               <div><span className="eyebrow">الطلاب والنقاط</span><h3>الترتيب الحالي</h3></div>
               <Trophy size={20} />
             </div>
+            <div className="classmode-student-sort" role="group" aria-label="ترتيب الطلاب">
+              <button type="button" className={studentSortMode === 'points' ? 'active' : ''} onClick={() => setStudentSortMode('points')}>النقاط</button>
+              <button type="button" className={studentSortMode === 'improved' ? 'active' : ''} onClick={() => setStudentSortMode('improved')}>الأكثر تحسنًا</button>
+            </div>
             <div className="classmode-students-list">
-              {rankedStudents.map((student) => {
+              {displayedStudents.map((student) => {
                 const status = attendanceMap[student.id];
                 const score = points[student.id] || 0;
                 return (
@@ -3371,14 +3543,12 @@ export default function ClassMode({ data, updateData, navigate }) {
                         <small>{student.grade}</small>
                       </div>
                       <b className={`attendance-dot ${status || 'pending'}`}>{statusLabels[status] || 'لم يسجل'}</b>
-                      <span className="student-score">{score}</span>
+                      <span className="student-score">{score}{Number(studentProgress[student.id]?.delta || 0) > 0 && <small>↑ +{studentProgress[student.id].delta}</small>}</span>
                     </button>
                     <div className="classmode-student-row-actions">
                       <button type="button" className={`student-attendance-mini present ${status === 'present' ? 'selected' : ''}`} title="حاضر" onClick={(event) => { event.stopPropagation(); mark(student, 'present'); }}>ح</button>
                       <button type="button" className={`student-attendance-mini late ${status === 'late' ? 'selected' : ''}`} title="متأخر" onClick={(event) => { event.stopPropagation(); mark(student, 'late'); }}>ت</button>
                       <button type="button" className={`student-attendance-mini absent ${status === 'absent' ? 'selected' : ''}`} title="غائب" onClick={(event) => { event.stopPropagation(); mark(student, 'absent'); }}>غ</button>
-                      <button type="button" className="student-point-btn student-point-minus" title="خصم نقطة" onClick={(event) => { event.stopPropagation(); adjustPoints(student, -1); }}><Minus size={14} /></button>
-                      <button type="button" className="student-point-btn" title="إضافة نقطة واحدة" onClick={(event) => { event.stopPropagation(); adjustPoints(student, 1); }}><Plus size={14} /></button>
                     </div>
                   </div>
                 );
@@ -3396,8 +3566,10 @@ export default function ClassMode({ data, updateData, navigate }) {
                   disabled={!selectedStudent}
                   onClick={() => setPhraseMenu((current) => current === 'positive' ? '' : 'positive')}
                   title="فتح مكتبة الجمل التشجيعية"
+                  data-testid="selected-student-praise"
+                  aria-label="تشجيع الطالب المحدد"
                 >
-                  <Sparkles size={18} /><span>تشجيع</span>
+                  <Sparkles size={18} />
                 </button>
                 <button
                   type="button"
@@ -3405,9 +3577,22 @@ export default function ClassMode({ data, updateData, navigate }) {
                   disabled={!selectedStudent}
                   onClick={() => setPhraseMenu((current) => current === 'corrective' ? '' : 'corrective')}
                   title="فتح مكتبة الجمل التنبيهية"
+                  data-testid="selected-student-warning"
+                  aria-label="تنبيه الطالب المحدد"
                 >
-                  <MailCheck size={18} /><span>تنبيه</span>
+                  <MailCheck size={18} />
                 </button>
+      <button
+        type="button"
+        className="student-point-btn selected-student-point-plus"
+        data-testid="selected-student-point-plus"
+        disabled={!selectedStudent}
+        onClick={() => selectedStudent && adjustPoints(selectedStudent, 1)}
+        title="إضافة نقطة واحدة"
+        aria-label="إضافة نقطة واحدة للطالب المحدد"
+      >
+        <Plus size={18} />
+      </button>
               </div>
               {phraseMenu && selectedStudent && (
                 <div className={`classmode-command-popover ${phraseMenu}`}>
@@ -3535,7 +3720,7 @@ export default function ClassMode({ data, updateData, navigate }) {
               <button type="button" className={challengeMode === 'teams' ? 'active' : ''} onClick={() => setChallengeMode('teams')}>فرق</button>
             </div>
             <div className="classmode-challenge-grid">
-              {rankedStudents.map((student) => {
+              {displayedStudents.map((student) => {
                 const active = challengePickIds.includes(student.id);
                 return (
                   <button key={student.id} type="button" className={active ? 'active' : ''} onClick={() => setChallengePickIds((currentIds) => {
@@ -3596,7 +3781,7 @@ export default function ClassMode({ data, updateData, navigate }) {
             <button type="button" className="secondary-btn classmode-retry-record-btn" disabled={recordingBusy} onClick={retryPendingNativeRecording} title="إعادة حفظ ملف تسجيل Android المؤقت" aria-label="إعادة حفظ فيديو الحصة"><Save size={17} /><span className="action-label">إعادة حفظ الفيديو</span></button>
           )}
           <button type="button" className="secondary-btn" onClick={saveBoard} title="حفظ لقطة من السبورة" aria-label="حفظ لقطة من السبورة"><Camera size={17} /><span className="action-label">لقطة شاشة</span></button>
-          <button type="button" className="secondary-btn" onClick={() => setView('students')} title="عرض الطلاب" aria-label="عرض الطلاب"><Users size={17} /><span className="action-label">الطلاب</span></button>
+          <button type="button" className="secondary-btn" onClick={() => setManagementOpen(true)} title="عرض الطلاب" aria-label="عرض الطلاب"><Users size={17} /><span className="action-label">الطلاب</span></button>
           <button type="button" className="secondary-btn classmode-live-shortcut" onClick={() => setLiveStartRequest(Date.now())} title="إنشاء أو نسخ رابط الحصة الأونلاين" aria-label="رابط الحصة الأونلاين"><Radio size={17} /><span className="action-label">الحصة أونلاين</span></button>
           <button type="button" className="secondary-btn" onClick={() => navigate('sessions')} title="قائمة تسجيلات الحصص" aria-label="قائمة تسجيلات الحصص"><Presentation size={17} /><span className="action-label">التسجيلات</span></button>
           <button type="button" className="secondary-btn" onClick={() => navigate('contentLibrary')} title="مكتبة المحتوى" aria-label="مكتبة المحتوى"><BookOpen size={17} /><span className="action-label">المكتبة</span></button>
@@ -3620,7 +3805,7 @@ export default function ClassMode({ data, updateData, navigate }) {
               <button className="icon-action" type="button" onClick={() => setView('board')} title="إغلاق"><X size={18} /></button>
             </header>
             <div className="classmode-student-drawer-list">
-              {rankedStudents.map((student) => {
+              {displayedStudents.map((student) => {
                 const status = attendanceMap[student.id];
                 return (
                   <div className="classmode-student-drawer-row" key={student.id}>
@@ -3631,9 +3816,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                       <button className={status === 'absent' ? 'selected absent' : 'absent'} onClick={() => mark(student, 'absent')} type="button">غائب</button>
                     </div>
                     <div className="drawer-point-actions">
-                      <button type="button" onClick={() => adjustPoints(student, -1)}><Minus size={15} /></button>
                       <b>{points[student.id] || 0}</b>
-                      <button type="button" onClick={() => adjustPoints(student, 1)}><Plus size={15} /></button>
                     </div>
                   </div>
                 );
