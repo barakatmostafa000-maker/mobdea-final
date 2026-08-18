@@ -1,9 +1,6 @@
 name: Mobdea R19 Clean Build
 
 on:
-  push:
-    branches:
-      - r19-unified
   workflow_dispatch:
 
 permissions:
@@ -35,15 +32,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          node --input-type=module <<'NODE'
+          const v = await import('./src/config/version.js');
+          if (v.APP_VERSION !== '10.14.0') throw new Error(`Unexpected APP_VERSION: ${v.APP_VERSION}`);
+          if (v.APP_VERSION_CODE !== 117) throw new Error(`Unexpected APP_VERSION_CODE: ${v.APP_VERSION_CODE}`);
+          if (v.RELEASE_TAG !== 'R19') throw new Error(`Unexpected RELEASE_TAG: ${v.RELEASE_TAG}`);
+          NODE
+
           test "$(node -p "require('./package.json').version")" = "10.14.0"
           test "$(node -p "require('./package.json').mobdea.versionCode")" = "117"
           grep -q 'versionCode 117' android/app/build.gradle
           grep -q 'versionName "10.14.0"' android/app/build.gradle
-          grep -q "APP_VERSION = '10.14.0'" src/config/version.js
-          grep -q "APP_VERSION_CODE = 117" src/config/version.js
-          grep -q "RELEASE_TAG = 'R19'" src/config/version.js
-          grep -q "RELEASE_TAG = 'R19'" scripts/sync-version.mjs
-          ! grep -q "RELEASE_TAG = 'R18'" scripts/sync-version.mjs
 
           test -f src/styles/r19-classmode-phase1.css
           test -f src/styles/r19-master-repairs.css
@@ -70,6 +70,16 @@ jobs:
           ! grep -Eq 'object-fit[[:space:]]*:[[:space:]]*fill[[:space:]]*!important' src/styles/r19-master-repairs.css
           git diff --check
 
+      - name: Verify deterministic version synchronization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/sync-version.mjs
+          git diff --exit-code -- \
+            src/config/version.js \
+            android/app/build.gradle \
+            public/update.manifest.json
+
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
 
@@ -87,6 +97,15 @@ jobs:
 
       - name: Full web verification
         run: npm run verify
+
+      - name: Confirm verification leaves version source stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- \
+            src/config/version.js \
+            android/app/build.gradle \
+            public/update.manifest.json
 
       - name: Sync Capacitor Android build inputs
         run: npx cap sync android
@@ -137,6 +156,6 @@ jobs:
             echo "## Mobdea R19 Clean Build"
             echo "- Source branch: r19-unified"
             echo "- Release identity: 10.14.0 / versionCode 117 / R19"
-            echo "- No repair payloads, source patches, git commits, or pushes."
-            echo "- Only verification, generated build inputs, tests, lint, APK assembly and artifact upload."
+            echo "- No repair payloads, source commits, or source pushes."
+            echo "- Only verification, build-input generation, tests, lint, APK assembly and artifact upload."
           } >> "$GITHUB_STEP_SUMMARY"
