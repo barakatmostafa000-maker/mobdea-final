@@ -1,0 +1,215 @@
+name: Mobdea R19 Source Finalize Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/R19_SOURCE_FINALIZE.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobdea-r19-source-finalize
+  cancel-in-progress: false
+
+jobs:
+  finalize-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout R19 source
+        uses: actions/checkout@v4
+        with:
+          ref: r19-unified
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply the already-reviewed R19 final source stages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main r19-unified
+          git switch -C r19-unified origin/r19-unified
+
+          FINAL_WORKFLOW=/tmp/R19_FINAL_CHECKED_3.yml
+          git show origin/main:.github/workflows/R19_FINAL_CHECKED_3.yml > "$FINAL_WORKFLOW"
+          test -s "$FINAL_WORKFLOW"
+          grep -q "name: Mobdea R19 FINAL-CHECKED-3" "$FINAL_WORKFLOW"
+
+          ruby -ryaml - "$FINAL_WORKFLOW" <<'RUBY'
+          path = ARGV[0]
+          doc = YAML.safe_load(File.read(path), aliases: true)
+          steps = doc.dig('jobs', 'repair-verify-build', 'steps') || []
+
+          wanted = [
+            'Apply complete pinned R19 repair payloads',
+            'Fix classroom media fit source contract',
+            'Enforce final Class Mode selected-student contract',
+            'Align legacy Phase 1 tests with final board contract',
+          ]
+
+          wanted.each_with_index do |name, index|
+            step = steps.find { |item| item['name'] == name }
+            abort("Missing final R19 source stage: #{name}") unless step && step['run']
+            target = format('/tmp/r19-source-stage-%02d.sh', index + 1)
+            File.write(target, step['run'])
+            puts format('%02d. %s', index + 1, name)
+          end
+          RUBY
+
+          for stage in /tmp/r19-source-stage-*.sh; do
+            echo "=== $(basename "$stage") ==="
+            bash -euo pipefail "$stage"
+          done
+
+      - name: Assert final source contracts before persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test "$(node -p "require('./package.json').version")" = "10.14.0"
+          test "$(node -p "require('./package.json').mobdea.versionCode")" = "117"
+          grep -q 'versionCode 117' android/app/build.gradle
+          grep -q 'versionName "10.14.0"' android/app/build.gradle
+          grep -q "APP_VERSION = '10.14.0'" src/config/version.js
+          grep -q "APP_VERSION_CODE = 117" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" src/config/version.js
+          grep -q "RELEASE_TAG = 'R19'" scripts/sync-version.mjs
+          ! grep -q "RELEASE_TAG = 'R18'" scripts/sync-version.mjs
+
+          test -f src/styles/r19-classmode-phase1.css
+          test -f src/styles/r19-master-repairs.css
+          test -f tests/r19-classmode-phase1.test.mjs
+          test -f tests/r19-master-repairs.test.mjs
+          test -f tests/r19-final-v3.test.mjs
+          test -f src/data/countryCards.js
+
+          grep -q 'data-testid="selected-student-point-plus"' src/pages/ClassMode.jsx
+          grep -q 'data-testid="selected-student-praise"' src/pages/ClassMode.jsx
+          grep -q 'data-testid="selected-student-warning"' src/pages/ClassMode.jsx
+          ! grep -q 'student-point-minus' src/pages/ClassMode.jsx
+
+          grep -q 'defaultIceServers(configLike = {})' src/services/liveClass.js
+          grep -q 'MOBDEA_RUNTIME_ICE' src/services/liveClass.js
+          grep -q 'rememberLiveIceServers(created)' src/services/liveClass.js
+          grep -q 'rememberLiveIceServers(joined)' src/services/liveClass.js
+          grep -q 'MOBDEA_TURN_URLS' cloud-worker/worker.js
+
+          grep -q 'MAX_ASSET_BYTES = 500 \* 1024 \* 1024' src/services/cloudSync.js
+          grep -q 'MAX_ASSET_BYTES = 500 \* 1024 \* 1024' cloud-worker/worker.js
+
+          grep -q 'MOBDEA_R19_FINAL' src/styles/r19-master-repairs.css
+          grep -q 'object-fit: contain !important' src/styles/r19-master-repairs.css
+          ! grep -Eq 'object-fit[[:space:]]*:[[:space:]]*fill[[:space:]]*!important' \
+            src/styles/r19-master-repairs.css
+
+          test -s android/app/src/main/assets/ara.traineddata.gz
+          test -s android/app/src/main/assets/eng.traineddata.gz
+          test -s public/fonts/NotoNaskhArabic-Variable.ttf
+          test -s public/fonts/NotoKufiArabic-Variable.ttf
+          test -s public/fonts/ArefRuqaa-Regular.ttf
+          test -s public/fonts/Amiri-Regular.ttf
+          test -s public/fonts/ReemKufi-Variable.ttf
+
+          git diff --check
+
+      - name: Install clean build workflow into R19 branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .github/workflows
+          git show origin/main:.github/workflows/R19_BUILD_CLEAN.yml \
+            > .github/workflows/R19_BUILD_CLEAN.yml
+          grep -q "name: Mobdea R19 Clean Build" .github/workflows/R19_BUILD_CLEAN.yml
+
+      - name: Capture changed text paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            git diff --name-only --diff-filter=ACMRT
+            git ls-files --others --exclude-standard
+          } | sort -u > /tmp/r19-materialized-paths.txt
+          cat /tmp/r19-materialized-paths.txt
+
+      - name: Persist complete R19 source BEFORE build verification
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "R19 final source was already materialized."
+          else
+            git commit -m "Materialize R19 final source before clean build"
+            git push origin HEAD:r19-unified
+          fi
+
+          echo "Persisted source HEAD: $(git rev-parse HEAD)"
+
+      - name: Install locked dependencies for formatting only
+        run: npm ci --ignore-scripts
+
+      - name: Format only materialized text files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          prettier_files=()
+          while IFS= read -r file; do
+            [[ -f "$file" ]] || continue
+            case "$file" in
+              *.js|*.jsx|*.mjs|*.cjs|*.ts|*.tsx|*.json|*.css|*.scss|*.less|*.html|*.md|*.yml|*.yaml)
+                prettier_files+=("$file")
+                ;;
+            esac
+          done < /tmp/r19-materialized-paths.txt
+
+          if ((${#prettier_files[@]})); then
+            npx --yes prettier@3.6.2 --write "${prettier_files[@]}"
+          else
+            echo "No materialized text files need formatting."
+          fi
+
+          git diff --check
+
+      - name: Persist formatting without coupling it to the build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No formatting follow-up commit needed."
+          else
+            git commit -m "Format materialized R19 source"
+            git push origin HEAD:r19-unified
+          fi
+
+          echo "Final source HEAD: $(git rev-parse HEAD)"
+
+      - name: Source finalization summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Mobdea R19 Source Finalization"
+            echo "- The R19 repair payload is materialized into r19-unified."
+            echo "- Source is committed BEFORE web/Android build verification."
+            echo "- Clean build workflow is copied into the R19 source branch."
+            echo "- Push to r19-unified automatically starts the clean build."
+            echo "- A build failure can no longer erase the finalized source changes."
+          } >> "$GITHUB_STEP_SUMMARY"
