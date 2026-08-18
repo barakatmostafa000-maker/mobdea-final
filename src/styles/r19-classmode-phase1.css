@@ -1,8 +1,12 @@
 /* R19 Phase 1: board geometry, true fullscreen and card editing. */
 
-.classmode-v103 .class-board-canvas-shell.board-theme-history:not(.has-resource-head),
-.classmode-viewport.stage-focus-mode .board-template-history .class-board-canvas-shell.board-theme-history:not(.has-resource-head),
-.classmode-viewport .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
+.classmode-v103
+  .class-board-canvas-shell.board-theme-history:not(.has-resource-head),
+.classmode-viewport.stage-focus-mode
+  .board-template-history
+  .class-board-canvas-shell.board-theme-history:not(.has-resource-head),
+.classmode-viewport
+  .class-board-canvas-shell.board-theme-history:not(.has-resource-head) {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
@@ -15,8 +19,17 @@
   transform-origin: center center !important;
   overflow: hidden !important;
   background:
-    radial-gradient(ellipse at 50% 46%, rgba(255,251,231,.995) 0 45%, rgba(238,211,160,.985) 77%, rgba(151,96,38,.96) 100%),
-    repeating-linear-gradient(4deg, rgba(93,53,19,.035) 0 1px, transparent 1px 8px),
+    radial-gradient(
+      ellipse at 50% 46%,
+      rgba(255, 251, 231, 0.995) 0 45%,
+      rgba(238, 211, 160, 0.985) 77%,
+      rgba(151, 96, 38, 0.96) 100%
+    ),
+    repeating-linear-gradient(
+      4deg,
+      rgba(93, 53, 19, 0.035) 0 1px,
+      transparent 1px 8px
+    ),
     #e7c98d !important;
 }
 
@@ -70,14 +83,28 @@
   overflow-wrap: anywhere !important;
 }
 .board-card-field.placeholder {
-  opacity: .72 !important;
+  opacity: 0.72 !important;
   font-style: italic !important;
 }
-.board-card-field.tone-ink { background: rgba(255,246,220,.92) !important; }
-.board-card-field.tone-brown { background: rgba(115,61,14,.92) !important; color:#fff4c8 !important; }
-.board-card-field.tone-navy { background: rgba(31,48,72,.94) !important; color:#fff3b7 !important; }
-.board-card-field.tone-gold { background: rgba(39,26,18,.90) !important; color:#ffe68c !important; }
-.board-card-field.tone-cream { background: rgba(84,43,10,.90) !important; color:#fff4c8 !important; }
+.board-card-field.tone-ink {
+  background: rgba(255, 246, 220, 0.92) !important;
+}
+.board-card-field.tone-brown {
+  background: rgba(115, 61, 14, 0.92) !important;
+  color: #fff4c8 !important;
+}
+.board-card-field.tone-navy {
+  background: rgba(31, 48, 72, 0.94) !important;
+  color: #fff3b7 !important;
+}
+.board-card-field.tone-gold {
+  background: rgba(39, 26, 18, 0.9) !important;
+  color: #ffe68c !important;
+}
+.board-card-field.tone-cream {
+  background: rgba(84, 43, 10, 0.9) !important;
+  color: #fff4c8 !important;
+}
 
 .country-card-field-editor,
 .country-card-field-text {
@@ -110,7 +137,7 @@
   white-space: nowrap !important;
   text-align: center !important;
   color: #f8e3a7 !important;
-  text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
   font-weight: 800 !important;
   font-size: clamp(8px, 2.25cqw, 16px) !important;
 }
@@ -156,11 +183,8 @@
 .classmode-viewport.presentation-fullscreen {
   grid-template-rows: minmax(0, 1fr) !important;
   gap: 0 !important;
-  padding:
-    max(2px, var(--mobdea-safe-top))
-    max(2px, var(--mobdea-safe-right))
-    max(2px, var(--mobdea-safe-bottom))
-    max(2px, var(--mobdea-safe-left)) !important;
+  padding: max(2px, var(--mobdea-safe-top)) max(2px, var(--mobdea-safe-right))
+    max(2px, var(--mobdea-safe-bottom)) max(2px, var(--mobdea-safe-left)) !important;
 }
 .classmode-viewport.presentation-fullscreen > .classmode-viewport-header,
 .classmode-viewport.presentation-fullscreen > .classmode-viewport-footer,
@@ -218,11 +242,14 @@
   justify-content: center !important;
   padding: 0 !important;
   border-radius: 999px !important;
-  border: 1px solid rgba(246,208,111,.68) !important;
-  background: rgba(7,10,15,.78) !important;
+  border: 1px solid rgba(246, 208, 111, 0.68) !important;
+  background: rgba(7, 10, 15, 0.78) !important;
   color: #ffe8a2 !important;
-  box-shadow: 0 5px 18px rgba(0,0,0,.42) !important;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.42) !important;
 }
 
 /* Always mask template sample/placeholder text inside editable zones. */
-.board-card-field.empty-mask { color: transparent !important; text-shadow: none !important; }
+.board-card-field.empty-mask {
+  color: transparent !important;
+  text-shadow: none !important;
+}

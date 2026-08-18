@@ -1,49 +1,69 @@
-import { registerPlugin } from '@capacitor/core';
-import { getAssetBlob } from './assetStore';
-import { normalizeOcrText, structureOcrQuestions } from './ocrQuestionParser';
-import { selectQuestionPageWindow } from './ocrQuestionDiscovery';
-import { releaseNativeAsset, stageBlobForNative } from './nativeAssetBridge';
+import { registerPlugin } from "@capacitor/core";
+import { getAssetBlob } from "./assetStore";
+import { normalizeOcrText, structureOcrQuestions } from "./ocrQuestionParser";
+import { selectQuestionPageWindow } from "./ocrQuestionDiscovery";
+import { releaseNativeAsset, stageBlobForNative } from "./nativeAssetBridge";
 
-const NativePdfOcr = registerPlugin('MobdeaPdfOcr');
+const NativePdfOcr = registerPlugin("MobdeaPdfOcr");
 export const OCR_MAX_PAGES = 80;
 export const OCR_BATCH_PAGES = 4;
 export const OCR_AUTO_SCAN_PAGES = 30;
 
-export { normalizeOcrText, structureOcrQuestions } from './ocrQuestionParser';
+export { normalizeOcrText, structureOcrQuestions } from "./ocrQuestionParser";
 
 function ensureNativeOcr() {
   if (!globalThis.Capacitor?.isNativePlatform?.()) {
-    throw new Error('استخراج OCR يعمل داخل تطبيق Android على الموبايل أو التابلت.');
+    throw new Error(
+      "استخراج OCR يعمل داخل تطبيق Android على الموبايل أو التابلت.",
+    );
   }
 }
 
 async function loadPdfAsset(assetId) {
-  if (!assetId) throw new Error('ارفع كتاب الشرح الأساسي أو ملف الامتحانات لهذا الصف أولًا.');
+  if (!assetId)
+    throw new Error(
+      "ارفع كتاب الشرح الأساسي أو ملف الامتحانات لهذا الصف أولًا.",
+    );
   ensureNativeOcr();
   const blob = await getAssetBlob(assetId);
-  if (!(blob instanceof Blob)) throw new Error('تعذر قراءة ملف PDF من ذاكرة المنصة.');
-  if (blob.size > 500 * 1024 * 1024) throw new Error('حجم ملف PDF أكبر من الحد المدعوم لاستخراج الأسئلة (500 ميجابايت).');
+  if (!(blob instanceof Blob))
+    throw new Error("تعذر قراءة ملف PDF من ذاكرة المنصة.");
+  if (blob.size > 500 * 1024 * 1024)
+    throw new Error(
+      "حجم ملف PDF أكبر من الحد المدعوم لاستخراج الأسئلة (500 ميجابايت).",
+    );
   return blob;
 }
 
-async function recognizePdfRange({ assetPath, startPage, endPage, onProgress, signal }) {
+async function recognizePdfRange({
+  assetPath,
+  startPage,
+  endPage,
+  onProgress,
+  signal,
+}) {
   const firstPage = Math.max(1, Number(startPage || 1));
   const lastPage = Math.max(firstPage, Number(endPage || firstPage));
   if (lastPage - firstPage + 1 > OCR_BATCH_PAGES) {
-    throw new Error(`دفعة OCR الداخلية أكبر من الحد الآمن (${OCR_BATCH_PAGES} صفحات).`);
+    throw new Error(
+      `دفعة OCR الداخلية أكبر من الحد الآمن (${OCR_BATCH_PAGES} صفحات).`,
+    );
   }
 
   let listener;
-  const taskId = globalThis.crypto?.randomUUID?.() || `ocr-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const taskId =
+    globalThis.crypto?.randomUUID?.() ||
+    `ocr-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const cancel = () => NativePdfOcr.cancel({ taskId }).catch(() => {});
   try {
-    if (signal?.aborted) throw new DOMException('تم إلغاء عملية OCR.', 'AbortError');
-    signal?.addEventListener('abort', cancel, { once: true });
-    listener = await NativePdfOcr.addListener('progress', (event) => {
+    if (signal?.aborted)
+      throw new DOMException("تم إلغاء عملية OCR.", "AbortError");
+    signal?.addEventListener("abort", cancel, { once: true });
+    listener = await NativePdfOcr.addListener("progress", (event) => {
       onProgress?.({
         page: Number(event?.page || firstPage),
         totalPages: Number(event?.totalPages || lastPage - firstPage + 1),
-        stage: String(event?.stage || 'recognizing'),
+        stage: String(event?.stage || "recognizing"),
       });
     });
     return await NativePdfOcr.recognizePdfPages({
@@ -51,11 +71,11 @@ async function recognizePdfRange({ assetPath, startPage, endPage, onProgress, si
       taskId,
       startPage: firstPage,
       endPage: lastPage,
-      language: 'ara+eng',
+      language: "ara+eng",
       maxWidth: 1600,
     });
   } finally {
-    signal?.removeEventListener('abort', cancel);
+    signal?.removeEventListener("abort", cancel);
     await listener?.remove?.().catch?.(() => {});
   }
 }
@@ -72,11 +92,14 @@ export async function extractQuestionsFromPdfAsset({
   const lastPage = Math.max(firstPage, Number(endPage || firstPage));
   const selectedPageCount = lastPage - firstPage + 1;
   if (selectedPageCount > OCR_MAX_PAGES) {
-    throw new Error(`يمكن اختيار ${OCR_MAX_PAGES} صفحة كحد أقصى في عملية OCR الواحدة.`);
+    throw new Error(
+      `يمكن اختيار ${OCR_MAX_PAGES} صفحة كحد أقصى في عملية OCR الواحدة.`,
+    );
   }
   const assetPath = await stageBlobForNative(blob, {
     signal,
-    onProgress: ({ uploaded, total }) => onProgress?.({ stage: 'staging-file', uploaded, total }),
+    onProgress: ({ uploaded, total }) =>
+      onProgress?.({ stage: "staging-file", uploaded, total }),
   });
   try {
     const pages = [];
@@ -84,27 +107,34 @@ export async function extractQuestionsFromPdfAsset({
     let pageCount = 0;
     let processedPages = 0;
     let modelDownloaded = false;
-    for (let batchStart = firstPage; batchStart <= lastPage; batchStart += OCR_BATCH_PAGES) {
-      if (signal?.aborted) throw new DOMException('تم إلغاء عملية OCR.', 'AbortError');
+    for (
+      let batchStart = firstPage;
+      batchStart <= lastPage;
+      batchStart += OCR_BATCH_PAGES
+    ) {
+      if (signal?.aborted)
+        throw new DOMException("تم إلغاء عملية OCR.", "AbortError");
       const batchEnd = Math.min(lastPage, batchStart + OCR_BATCH_PAGES - 1);
       const result = await recognizePdfRange({
         assetPath,
         startPage: batchStart,
         endPage: batchEnd,
         signal,
-        onProgress: (progress) => onProgress?.({
-          ...progress,
-          totalPages: selectedPageCount,
-          processedPages,
-        }),
+        onProgress: (progress) =>
+          onProgress?.({
+            ...progress,
+            totalPages: selectedPageCount,
+            processedPages,
+          }),
       });
-      if (String(result?.text || '').trim()) textParts.push(String(result.text));
+      if (String(result?.text || "").trim())
+        textParts.push(String(result.text));
       pages.push(...(Array.isArray(result?.pages) ? result.pages : []));
       pageCount = Math.max(pageCount, Number(result?.pageCount || 0));
       processedPages += Number(result?.processedPages || 0);
       modelDownloaded ||= Boolean(result?.modelDownloaded);
     }
-    const structured = structureOcrQuestions(textParts.join('\n\n'));
+    const structured = structureOcrQuestions(textParts.join("\n\n"));
     return {
       ...structured,
       pages,
@@ -132,39 +162,60 @@ export async function autoDetectQuestionsFromPdfAsset({
 } = {}) {
   const blob = await loadPdfAsset(assetId);
   const declaredStart = Math.max(1, Number(lessonStartPage || 1));
-  const declaredEnd = Math.max(declaredStart, Number(lessonEndPage || declaredStart));
-  const scanStart = Math.max(declaredStart, declaredEnd - OCR_AUTO_SCAN_PAGES + 1);
+  const declaredEnd = Math.max(
+    declaredStart,
+    Number(lessonEndPage || declaredStart),
+  );
+  const scanStart = Math.max(
+    declaredStart,
+    declaredEnd - OCR_AUTO_SCAN_PAGES + 1,
+  );
   const collectedPages = [];
   let pageCount = 0;
   let modelDownloaded = false;
 
   const assetPath = await stageBlobForNative(blob, {
     signal,
-    onProgress: ({ uploaded, total }) => onProgress?.({ stage: 'staging-file', uploaded, total }),
+    onProgress: ({ uploaded, total }) =>
+      onProgress?.({ stage: "staging-file", uploaded, total }),
   });
   try {
-    for (let chunkStart = scanStart; chunkStart <= declaredEnd; chunkStart += OCR_BATCH_PAGES) {
-      if (signal?.aborted) throw new DOMException('تم إلغاء عملية OCR.', 'AbortError');
+    for (
+      let chunkStart = scanStart;
+      chunkStart <= declaredEnd;
+      chunkStart += OCR_BATCH_PAGES
+    ) {
+      if (signal?.aborted)
+        throw new DOMException("تم إلغاء عملية OCR.", "AbortError");
       const chunkEnd = Math.min(declaredEnd, chunkStart + OCR_BATCH_PAGES - 1);
       const result = await recognizePdfRange({
         assetPath,
         startPage: chunkStart,
         endPage: chunkEnd,
         signal,
-        onProgress: (progress) => onProgress?.({ ...progress, stage: progress.stage === 'recognizing' ? 'detecting-questions' : progress.stage }),
+        onProgress: (progress) =>
+          onProgress?.({
+            ...progress,
+            stage:
+              progress.stage === "recognizing"
+                ? "detecting-questions"
+                : progress.stage,
+          }),
       });
       pageCount = Math.max(pageCount, Number(result?.pageCount || 0));
       modelDownloaded ||= Boolean(result?.modelDownloaded);
-      for (const page of Array.isArray(result?.pages) ? result.pages : []) collectedPages.push(page);
+      for (const page of Array.isArray(result?.pages) ? result.pages : [])
+        collectedPages.push(page);
     }
   } finally {
     await releaseNativeAsset(assetPath);
   }
 
-  const { pages: selectedPages, scored } = selectQuestionPageWindow(collectedPages);
+  const { pages: selectedPages, scored } =
+    selectQuestionPageWindow(collectedPages);
   if (!selectedPages.length) {
     return {
-      ...structureOcrQuestions(''),
+      ...structureOcrQuestions(""),
       pageCount,
       processedPages: collectedPages.length,
       startPage: 0,
@@ -173,13 +224,17 @@ export async function autoDetectQuestionsFromPdfAsset({
       modelDownloaded,
       scannedStartPage: scanStart,
       scannedEndPage: declaredEnd,
-      pageScores: scored.map(({ page, score, parsed }) => ({ page, score: Number(score.toFixed(2)), parsed })),
+      pageScores: scored.map(({ page, score, parsed }) => ({
+        page,
+        score: Number(score.toFixed(2)),
+        parsed,
+      })),
     };
   }
 
   const combined = selectedPages
-    .map((page) => `--- صفحة ${page.page} ---\n${page.text || ''}`)
-    .join('\n\n');
+    .map((page) => `--- صفحة ${page.page} ---\n${page.text || ""}`)
+    .join("\n\n");
   const structured = structureOcrQuestions(combined);
   return {
     ...structured,
@@ -192,6 +247,10 @@ export async function autoDetectQuestionsFromPdfAsset({
     scannedStartPage: scanStart,
     scannedEndPage: declaredEnd,
     detectedPages: selectedPages.map((page) => Number(page.page)),
-    pageScores: scored.map(({ page, score, parsed }) => ({ page, score: Number(score.toFixed(2)), parsed })),
+    pageScores: scored.map(({ page, score, parsed }) => ({
+      page,
+      score: Number(score.toFixed(2)),
+      parsed,
+    })),
   };
 }
