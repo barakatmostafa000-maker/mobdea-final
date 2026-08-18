@@ -1,0 +1,94 @@
+name: Export Claude Source
+
+on:
+  push:
+    branches:
+      - r19-unified
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout R19 unified source
+        uses: actions/checkout@v4
+        with:
+          ref: r19-unified
+          fetch-depth: 1
+
+      - name: Prepare lightweight source package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ROOT="$GITHUB_WORKSPACE"
+          OUT="$RUNNER_TEMP/mobdea-r19-source-for-claude"
+          ZIP="$RUNNER_TEMP/mobdea-r19-source-for-claude.zip"
+
+          rm -rf "$OUT" "$ZIP"
+          mkdir -p "$OUT"
+
+          rsync -a \
+            --exclude='.git/' \
+            --exclude='node_modules/' \
+            --exclude='dist/' \
+            --exclude='build/' \
+            --exclude='.gradle/' \
+            --exclude='android/.gradle/' \
+            --exclude='android/build/' \
+            --exclude='android/app/build/' \
+            --exclude='coverage/' \
+            --exclude='.cache/' \
+            --exclude='.vite/' \
+            --exclude='*.apk' \
+            --exclude='*.aab' \
+            --exclude='*.zip' \
+            --exclude='*.log' \
+            --exclude='tmp/' \
+            --exclude='temp/' \
+            "$ROOT/" "$OUT/"
+
+          cat > "$OUT/CLAUDE_README_FIRST.md" <<'EOF'
+          # MOBDEA R19 — Claude Source Package
+
+          This archive is a lightweight export of the `r19-unified` source branch.
+
+          It intentionally excludes generated/heavy files such as node_modules,
+          build outputs, APK/AAB files, Gradle caches, logs, and nested ZIP archives.
+
+          Treat the included source files as the source of truth for audit/repair work.
+
+          Preserve and verify:
+          - R19 identity: 10.14.0 / versionCode 117 / release tag R19.
+          - Class Mode selected-student controls: +1, praise, warning only; no minus.
+          - Media/whiteboard fit contract: object-fit: contain !important; not fill.
+          - PDF, image, video, PPT/PPTX classroom behavior.
+          - Whiteboard, maps, drag/drop, student/parent portals, cloud sync, live class.
+          - OCR, Arabic fonts, screen recording, native plugins.
+          - Never delete tests/features simply to make builds pass.
+          EOF
+
+          echo "=== Export summary ==="
+          du -sh "$OUT"
+
+          cd "$RUNNER_TEMP"
+          zip -qr "$ZIP" "mobdea-r19-source-for-claude"
+
+          test -s "$ZIP"
+          ls -lh "$ZIP"
+          sha256sum "$ZIP" | tee "$RUNNER_TEMP/mobdea-r19-source-for-claude.sha256"
+
+      - name: Upload Claude source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-source-for-claude
+          path: |
+            ${{ runner.temp }}/mobdea-r19-source-for-claude.zip
+            ${{ runner.temp }}/mobdea-r19-source-for-claude.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
