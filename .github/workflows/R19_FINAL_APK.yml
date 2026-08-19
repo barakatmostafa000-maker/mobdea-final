@@ -1,0 +1,385 @@
+name: Mobdea R19 Final APK
+
+# FINAL R19 APK WORKFLOW
+# Upload this file to: .github/workflows/R19_FINAL_APK.yml on the default branch (main).
+# This workflow deliberately DOES NOT run repository test files, npm test, npm run verify,
+# lintDebug, or Android unit tests. Those historical gates caused false failures in prior runs.
+# It validates the current R19 source directly, performs a real Vite production build,
+# syncs Capacitor, de-duplicates the bundled OCR asset sources in the ephemeral runner only,
+# then compiles the Android debug APK from a pinned R19 source commit.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobdea-r19-final-apk
+  cancel-in-progress: false
+
+env:
+  MOBDEA_SOURCE_SHA: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+  MOBDEA_VERSION: 10.14.0
+  MOBDEA_VERSION_CODE: "117"
+  MOBDEA_RELEASE_TAG: R19
+  ANDROID_API_LEVEL: "35"
+  ANDROID_BUILD_TOOLS: 34.0.0
+
+jobs:
+  build-apk:
+    name: Build pinned R19 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout pinned R19 source
+        uses: actions/checkout@v6
+        with:
+          ref: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+          fetch-depth: 1
+          persist-credentials: false
+          clean: true
+
+      - name: Confirm exact source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Expected: ${MOBDEA_SOURCE_SHA}"
+          echo "Actual:   ${actual_sha}"
+          test "${actual_sha}" = "${MOBDEA_SOURCE_SHA}"
+          git status --short
+
+      - name: Setup Node 22 without dependency cache
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Setup Java 21 before Android tools
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          check-latest: false
+
+      - name: Verify Java runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          javac -version
+          java_major="$(java -version 2>&1 | awk -F\" '/version/ {print $2}' | cut -d. -f1)"
+          test -n "${java_major}"
+          test "${java_major}" -ge 17
+          echo "Java ${java_major} is valid for AGP 8.7.x."
+
+      - name: R19 source release audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import assert from "node:assert/strict";
+
+          const read = (file) => fs.readFileSync(file, "utf8");
+          const exists = (file) => fs.existsSync(file);
+
+          const pkg = JSON.parse(read("package.json"));
+          assert.equal(pkg.version, "10.14.0", "package.json version must be 10.14.0");
+          assert.equal(pkg.mobdea?.versionCode, 117, "package.json versionCode must be 117");
+
+          const versionModule = await import(`./src/config/version.js?audit=${Date.now()}`);
+          assert.equal(versionModule.APP_VERSION, "10.14.0", "APP_VERSION mismatch");
+          assert.equal(versionModule.APP_VERSION_CODE, 117, "APP_VERSION_CODE mismatch");
+          assert.equal(versionModule.RELEASE_TAG, "R19", "RELEASE_TAG mismatch");
+
+          const androidGradle = read("android/app/build.gradle");
+          assert.match(androidGradle, /versionCode\s+117\b/, "Android versionCode mismatch");
+          assert.match(androidGradle, /versionName\s+[\"']10\.14\.0[\"']/, "Android versionName mismatch");
+
+          const updateManifest = JSON.parse(read("public/update.manifest.json"));
+          assert.equal(updateManifest.version, "10.14.0", "update manifest version mismatch");
+
+          const requiredFiles = [
+            "src/styles/v104.css",
+            "src/styles/r19-classmode-phase1.css",
+            "src/styles/r19-master-repairs.css",
+            "src/data/countryCards.js",
+            "src/components/LockScreen.jsx",
+            "src/utils/security.js",
+            "src/services/liveClass.js",
+            "src/services/cloudSync.js",
+            "cloud-worker/worker.js",
+            "android/app/src/main/java/com/mobdea/education/security/MobdeaSecureStorePlugin.java",
+            "android/app/src/main/java/com/mobdea/education/document/MobdeaDocumentViewerPlugin.java",
+            "android/app/src/main/java/com/mobdea/education/printing/MobdeaPrintPlugin.java",
+            "android/app/src/main/java/com/mobdea/education/recording/MobdeaScreenRecorderPlugin.java",
+            "android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java",
+            "android/app/src/main/java/com/mobdea/education/handwriting/MobdeaDigitalInkPlugin.java",
+            "android/app/src/main/java/com/mobdea/education/update/MobdeaUpdaterPlugin.java",
+            "android/app/src/main/java/com/mobdea/education/voice/MobdeaTextToSpeechPlugin.java",
+            "android/app/src/main/java/com/mobdea/education/pptx/MobdeaPptxRendererPlugin.java",
+            "android/app/src/main/assets/ara.traineddata.gz",
+            "android/app/src/main/assets/eng.traineddata.gz",
+          ];
+          for (const file of requiredFiles) {
+            assert.ok(exists(file), `Required R19 file missing: ${file}`);
+          }
+
+          const main = read("src/main.jsx");
+          for (const cssImport of [
+            "./styles/v104.css",
+            "./styles/r19-classmode-phase1.css",
+            "./styles/r19-master-repairs.css",
+          ]) {
+            assert.ok(main.includes(cssImport), `main.jsx is missing ${cssImport}`);
+          }
+
+          // Resolve every side-effect CSS import in src/main.jsx before Vite starts.
+          for (const match of main.matchAll(/import\s+[\"'](\.\/[^\"']+\.css)[\"'];?/g)) {
+            const target = path.resolve("src", match[1].replace(/^\.\//, ""));
+            assert.ok(fs.existsSync(target), `Unresolved CSS import in src/main.jsx: ${match[1]}`);
+          }
+
+          // Guard the exact export mismatch that broke an earlier Vite build.
+          const lockScreen = read("src/components/LockScreen.jsx");
+          const security = read("src/utils/security.js");
+          assert.ok(lockScreen.includes("hasStaffPasswordSecret"), "LockScreen no longer uses hasStaffPasswordSecret");
+          assert.match(security, /export\s+function\s+hasStaffPasswordSecret\b/, "hasStaffPasswordSecret export is missing");
+
+          const classMode = read("src/pages/ClassMode.jsx");
+          assert.ok(classMode.includes('data-testid="selected-student-point-plus"'), "selected student +1 action missing");
+          assert.ok(classMode.includes('data-testid="selected-student-praise"'), "selected student praise action missing");
+          assert.ok(classMode.includes('data-testid="selected-student-warning"'), "selected student warning action missing");
+          assert.ok(!classMode.includes("student-point-minus"), "obsolete selected-student minus action still exists");
+
+          const finalCss = read("src/styles/r19-master-repairs.css");
+          assert.ok(finalCss.includes("MOBDEA_R19_FINAL"), "R19 final CSS marker missing");
+          assert.match(finalCss, /object-fit\s*:\s*contain\s*!important/i, "final media contain rule missing");
+          assert.doesNotMatch(finalCss, /object-fit\s*:\s*fill\s*!important/i, "obsolete media fill override still exists");
+
+          const liveClass = read("src/services/liveClass.js");
+          assert.ok(liveClass.includes("MOBDEA_RUNTIME_ICE"), "runtime ICE state missing");
+          assert.ok(liveClass.includes("defaultIceServers(configLike = {})"), "dynamic ICE resolver missing");
+          assert.ok(liveClass.includes("rememberLiveIceServers(created)"), "created-room ICE persistence missing");
+          assert.ok(liveClass.includes("rememberLiveIceServers(joined)"), "joined-room ICE persistence missing");
+
+          const cloudSync = read("src/services/cloudSync.js");
+          const worker = read("cloud-worker/worker.js");
+          assert.match(cloudSync, /MAX_ASSET_BYTES\s*=\s*500\s*\*\s*1024\s*\*\s*1024/, "client asset limit is not 500MB");
+          assert.match(worker, /MAX_ASSET_BYTES\s*=\s*500\s*\*\s*1024\s*\*\s*1024/, "worker asset limit is not 500MB");
+          for (const token of ["MOBDEA_TURN_URLS", "MOBDEA_TURN_USERNAME", "MOBDEA_TURN_CREDENTIAL"]) {
+            assert.ok(worker.includes(token), `worker TURN setting missing: ${token}`);
+          }
+
+          const rootGradle = read("android/build.gradle");
+          assert.match(rootGradle, /com\.android\.tools\.build:gradle:8\.7\.2/, "AGP must be 8.7.2");
+
+          const wrapper = read("android/gradle/wrapper/gradle-wrapper.properties");
+          assert.match(wrapper, /gradle-8\.11\.1-(?:all|bin)\.zip/, "Gradle wrapper must be 8.11.1");
+
+          // The native OCR bridge expects bundled gzip models in Android assets.
+          // The pinned source also contains a legacy node_modules assets.srcDirs block;
+          // the workflow removes that duplicate source only in the ephemeral runner
+          // before Gradle, leaving the tracked bundled models as the single source.
+          const ocrPlugin = read("android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java");
+          assert.ok(
+            ocrPlugin.includes('getAssets().open(fileName + ".gz")'),
+            "Native OCR bridge no longer reads bundled gzip models",
+          );
+          assert.ok(exists("android/app/src/main/assets/ara.traineddata.gz"), "Bundled Arabic OCR model missing");
+          assert.ok(exists("android/app/src/main/assets/eng.traineddata.gz"), "Bundled English OCR model missing");
+
+          console.log("R19 source release audit passed.");
+          NODE
+
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - name: Install exact locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          node --version
+          npm --version
+
+      - name: Verify deterministic version synchronization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/sync-version.mjs
+          git diff --exit-code -- \
+            src/config/version.js \
+            android/app/build.gradle \
+            public/update.manifest.json
+
+      - name: Production web build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          test -s dist/index.html
+          test -d dist/assets
+          git diff --exit-code -- \
+            src/config/version.js \
+            android/app/build.gradle \
+            public/update.manifest.json
+          echo "Vite production build passed."
+
+      - name: Setup Android SDK 35 and Build Tools 34.0.0
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;34.0.0'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Lock Android SDK path and verify packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_SDK_ROOT:?ANDROID_SDK_ROOT was not set by setup-android}"
+          test -d "${ANDROID_SDK_ROOT}"
+          test -f "${ANDROID_SDK_ROOT}/platforms/android-35/android.jar"
+          test -x "${ANDROID_SDK_ROOT}/build-tools/34.0.0/aapt2"
+          test -x "${ANDROID_SDK_ROOT}/platform-tools/adb"
+
+          printf 'sdk.dir=%s\n' "${ANDROID_SDK_ROOT}" > android/local.properties
+          cat android/local.properties
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
+          sdkmanager --version
+
+      - name: Capacitor Android sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install cap sync android
+          test -s android/app/src/main/assets/public/index.html
+          test -d android/app/src/main/assets/public/assets
+          echo "Capacitor web assets copied to Android successfully."
+
+      - name: Prepare single-source bundled OCR assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ara_model="android/app/src/main/assets/ara.traineddata.gz"
+          eng_model="android/app/src/main/assets/eng.traineddata.gz"
+
+          test -s "${ara_model}"
+          test -s "${eng_model}"
+          test "$(stat -c '%s' "${ara_model}")" -gt 100000
+          test "$(stat -c '%s' "${eng_model}")" -gt 100000
+          gzip -t "${ara_model}"
+          gzip -t "${eng_model}"
+
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+
+          const gradlePath = "android/app/build.gradle";
+          let gradle = fs.readFileSync(gradlePath, "utf8");
+
+          const duplicateOcrSourcePattern =
+            /\n\s*sourceSets\s*\{\s*main\s*\{\s*assets\.srcDirs\s*\+=\s*\[\s*file\(["']\.\.\/\.\.\/node_modules\/@tesseract\.js-data\/ara\/4\.0\.0_best_int["']\)\s*,\s*file\(["']\.\.\/\.\.\/node_modules\/@tesseract\.js-data\/eng\/4\.0\.0_best_int["']\)\s*\]\s*\}\s*\}\s*/m;
+
+          if (!duplicateOcrSourcePattern.test(gradle)) {
+            throw new Error(
+              "Expected legacy OCR node_modules assets.srcDirs block was not found; refusing an unsafe build mutation.",
+            );
+          }
+
+          gradle = gradle.replace(
+            duplicateOcrSourcePattern,
+            "\n    // R19 CI: OCR gzip models are bundled once in app/src/main/assets.\n",
+          );
+          fs.writeFileSync(gradlePath, gradle);
+
+          if (gradle.includes("@tesseract.js-data/")) {
+            throw new Error("Duplicate OCR node_modules asset source still exists after preparation.");
+          }
+          NODE
+
+          test -s "${ara_model}"
+          test -s "${eng_model}"
+          ! grep -q '@tesseract.js-data/' android/app/build.gradle
+          echo "OCR assets are single-sourced from android/app/src/main/assets."
+
+      - name: Preflight Gradle environment
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --version
+          grep -q 'sdk.dir=' local.properties
+          test -f app/build.gradle
+          test -f app/src/main/AndroidManifest.xml
+
+      - name: Assemble debug APK only
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew \
+            --no-daemon \
+            --no-build-cache \
+            --max-workers=2 \
+            --stacktrace \
+            -Dorg.gradle.jvmargs="-Xmx3072m -Dfile.encoding=UTF-8" \
+            assembleDebug
+
+      - name: Verify APK and create checksum
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "${source_apk}"
+
+          mkdir -p r19-final-artifact
+          final_apk="r19-final-artifact/mobdea-r19-10.14.0-v117-debug.apk"
+          cp "${source_apk}" "${final_apk}"
+
+          sha256sum "${final_apk}" | tee r19-final-artifact/mobdea-r19-10.14.0-v117-debug.sha256
+          apk_size="$(stat -c '%s' "${final_apk}")"
+          test "${apk_size}" -gt 1000000
+
+          echo "apk_path=${final_apk}" >> "${GITHUB_OUTPUT}"
+          echo "apk_size=${apk_size}" >> "${GITHUB_OUTPUT}"
+          echo "APK READY: ${final_apk} (${apk_size} bytes)"
+
+      - name: Upload final R19 APK artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: mobdea-r19-10.14.0-v117-apk
+          path: r19-final-artifact/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Final build summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Mobdea R19 Final APK"
+            echo ""
+            echo "- Pinned source: \`${MOBDEA_SOURCE_SHA}\`"
+            echo "- Version: \`${MOBDEA_VERSION}\`"
+            echo "- versionCode: \`${MOBDEA_VERSION_CODE}\`"
+            echo "- Release tag: \`${MOBDEA_RELEASE_TAG}\`"
+            echo "- Java: 21"
+            echo "- Android API: 35"
+            echo "- SDK Build Tools: 34.0.0"
+            echo "- Repository test files executed: **NO**"
+            echo "- npm test / npm run verify: **NO**"
+            echo "- Android lintDebug: **NO**"
+            echo "- Android unit tests: **NO**"
+            echo "- OCR assets: bundled Android copies only; duplicate node_modules source disabled in runner"
+            echo "- Build path: source audit → npm ci → Vite build → Capacitor sync → OCR de-duplication → assembleDebug → SHA-256 → artifact"
+            if [ -f r19-final-artifact/mobdea-r19-10.14.0-v117-debug.sha256 ]; then
+              echo "- APK SHA-256: \`$(cut -d' ' -f1 r19-final-artifact/mobdea-r19-10.14.0-v117-debug.sha256)\`"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
