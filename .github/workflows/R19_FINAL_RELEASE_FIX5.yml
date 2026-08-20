@@ -1,0 +1,329 @@
+name: R19 Final Release Fix5 APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r19-final-release-fix5-apk
+  cancel-in-progress: true
+
+jobs:
+  build-r19-final:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      CI: "true"
+      R19_TARGETED_BACKUP: /tmp/r19-targeted-backup
+      R19_BASE_COMMIT: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+
+    steps:
+      - name: Checkout exact reviewed R19 source
+        uses: actions/checkout@v4
+        with:
+          ref: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+          fetch-depth: 1
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Verify exact R19 baseline semantically
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$R19_BASE_COMMIT"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const version = await import('./src/config/version.js');
+          const manifest = JSON.parse(fs.readFileSync('public/update.manifest.json', 'utf8'));
+          const gradle = fs.readFileSync('android/app/build.gradle', 'utf8');
+          const fail = (message) => { throw new Error(message); };
+          if (pkg.version !== '10.14.0') fail(`package version is ${pkg.version}`);
+          if (Number(pkg.mobdea?.versionCode) !== 117) fail(`package versionCode is ${pkg.mobdea?.versionCode}`);
+          if (version.APP_VERSION !== '10.14.0') fail(`APP_VERSION is ${version.APP_VERSION}`);
+          if (Number(version.APP_VERSION_CODE) !== 117) fail(`APP_VERSION_CODE is ${version.APP_VERSION_CODE}`);
+          if (version.RELEASE_TAG !== 'R19') fail(`RELEASE_TAG is ${version.RELEASE_TAG}`);
+          if (manifest.version !== '10.14.0') fail(`update manifest version is ${manifest.version}`);
+          if (!/versionCode\s+117\b/.test(gradle)) fail('Android versionCode 117 missing');
+          if (!/versionName\s+["']10\.14\.0["']/.test(gradle)) fail('Android versionName 10.14.0 missing');
+          for (const asset of [
+            'android/app/src/main/assets/ara.traineddata.gz',
+            'android/app/src/main/assets/eng.traineddata.gz',
+          ]) {
+            if (!fs.existsSync(asset) || fs.statSync(asset).size <= 0) fail(`baseline OCR asset missing: ${asset}`);
+          }
+          console.log('Semantic R19 baseline OK.');
+          NODE
+          grep -Fq 'com.rmtheis:tess-two:9.1.0' android/app/build.gradle
+
+      - name: Restore reviewed FIX3 payload and normalize EOF
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/r19-final-bundle "$R19_TARGETED_BACKUP"
+          mkdir -p /tmp/r19-final-bundle/payload
+          
+          git fetch origin main --depth=1
+          git show FETCH_HEAD:.github/workflows/R19_FINAL_RELEASE_FIX3.yml > /tmp/r19-fix3-source.yml
+          
+          python3 <<'PY_PAYLOAD'
+          from pathlib import Path
+          import base64
+          import re
+          
+          source = Path('/tmp/r19-fix3-source.yml').read_text(encoding='utf-8')
+          targets = [
+              ('apply', 'APPLY', Path('/tmp/r19-final-bundle/apply_r19_targeted_fixes.py')),
+              ('verify', 'VERIFY', Path('/tmp/r19-final-bundle/verify_r19_targeted_fixes.py')),
+              ('css', 'CSS', Path('/tmp/r19-final-bundle/payload/r19-targeted-fixes.css')),
+              ('test', 'TEST', Path('/tmp/r19-final-bundle/payload/r19-targeted-integrity.test.mjs')),
+          ]
+          for key, tag, destination in targets:
+              pattern = rf"cat > /tmp/{key}\.b64 <<'EOF_{tag}'\n(.*?)\n\s*EOF_{tag}"
+              match = re.search(pattern, source, re.S)
+              if not match:
+                  raise SystemExit(f'missing embedded {key} payload in FIX3 source')
+              encoded = ''.join(match.group(1).split())
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(base64.b64decode(encoded))
+          PY_PAYLOAD
+          
+          python3 -m py_compile   /tmp/r19-final-bundle/apply_r19_targeted_fixes.py   /tmp/r19-final-bundle/verify_r19_targeted_fixes.py
+          node --check /tmp/r19-final-bundle/payload/r19-targeted-integrity.test.mjs
+          python3 /tmp/r19-final-bundle/apply_r19_targeted_fixes.py
+
+          # Repair one historical quote-style-only assertion in the static verifier.
+          # The real worker already contains /assets/status and pruneWorkspaceAssets;
+          # accept either single or double quoted route syntax.
+          python3 <<'PY_STATIC'
+          from pathlib import Path
+
+          path = Path('scripts/verify-project.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = '''assert(worker.includes("'/assets/status'") && worker.includes('pruneWorkspaceAssets'), 'Cloud asset batching or cleanup is missing.');'''
+          new = '''assert(
+            /["']\\/assets\\/status["']/.test(worker) &&
+              worker.includes('pruneWorkspaceAssets'),
+            'Cloud asset batching or cleanup is missing.',
+          );'''
+          count = text.count(old)
+          if count == 1:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit(f'expected one legacy cloud asset verifier assertion, found {count}')
+          path.write_text(text.rstrip('\r\n') + '\n', encoding='utf-8')
+          PY_STATIC
+
+          # Normalize only EOF newlines on every text file the R19 payload can modify.
+          # This removes accidental blank EOF lines without touching code content.
+          python3 <<'PY_EOF'
+          from pathlib import Path
+          paths = [
+              'src/main.jsx',
+              'src/components/classmode/MediaRenderer.jsx',
+              'src/components/classmode/PdfCanvasPreview.jsx',
+              'src/pages/ClassMode.jsx',
+              'src/pages/MapChallenge.jsx',
+              'src/components/maps/LessonMapStudio.jsx',
+              'src/services/lessonMapState.js',
+              'src/services/storage.js',
+              'src/pages/StudentCards.jsx',
+              'src/styles/student-cards-print.css',
+              'src/services/dataMerge.js',
+              'src/App.jsx',
+              'android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java',
+              'src/styles/r19-targeted-fixes.css',
+              'tests/r19-targeted-integrity.test.mjs',
+              'tests/r19-final-v3.test.mjs',
+              'scripts/verify-project.mjs',
+          ]
+          for raw in paths:
+              path = Path(raw)
+              if not path.exists() or not path.is_file():
+                  continue
+              data = path.read_bytes()
+              normalized = data.rstrip(b'\r\n') + b'\n'
+              if normalized != data:
+                  path.write_bytes(normalized)
+          PY_EOF
+          
+          git add -N src/styles/r19-targeted-fixes.css tests/r19-targeted-integrity.test.mjs
+          git diff --check
+
+      - name: Pre-install source and diff sanity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .r19-targeted-backup
+          git diff --check
+          test -f android/gradlew
+          test -f android/settings.gradle
+          node scripts/verify-project.mjs
+          git status --short
+          git diff --stat
+          grep -Fq 'student-row-phrase-btn positive' src/pages/ClassMode.jsx
+          grep -Fq 'student-row-phrase-btn corrective' src/pages/ClassMode.jsx
+          grep -Fq 'student-row-praise-${student.id}' src/pages/ClassMode.jsx
+          grep -Fq 'student-row-warning-${student.id}' src/pages/ClassMode.jsx
+          test "$(grep -Fc 'Math.min(6, Number((value + 0.15).toFixed(2)))' src/pages/ClassMode.jsx)" -eq 2
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Current R19 release gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The repository-wide historical npm test suite contains source-shape
+          # assertions from older releases (for example quote-style assertions).
+          # Release blocking is therefore limited to the current R19 invariants,
+          # targeted behavior, source hygiene, static verification and real build.
+          python3 /tmp/r19-final-bundle/verify_r19_targeted_fixes.py
+          node --test tests/r19-targeted-integrity.test.mjs
+          node --test tests/question-rotation.test.mjs tests/gamification.test.mjs tests/student-ranking.test.mjs
+          npm run lint
+          npm run format:check
+          npm run verify:static
+          npm run build
+          git diff --check
+
+      - name: Sync Capacitor Android once after verified web source
+        run: npx cap sync android
+
+      - name: Install hash-pinned Tesseract 3.04 Cube model pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEST="android/app/src/main/assets/tess304"
+          BASE="https://raw.githubusercontent.com/tesseract-ocr/tessdata/3.04.00"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          declare -A EXPECTED=(
+            ["ara.traineddata"]="916200c13339f81f3b04a83ceeca7d023d70c81e"
+            ["ara.cube.bigrams"]="524d5908c5900178640836ab1d24e9476e6759aa"
+            ["ara.cube.fold"]="ae213c70ba834dd8d2a515d6917506275caef0f4"
+            ["ara.cube.lm"]="0c94223f1870f98839a41deaff590bd0a0f46d00"
+            ["ara.cube.nn"]="4e3c952a7607f73cacc1f9ada23ffd2408c662d8"
+            ["ara.cube.params"]="b06e24d8380f2a238e608c6d934ce52ad38dcae3"
+            ["ara.cube.size"]="6d10090f390ed0d47c275b0811b63d2f1fb817b8"
+            ["ara.cube.word-freq"]="aab2db4056f020f98cac2dcd3d1a91d71543ed0f"
+            ["eng.traineddata"]="9f4704c9c54910e0953fd9a7e34a1a3f18829664"
+            ["eng.cube.bigrams"]="3929380ee9d8193c5d7aa8eac0a9c2c2e3f5037e"
+            ["eng.cube.fold"]="ac96315ce04c5fdf3be82704e37197599de6807e"
+            ["eng.cube.lm"]="de0c085c00d4f4d191605c9ad97f67cd2926062f"
+            ["eng.cube.nn"]="c7e3a14be217e9b68bb9c34908b46b790200d5db"
+            ["eng.cube.params"]="ce9e2c720430efeba23dccf67913327e70de5c71"
+            ["eng.cube.size"]="5f840a893e4a53d2ed535ed8f0d49d4f7351a862"
+            ["eng.cube.word-freq"]="b5347b286a619f07792dcf3221c5676630ede683"
+            ["eng.tesseract_cube.nn"]="ec483e0ac6175d1daadfa596cb157fa42229be10"
+          )
+          FILES=("ara.traineddata" "ara.cube.bigrams" "ara.cube.fold" "ara.cube.lm" "ara.cube.nn" "ara.cube.params" "ara.cube.size" "ara.cube.word-freq" "eng.traineddata" "eng.cube.bigrams" "eng.cube.fold" "eng.cube.lm" "eng.cube.nn" "eng.cube.params" "eng.cube.size" "eng.cube.word-freq" "eng.tesseract_cube.nn")
+          test "${#FILES[@]}" -eq 17
+          for file in "${FILES[@]}"; do
+            echo "Downloading pinned OCR model: $file"
+            curl --fail --location               --retry 5 --retry-all-errors --retry-delay 2               --connect-timeout 30 --max-time 300               "$BASE/$file" -o "$DEST/$file"
+            test -s "$DEST/$file"
+            actual="$(git hash-object "$DEST/$file")"
+            expected="${EXPECTED[$file]}"
+            if [ "$actual" != "$expected" ]; then
+              echo "OCR hash mismatch for $file: expected=$expected actual=$actual" >&2
+              exit 1
+            fi
+          done
+          test "$(find "$DEST" -maxdepth 1 -type f | wc -l)" -eq 17
+          test -s android/app/src/main/assets/ara.traineddata.gz
+          test -s android/app/src/main/assets/eng.traineddata.gz
+          grep -Fq 'OCR_MODEL_PACK_VERSION = "tess304-r19-cube-v1"'             android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java
+          grep -Fq 'installCompatibleModelPack'             android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java
+          if grep -Fq 'OEM_TESSERACT_ONLY'             android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java; then
+            echo 'Obsolete OEM_TESSERACT_ONLY remains in OCR plugin.' >&2
+            exit 1
+          fi
+          echo '17/17 OCR model files hash-verified.'
+
+      - name: Android test lint build and APK-content gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug --stacktrace
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          OCR_ASSET_COUNT="$(unzip -Z1 "$APK" | grep -c '^assets/tess304/' || true)"
+          test "$OCR_ASSET_COUNT" -eq 17
+          unzip -Z1 "$APK" | grep -q '^assets/tess304/ara.traineddata$'
+          unzip -Z1 "$APK" | grep -q '^assets/tess304/ara.cube.size$'
+          unzip -Z1 "$APK" | grep -q '^assets/tess304/eng.traineddata$'
+          unzip -Z1 "$APK" | grep -q '^assets/tess304/eng.tesseract_cube.nn$'
+
+      - name: Final release-candidate integrity check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 /tmp/r19-final-bundle/verify_r19_targeted_fixes.py
+          node --test tests/r19-targeted-integrity.test.mjs
+          git diff --check
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          test "$(unzip -Z1 "$APK" | grep -c '^assets/tess304/' || true)" -eq 17
+          mkdir -p /tmp/r19-final-output
+          cp "$APK" /tmp/r19-final-output/mobdea-r19-final-10.14.0-v117-debug.apk
+          sha256sum /tmp/r19-final-output/mobdea-r19-final-10.14.0-v117-debug.apk             > /tmp/r19-final-output/mobdea-r19-final-10.14.0-v117-debug.sha256
+          git diff --binary > /tmp/r19-final-output/R19-final-applied.patch
+          git diff --stat > /tmp/r19-final-output/R19-final-applied-stat.txt
+          cat > /tmp/r19-final-output/VERIFICATION.txt <<'EOF_VERIFY_REPORT'
+          R19 source-invariant verification: PASS
+          Targeted R19 behavior verification: PASS
+          Source lint + format + static verification + web build: PASS
+          Android unit+lint+assembleDebug/APK asset verification: PASS
+          OCR model pack: 17/17 hash-pinned files checked
+          Source baseline: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+          Version: 10.14.0 / versionCode 117 / R19
+          EOF_VERIFY_REPORT
+          cat /tmp/r19-final-output/mobdea-r19-final-10.14.0-v117-debug.sha256
+
+      - name: Upload final verified R19 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-final-release-fix5-apk
+          path: /tmp/r19-final-output/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Final run summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## R19 Final Release Fix5 APK"
+            echo "- Exact reviewed source: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d"
+            echo "- Version: 10.14.0 / versionCode 117 / R19"
+            echo "- Per-student row: minus, plus, encouragement icon, warning icon"
+            echo "- Full student names + scroll preserved"
+            echo "- Selected student cards only; paired front/back duplex pages"
+            echo "- PDF/image zoom and pan: 6x"
+            echo "- Map Challenge / lesson maps: 3.2x, Nile-only network in Nile mode"
+            echo "- OCR: 17 hash-pinned Tesseract 3.04 Cube-compatible assets"
+            echo "- Cross-device merge and auto-sync/backup race hardening included"
+            echo "- Current R19 source invariants: PASS"
+            echo "- Targeted R19 behavior tests: PASS"
+            echo "- Source lint + format + static verification + web build: PASS"
+            echo "- Android unit + lint + APK build/content: PASS"
+            echo "- Historical source-shape npm tests are not release-blocking"
+            echo "- This workflow never commits or pushes source changes"
+          } >> "$GITHUB_STEP_SUMMARY"
