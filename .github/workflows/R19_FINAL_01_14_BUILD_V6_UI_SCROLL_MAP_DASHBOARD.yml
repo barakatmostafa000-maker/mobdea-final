@@ -1,0 +1,1075 @@
+name: R19 Final 01-14 Fix8.13 V6 UI Scroll Map Dashboard + Final APK
+
+"on":
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/R19_FINAL_01_14_BUILD_V6_UI_SCROLL_MAP_DASHBOARD.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: r19-final-01-14-fix813-v6-ui-runtime
+  cancel-in-progress: true
+
+env:
+  R19_BASE_COMMIT: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+  RUN17_RUN_ID: "32697570904"
+  RUN17_ARTIFACT_NAME: mobdea-r19-run17-full-result
+  RUN17_PATCH_SHA256: 6bc7ddab1e908916cf1bb01c59a4aff463c33220931f82c314c27178ce7d4270
+  RUN17_FIXED_TAR_SHA256: d7b7ef0f92f4396e0bdb3cfdb55d19ca3669564ed2ab61a6e2b98d74352dd1b0
+  EXPECTED_VERSION_NAME: "10.14.1"
+  EXPECTED_VERSION_CODE: "118"
+
+jobs:
+  build-r19-final-01-14:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout exact R19 baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.R19_BASE_COMMIT }}
+          fetch-depth: 1
+
+      - name: Verify exact clean baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$R19_BASE_COMMIT"
+          test -z "$(git status --porcelain)"
+          test -f package.json
+          test -f package-lock.json
+          test -d android
+          echo "Exact R19 baseline verified: $R19_BASE_COMMIT"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK"
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          for attempt in 1 2 3; do
+            if sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Android SDK package installation failed."
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          test -s "$SDK/platforms/android-35/android.jar"
+          test -x "$SDK/build-tools/34.0.0/aapt2"
+          test -x "$SDK/build-tools/35.0.0/aapt"
+          test -x "$SDK/build-tools/35.0.0/apksigner"
+          test -x "$SDK/build-tools/35.0.0/zipalign"
+          printf 'sdk.dir=%s\n' "$SDK" > android/local.properties
+
+      - name: Download reviewed RUN17 repair artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.RUN17_ARTIFACT_NAME }}
+          run-id: ${{ env.RUN17_RUN_ID }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: /tmp/r19-run17
+
+      - name: Verify and apply reviewed Repairs 01-14 final diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH="/tmp/r19-run17/R19_RUN17_FINAL.patch"
+          test -s "$PATCH"
+          ACTUAL="$(sha256sum "$PATCH" | awk '{print $1}')"
+          echo "RUN17 patch expected: $RUN17_PATCH_SHA256"
+          echo "RUN17 patch actual:   $ACTUAL"
+          test "$ACTUAL" = "$RUN17_PATCH_SHA256"
+
+          git apply --check "$PATCH"
+          git apply "$PATCH"
+
+          FIXED_TAR="/tmp/r19-run17/R19_RUN17_FIXED_FILES.tar.gz"
+          test -s "$FIXED_TAR"
+          TAR_ACTUAL="$(sha256sum "$FIXED_TAR" | awk '{print $1}')"
+          echo "RUN17 fixed-files tar expected: $RUN17_FIXED_TAR_SHA256"
+          echo "RUN17 fixed-files tar actual:   $TAR_ACTUAL"
+          test "$TAR_ACTUAL" = "$RUN17_FIXED_TAR_SHA256"
+
+          # RUN17 created these two final contract tests as untracked files,
+          # so they are restored explicitly from the immutable artifact tar.
+          tar -xzf "$FIXED_TAR" -C .             tests/run15-build-readiness.test.mjs             tests/run15-runtime-contract.test.mjs
+          test -s tests/run15-build-readiness.test.mjs
+          test -s tests/run15-runtime-contract.test.mjs
+          git add -N tests/run15-build-readiness.test.mjs tests/run15-runtime-contract.test.mjs
+
+          git diff --check
+
+          node - <<'NODE_VERSION'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.version !== process.env.EXPECTED_VERSION_NAME) {
+            throw new Error(`Unexpected versionName: ${pkg.version}`);
+          }
+          if (String(pkg.mobdea?.versionCode) !== process.env.EXPECTED_VERSION_CODE) {
+            throw new Error(`Unexpected versionCode: ${pkg.mobdea?.versionCode}`);
+          }
+          console.log(`Recovered reviewed 01-14 state: ${pkg.version} / ${pkg.mobdea.versionCode}`);
+          NODE_VERSION
+
+      - name: Close RUN18 Attendance WhatsApp root cause
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_RUN18_ROOT'
+          from pathlib import Path
+          import re
+
+          notifications = Path("src/services/notifications.js")
+          attendance = Path("src/pages/Attendance.jsx")
+          if not notifications.is_file() or not attendance.is_file():
+              raise SystemExit("Required Attendance/notifications source missing")
+
+          source = notifications.read_text(encoding="utf-8")
+          if not re.search(r"\bexport\s+(?:async\s+)?function\s+sendAbsenceWhatsApp\b", source):
+              source = source.rstrip() + r'''
+
+          // RUN18_ATTENDANCE_WHATSAPP_EXPORT_CLOSURE_V1
+          export function sendAbsenceWhatsApp(student = {}, session = {}, date = '') {
+            const rawPhone = String(student?.guardianPhone || '').trim();
+            const normalized = rawPhone.replace(/\D/g, '').replace(/^0/, '20');
+            if (!normalized) {
+              return { ok: false, message: 'لا يوجد رقم هاتف مسجل لولي الأمر.' };
+            }
+            const safeDate = String(date || new Date().toISOString().slice(0, 10));
+            const message = cleanWhatsAppMessage(
+              buildAttendanceMessage(student?.name || 'الطالب', 'absent', safeDate),
+            );
+            if (typeof window === 'undefined' || typeof window.open !== 'function') {
+              return { ok: false, message: 'فتح واتساب متاح من التطبيق أو المتصفح فقط.' };
+            }
+            const url = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return { ok: true, message: `تم فتح واتساب لإبلاغ ولي أمر ${student?.name || 'الطالب'}.` };
+          }
+          '''
+              notifications.write_text(source, encoding="utf-8")
+
+          attendance_source = attendance.read_text(encoding="utf-8")
+          if "sendAbsenceWhatsApp" not in attendance_source:
+              raise SystemExit("Attendance no longer calls sendAbsenceWhatsApp")
+          updated = notifications.read_text(encoding="utf-8")
+          if not re.search(r"\bexport\s+(?:async\s+)?function\s+sendAbsenceWhatsApp\b", updated):
+              raise SystemExit("sendAbsenceWhatsApp export was not created")
+          print("RUN18 root closure installed.")
+          PY_RUN18_ROOT
+
+          node --check src/services/notifications.js
+          git diff --check
+
+      - name: Apply V6 runtime fixes for ClassMode page scrolling Map Challenge and Dashboard
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY_RUNTIME_FIXES'
+          from pathlib import Path
+
+          # 1) Fix ClassMode/OnlineClass TDZ crash.
+          class_mode = Path("src/pages/ClassMode.jsx")
+          source = class_mode.read_text(encoding="utf-8")
+
+          related_start_marker = "  const relatedQuestions = useMemo(() => {"
+          related_end_marker = "\n\n  const rememberGameQuestions"
+          project12_marker = "  const [project12QuestionScope, setProject12QuestionScope] = useState('page');"
+
+          related_start = source.find(related_start_marker)
+          related_end = source.find(related_end_marker, related_start)
+          project12_pos = source.find(project12_marker)
+
+          if related_start < 0 or related_end < 0 or project12_pos < 0:
+              raise SystemExit("ClassMode runtime anchors not found; refusing blind rewrite")
+
+          if related_start > project12_pos:
+              related_block = source[related_start:related_end].rstrip() + "\n\n"
+              source = source[:related_start] + source[related_end + 2:]
+              project12_pos = source.find(project12_marker)
+              source = source[:project12_pos] + related_block + source[project12_pos:]
+              class_mode.write_text(source, encoding="utf-8")
+              print("ClassMode TDZ fixed: relatedQuestions now initializes before Project12 question sets.")
+          else:
+              print("ClassMode TDZ ordering already fixed.")
+
+          source = class_mode.read_text(encoding="utf-8")
+          if not (
+              source.find(related_start_marker) >= 0
+              and source.find(project12_marker) >= 0
+              and source.find(related_start_marker) < source.find(project12_marker)
+          ):
+              raise SystemExit("ClassMode TDZ ordering verification failed")
+
+          # 2) Expose Nile basin in Map Challenge.
+          map_page = Path("src/pages/MapChallenge.jsx")
+          map_source = map_page.read_text(encoding="utf-8")
+          keys_part = map_source.split("const coreRegionKeys", 1)[1].split("];", 1)[0]
+
+          if '"nile"' not in keys_part:
+              old_region_sequence = '  "africa",\n  "asia",'
+              new_region_sequence = '  "africa",\n  "nile",\n  "asia",'
+              if old_region_sequence not in map_source:
+                  raise SystemExit("MapChallenge region anchor not found; refusing blind rewrite")
+              map_source = map_source.replace(old_region_sequence, new_region_sequence, 1)
+              map_page.write_text(map_source, encoding="utf-8")
+              print("Map Challenge: Nile basin tab enabled.")
+          else:
+              print("Map Challenge: Nile basin tab already enabled.")
+
+          # 3) Native Android fixes body/root, so window.scrollTo is not the page scroll owner.
+          app_shell = Path("src/components/AppShell.jsx")
+          shell_source = app_shell.read_text(encoding="utf-8")
+          old_select = "  const select = (id) => {\n    onChange(id);\n    setOpen(false);\n    window.scrollTo({ top: 0, behavior: 'smooth' });\n  };"
+          new_select = "  const select = (id) => {\n    onChange(id);\n    setOpen(false);\n    requestAnimationFrame(() => {\n      const content = document.querySelector('.app-shell-v103:not(.lesson-mode-shell) > .app-content');\n      if (content?.scrollTo) content.scrollTo({ top: 0, behavior: 'auto' });\n      else window.scrollTo({ top: 0, behavior: 'auto' });\n    });\n  };"
+          if new_select not in shell_source:
+              if old_select not in shell_source:
+                  raise SystemExit("AppShell navigation scroll anchor missing; refusing blind rewrite")
+              shell_source = shell_source.replace(old_select, new_select, 1)
+              app_shell.write_text(shell_source, encoding="utf-8")
+              print("AppShell navigation now resets the real scrolling pane.")
+          else:
+              print("AppShell content-scroll reset already installed.")
+
+          # 4) Final-precedence tablet scrolling, Dashboard and Map Challenge geometry.
+          runtime_css = Path("src/styles/r19-final-runtime-fixes.css")
+          css = r"""/* R19_FINAL_RUNTIME_FIXES_V2
+             Final precedence owner for Android/tablet scrolling, dashboard visibility,
+             and Map Challenge geometry. Loaded after Projects 01-14. */
+          
+          @media (max-width: 1366px), (pointer: coarse) {
+            .app-shell-v103:not(.lesson-mode-shell) {
+              position: fixed !important;
+              inset: 0 !important;
+              display: grid !important;
+              grid-template-columns: minmax(0, 1fr) !important;
+              grid-template-rows: auto minmax(0, 1fr) !important;
+              grid-template-areas: "mobileHeader" "content" !important;
+              width: var(--mobdea-app-width, 100vw) !important;
+              height: var(--mobdea-app-height, 100dvh) !important;
+              min-width: 0 !important;
+              min-height: 0 !important;
+              max-width: none !important;
+              max-height: none !important;
+              overflow: hidden !important;
+              box-sizing: border-box !important;
+            }
+          
+            .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+              grid-area: mobileHeader !important;
+              position: relative !important;
+              inset: auto !important;
+              top: auto !important;
+              width: 100% !important;
+              min-width: 0 !important;
+            }
+          
+            .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+              grid-area: content !important;
+              position: relative !important;
+              width: 100% !important;
+              height: 100% !important;
+              min-width: 0 !important;
+              min-height: 0 !important;
+              max-width: 100% !important;
+              max-height: 100% !important;
+              margin: 0 !important;
+              overflow-x: hidden !important;
+              overflow-y: auto !important;
+              touch-action: pan-y !important;
+              overscroll-behavior-y: contain !important;
+              -webkit-overflow-scrolling: touch !important;
+              scroll-padding-bottom: calc(64px + var(--mobdea-safe-bottom, 0px)) !important;
+              padding-bottom: calc(30px + var(--mobdea-safe-bottom, 0px)) !important;
+              box-sizing: border-box !important;
+            }
+          
+            .app-shell-v103:not(.lesson-mode-shell) > .app-content > .screen-stage {
+              position: relative !important;
+              width: 100% !important;
+              height: auto !important;
+              min-width: 0 !important;
+              min-height: 100% !important;
+              max-width: 100% !important;
+              max-height: none !important;
+              overflow: visible !important;
+              box-sizing: border-box !important;
+            }
+          
+            .app-shell-v103:not(.lesson-mode-shell) > .app-content > .screen-stage > .page:not(.map-challenge-pro):not(.classmode-scene):not(.whiteboard-page),
+            .app-shell-v103:not(.lesson-mode-shell) > .app-content > .screen-stage > section.page:not(.map-challenge-pro) {
+              width: 100% !important;
+              height: auto !important;
+              min-height: 100% !important;
+              max-height: none !important;
+              overflow: visible !important;
+              contain: none !important;
+              padding-bottom: calc(56px + var(--mobdea-safe-bottom, 0px)) !important;
+              box-sizing: border-box !important;
+            }
+          
+            .app-shell-v103:not(.lesson-mode-shell) .attendance-list,
+            .app-shell-v103:not(.lesson-mode-shell) .student-list,
+            .app-shell-v103:not(.lesson-mode-shell) .cards-list,
+            .app-shell-v103:not(.lesson-mode-shell) .project13-attendance-page,
+            .app-shell-v103:not(.lesson-mode-shell) .students-page {
+              height: auto !important;
+              min-height: 0 !important;
+              max-height: none !important;
+              overflow: visible !important;
+            }
+          
+            .dashboard-v103,
+            .dashboard-page.dashboard-v103,
+            .dashboard-reference-layout.dashboard-v103 {
+              width: 100% !important;
+              height: auto !important;
+              min-height: 100% !important;
+              max-height: none !important;
+              display: grid !important;
+              grid-template-rows: auto auto auto auto auto !important;
+              gap: 10px !important;
+              overflow: visible !important;
+              contain: none !important;
+            }
+          
+            .dashboard-v103 .dashboard-reference-copy p {
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+            }
+          
+            .dashboard-v103 .dashboard-feature-card small {
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+            }
+          
+            .dashboard-v103 .dashboard-feature-link {
+              display: inline-flex !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+            }
+          
+            .dashboard-v103 .dashboard-reference-bottom {
+              display: grid !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+              gap: 8px !important;
+            }
+          
+            .dashboard-v103 .dashboard-current-class-card {
+              grid-column: 1 / -1 !important;
+            }
+          
+            .dashboard-v103 .dashboard-reference-hero {
+              width: 100% !important;
+              height: auto !important;
+              min-height: 300px !important;
+              max-height: none !important;
+              grid-template-columns: minmax(0, 1.05fr) minmax(230px, .78fr) !important;
+              grid-template-rows: auto auto !important;
+              overflow: hidden !important;
+            }
+          
+            .dashboard-v103 .dashboard-today-panel {
+              grid-column: 1 / -1 !important;
+              width: 100% !important;
+              min-width: 0 !important;
+              display: grid !important;
+              grid-template-columns: minmax(150px, .5fr) minmax(0, 1.5fr) auto !important;
+              gap: 8px !important;
+              align-items: center !important;
+            }
+          
+            .dashboard-v103 .dashboard-feature-grid {
+              width: 100% !important;
+              height: auto !important;
+              grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+              overflow: visible !important;
+            }
+          
+            /* Current JSX wraps nav/main/question in map-game-layout.
+               Legacy maps-reference.css also makes the PAGE itself a three-column grid.
+               The wrapper then occupies one old parent cell and overflows to the left.
+               Make the page one-column; map-game-layout becomes the single 3-column owner. */
+            .map-challenge-pro.map-game-v103,
+            .map-game-v103.map-challenge-pro {
+              width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              min-height: max(520px, calc(var(--mobdea-app-height, 100dvh) - 80px)) !important;
+              max-height: none !important;
+              margin: 0 !important;
+              padding: 4px !important;
+              display: grid !important;
+              grid-template-columns: minmax(0, 1fr) !important;
+              grid-template-rows: auto minmax(0, 1fr) !important;
+              gap: 4px !important;
+              overflow: hidden !important;
+              direction: ltr !important;
+              contain: layout style !important;
+              box-sizing: border-box !important;
+            }
+          
+            .map-challenge-pro > .map-game-topbar {
+              grid-column: 1 !important;
+              grid-row: 1 !important;
+              width: 100% !important;
+              min-width: 0 !important;
+              max-width: 100% !important;
+            }
+          
+            .map-challenge-pro > .map-game-layout {
+              grid-column: 1 !important;
+              grid-row: 2 !important;
+              width: 100% !important;
+              min-width: 0 !important;
+              max-width: 100% !important;
+              height: 100% !important;
+              min-height: 0 !important;
+              display: grid !important;
+              grid-template-columns: clamp(96px, 14vw, 145px) minmax(0, 1fr) clamp(170px, 24vw, 210px) !important;
+              grid-template-rows: minmax(0, 1fr) !important;
+              gap: 4px !important;
+              overflow: hidden !important;
+              direction: ltr !important;
+              box-sizing: border-box !important;
+            }
+          
+            .map-challenge-pro .map-game-nav {
+              grid-column: 1 !important;
+              grid-row: 1 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: 0 !important;
+              height: 100% !important;
+              overflow-x: hidden !important;
+              overflow-y: auto !important;
+            }
+          
+            .map-challenge-pro .map-game-main {
+              grid-column: 2 !important;
+              grid-row: 1 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: 0 !important;
+              min-height: 0 !important;
+              overflow: hidden !important;
+              grid-template-rows: auto minmax(0, 1fr) auto !important;
+            }
+          
+            .map-challenge-pro .map-game-question-panel {
+              grid-column: 3 !important;
+              grid-row: 1 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: 0 !important;
+              height: 100% !important;
+              overflow-x: hidden !important;
+              overflow-y: auto !important;
+            }
+          
+            .map-challenge-pro .map-game-toolbar {
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: 0 !important;
+              overflow-x: auto !important;
+              overflow-y: hidden !important;
+              scrollbar-width: thin !important;
+            }
+          
+            .map-challenge-pro .map-region-tabs-core,
+            .map-challenge-pro .map-view-tools,
+            .map-challenge-pro .map-layer-dock {
+              min-width: 0 !important;
+              max-width: 100% !important;
+              overflow-x: auto !important;
+              overflow-y: hidden !important;
+              overscroll-behavior-x: contain !important;
+              -webkit-overflow-scrolling: touch !important;
+            }
+          
+            .map-challenge-pro .map-game-canvas-shell,
+            .map-challenge-pro .map-pro-stage,
+            .map-challenge-pro .map-pro-transform,
+            .map-challenge-pro .map-pro-svg {
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: 0 !important;
+              min-height: 0 !important;
+            }
+          
+            .map-challenge-pro .map-game-canvas-shell {
+              height: 100% !important;
+              min-height: 340px !important;
+              overflow: hidden !important;
+            }
+          }
+          
+          @media (orientation: landscape) and (max-height: 700px) {
+            .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+              padding: 5px 6px calc(26px + var(--mobdea-safe-bottom, 0px)) !important;
+            }
+          
+            .dashboard-v103 .dashboard-reference-hero {
+              min-height: 280px !important;
+            }
+          
+            .dashboard-v103 .dashboard-reference-copy {
+              padding: 16px 18px !important;
+            }
+          
+            .dashboard-v103 .dashboard-reference-copy p {
+              display: block !important;
+              font-size: .78rem !important;
+            }
+          
+            .dashboard-v103 .dashboard-feature-grid {
+              grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+          
+            .dashboard-v103 .dashboard-feature-card {
+              min-height: 132px !important;
+            }
+          
+            .map-challenge-pro > .map-game-layout {
+              grid-template-columns: clamp(86px, 13vw, 118px) minmax(0, 1fr) clamp(156px, 23vw, 188px) !important;
+              gap: 3px !important;
+            }
+          
+            .map-challenge-pro .map-game-canvas-shell {
+              min-height: 300px !important;
+            }
+          
+            .map-challenge-pro .map-game-nav,
+            .map-challenge-pro .map-game-question-panel {
+              font-size: clamp(8px, 1.2vw, 11px) !important;
+            }
+          }
+          
+          @media (max-width: 760px) {
+            .dashboard-v103 .dashboard-reference-hero {
+              grid-template-columns: minmax(0, 1fr) !important;
+            }
+          
+            .dashboard-v103 .dashboard-today-panel,
+            .dashboard-v103 .dashboard-reference-bottom,
+            .dashboard-v103 .dashboard-feature-grid {
+              grid-template-columns: minmax(0, 1fr) !important;
+            }
+          }
+          """
+          runtime_css.write_text(css, encoding="utf-8")
+
+          main = Path("src/main.jsx")
+          main_source = main.read_text(encoding="utf-8")
+          final_import = "import './styles/r19-final-runtime-fixes.css';"
+          after = "import './styles/project14-youtube-auto-sync.css';"
+
+          if final_import not in main_source:
+              if after not in main_source:
+                  raise SystemExit("main.jsx final-style anchor missing")
+              main_source = main_source.replace(after, after + "\n" + final_import, 1)
+              main.write_text(main_source, encoding="utf-8")
+              print("Final runtime stylesheet imported after Projects 01-14.")
+          else:
+              print("Final runtime stylesheet already imported.")
+
+          main_source = main.read_text(encoding="utf-8")
+          if main_source.find(final_import) < main_source.find("project14-youtube-auto-sync.css"):
+              raise SystemExit("Runtime stylesheet precedence is wrong")
+          if "R19_FINAL_RUNTIME_FIXES_V2" not in runtime_css.read_text(encoding="utf-8"):
+              raise SystemExit("Runtime stylesheet marker missing")
+
+          keys_part = map_page.read_text(encoding="utf-8").split("const coreRegionKeys", 1)[1].split("];", 1)[0]
+          if '"nile"' not in keys_part:
+              raise SystemExit("Nile region is still not reachable in Map Challenge")
+
+          print("V6 runtime fixes installed and verified.")
+
+          PY_RUNTIME_FIXES
+
+          git diff --check
+
+      - name: V6 runtime source regression guards
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY_RUNTIME_GUARDS'
+          from pathlib import Path
+
+          class_source = Path("src/pages/ClassMode.jsx").read_text(encoding="utf-8")
+          related = class_source.find("const relatedQuestions = useMemo")
+          project12 = class_source.find("const [project12QuestionScope")
+          if related < 0 or project12 < 0 or related >= project12:
+              raise SystemExit("ClassMode TDZ guard failed")
+
+          main_source = Path("src/main.jsx").read_text(encoding="utf-8")
+          if "r19-final-runtime-fixes.css" not in main_source:
+              raise SystemExit("Final runtime stylesheet import missing")
+
+          map_source = Path("src/pages/MapChallenge.jsx").read_text(encoding="utf-8")
+          keys = map_source.split("const coreRegionKeys", 1)[1].split("];", 1)[0]
+          if '"nile"' not in keys:
+              raise SystemExit("Map Challenge Nile tab guard failed")
+
+          shell_source = Path("src/components/AppShell.jsx").read_text(encoding="utf-8")
+          if "document.querySelector('.app-shell-v103:not(.lesson-mode-shell) > .app-content')" not in shell_source:
+              raise SystemExit("AppShell content-scroll reset guard failed")
+
+          runtime_css_source = Path("src/styles/r19-final-runtime-fixes.css").read_text(encoding="utf-8")
+          for marker in (
+              "R19_FINAL_RUNTIME_FIXES_V2",
+              ".map-challenge-pro > .map-game-layout",
+              ".map-challenge-pro .map-game-question-panel",
+              ".dashboard-v103 .dashboard-reference-copy p",
+              "overflow-y: auto !important",
+          ):
+              if marker not in runtime_css_source:
+                  raise SystemExit(f"V6 runtime CSS marker missing: {marker}")
+
+          professional = Path("src/components/maps/ProfessionalMap.jsx").read_text(encoding="utf-8")
+          for marker in (
+              "TeachingReferenceGrid",
+              "project06-reference-line longitude",
+              "project06-reference-line latitude",
+              "TeachingRiverOverlay",
+              "project06-nile-key",
+          ):
+              if marker not in professional:
+                  raise SystemExit(f"Professional map marker missing: {marker}")
+
+          print("V6 runtime source guards: PASS")
+
+          PY_RUNTIME_GUARDS
+
+          grep -Fq "R19_FINAL_RUNTIME_FIXES_V2" src/styles/r19-final-runtime-fixes.css
+          grep -Fq "overflow-y: auto !important" src/styles/r19-final-runtime-fixes.css
+          grep -Fq ".map-challenge-pro > .map-game-layout" src/styles/r19-final-runtime-fixes.css
+          grep -Fq ".dashboard-v103 .dashboard-reference-copy p" src/styles/r19-final-runtime-fixes.css
+          git diff --check
+
+      - name: Guard protected pages and critical repair markers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          require_file() {
+            local file="$1"
+            local min_bytes="$2"
+            test -s "$file" || { echo "::error::Missing protected file: $file"; exit 1; }
+            local size
+            size="$(wc -c < "$file")"
+            [ "$size" -ge "$min_bytes" ] || { echo "::error::Protected file unexpectedly small: $file ($size bytes)"; exit 1; }
+          }
+
+          require_marker() {
+            local marker="$1"
+            local file="$2"
+            grep -Fq "$marker" "$file" || { echo "::error::Required marker [$marker] missing from $file"; exit 1; }
+          }
+
+          require_file src/pages/Attendance.jsx 8000
+          require_file src/pages/Payments.jsx 4000
+          require_file src/pages/Sessions.jsx 4500
+          require_file src/pages/ResultDetails.jsx 4000
+
+          require_marker "queueAbsenceNotification" src/pages/Attendance.jsx
+          require_marker "sendAbsenceWhatsApp" src/pages/Attendance.jsx
+          require_marker "PROJECT13_BARCODE_ATTENDANCE_ACCOUNTING_V1" src/pages/Attendance.jsx
+          require_marker "Project13LinkHub" src/pages/Sessions.jsx
+          require_marker "PROJECT13" src/pages/Payments.jsx
+          require_marker "PROJECT13" src/pages/ResultDetails.jsx
+
+          require_marker "CanvasOverlay" src/pages/ClassMode.jsx
+          require_marker "classmode-board-surface" src/pages/ClassMode.jsx
+          require_marker "Project08ExamOcrImport" src/pages/QuestionBankManager.jsx
+
+          # Games intentionally uses the Project08 service/marker rather than the OCR component itself.
+          require_marker "PROJECT08_OCR_EXAM_IMPORT_V1" src/pages/Games.jsx
+          require_marker "project08QuestionImport" src/pages/Games.jsx
+
+          require_marker "R19_FINAL_RUNTIME_FIXES_V2" src/styles/r19-final-runtime-fixes.css
+          require_marker "\"nile\"" src/pages/MapChallenge.jsx
+          echo "Protected pages + critical 01-14 markers: PASS"
+
+      - name: Refresh stale regression contracts without changing app source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # RUN17 creates some test files as new/untracked working-tree files.
+          # Snapshot them directly instead of relying on git diff, which ignores
+          # untracked files and caused V3 to create an empty trace patch.
+          cp tests/project14-youtube-auto-sync.test.mjs /tmp/project14-youtube-auto-sync.before.mjs
+          cp tests/r19-fix8-integrity.test.mjs /tmp/r19-fix8-integrity.before.mjs
+
+          python3 - <<'PY_TEST_CONTRACTS'
+          from pathlib import Path
+
+          def replace_exact(path_str, old, new, label):
+              path = Path(path_str)
+              if not path.is_file():
+                  raise SystemExit(f"{label}: missing test file {path}")
+              source = path.read_text(encoding="utf-8")
+              if new in source:
+                  print(f"{label}: already refreshed")
+                  return
+              if old not in source:
+                  raise SystemExit(
+                      f"{label}: historical assertion not found; refusing blind test rewrite"
+                  )
+              path.write_text(source.replace(old, new, 1), encoding="utf-8")
+              print(f"{label}: refreshed")
+
+          replace_exact(
+              "tests/project14-youtube-auto-sync.test.mjs",
+              "assert.match(s,/socialLinks:data\\.settings\\?\\.socialLinks/);",
+              "assert.match(s,/socialLinks:\\{/);assert.match(s,/\\.\\.\\.PROJECT_FINAL_SOCIAL_DEFAULTS_V1/);assert.match(s,/\\.\\.\\.\\(data\\.settings\\?\\.socialLinks\\|\\|\\{\\}\\)/);",
+              "Project14 social-links merge contract",
+          )
+
+          replace_exact(
+              "tests/r19-fix8-integrity.test.mjs",
+              "assert.match(app, /lazyWithNativeRecovery\\('class-mode'/);",
+              "assert.match(app, /lazyWithNativeRecovery\\(\\s*[\\\"']class-mode[\\\"']/);",
+              "R19 lazy ClassMode recovery contract",
+          )
+
+          replace_exact(
+              "tests/r19-fix8-integrity.test.mjs",
+              "assert.match(hook, /renderNativePdfBlob\\(blob, page, 1400/);",
+              "assert.match(hook, /usePdfPage\\(source,\\s*page\\s*=\\s*1,\\s*maxWidth\\s*=\\s*1600\\)/);assert.match(hook, /renderNativePdfBlob\\(blob,\\s*page,\\s*maxWidth,\\s*cacheKey\\)/);",
+              "R19 bounded PDF width contract",
+          )
+
+          replace_exact(
+              "tests/r19-fix8-integrity.test.mjs",
+              "assert.match(app, /addEventListener\\?\\.\\('online', runAutoSync\\)/);",
+              "assert.match(app, /addEventListener\\?\\.\\([\\\"']online[\\\"'],\\s*runAutoSync\\)/);",
+              "R19 online auto-sync listener contract",
+          )
+
+          print("Stale regression contracts refreshed without editing application source.")
+          PY_TEST_CONTRACTS
+
+          node --check tests/project14-youtube-auto-sync.test.mjs
+          echo "Project14 refreshed test syntax: PASS"
+          node --check tests/r19-fix8-integrity.test.mjs
+          echo "R19 refreshed test syntax: PASS"
+
+          : > /tmp/refreshed-regression-contracts.patch
+
+          set +e
+          diff -u             --label a/tests/project14-youtube-auto-sync.test.mjs             --label b/tests/project14-youtube-auto-sync.test.mjs             /tmp/project14-youtube-auto-sync.before.mjs             tests/project14-youtube-auto-sync.test.mjs             >> /tmp/refreshed-regression-contracts.patch
+          RC1=$?
+
+          diff -u             --label a/tests/r19-fix8-integrity.test.mjs             --label b/tests/r19-fix8-integrity.test.mjs             /tmp/r19-fix8-integrity.before.mjs             tests/r19-fix8-integrity.test.mjs             >> /tmp/refreshed-regression-contracts.patch
+          RC2=$?
+          set -e
+
+          [ "$RC1" -le 1 ] || { echo "::error::Project14 trace diff failed with rc=$RC1"; exit 1; }
+          [ "$RC2" -le 1 ] || { echo "::error::R19 trace diff failed with rc=$RC2"; exit 1; }
+
+          test -s /tmp/refreshed-regression-contracts.patch
+          echo "Regression-contract compatibility trace: $(wc -c < /tmp/refreshed-regression-contracts.patch) bytes"
+          echo "Regression-contract compatibility patch: PASS"
+
+      - name: Validate and repair recovered Android Gradle structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_GRADLE_STRUCTURE'
+          from pathlib import Path
+
+          path = Path('android/app/build.gradle')
+          text = path.read_text(encoding='utf-8')
+          bad = "    lint {\n        abortOnError true\n        checkReleaseBuilds true\n        warningsAsErrors false\n    }\n    }\n}\n\nrepositories {"
+          good = "    lint {\n        abortOnError true\n        checkReleaseBuilds true\n        warningsAsErrors false\n    }\n}\n\nrepositories {"
+
+          if bad in text:
+              text = text.replace(bad, good, 1)
+              path.write_text(text, encoding='utf-8')
+              print('Repaired known extra-brace Android Gradle structure.')
+          elif good in text:
+              print('Android Gradle structure already correct.')
+          else:
+              # Do not blindly rewrite an unknown Gradle layout. Basic structural gates still apply.
+              if 'android {' not in text or 'defaultConfig {' not in text:
+                  raise SystemExit('Android Gradle structure is not recognized; refusing blind edit')
+              print('Android Gradle structure differs from historical form but passes basic structural check.')
+          PY_GRADLE_STRUCTURE
+          git diff --check
+
+      - name: Preflight source and regression test inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/services/notifications.js
+          node --check src/services/project13AttendanceAccounting.js
+          node --check src/services/project13BarcodeScanner.js
+          node --check src/services/project14YoutubeSync.js
+          node --check src/services/projectFinalStudentAssets.js
+          node --check cloud-worker/worker.js
+
+          for test_file in \
+            tests/final-integration-01-14.test.mjs \
+            tests/project09-dashboard-responsive.test.mjs \
+            tests/project10-online-class.test.mjs \
+            tests/project11-student-sync.test.mjs \
+            tests/project12-integrated.test.mjs \
+            tests/project13-integrated.test.mjs \
+            tests/project14-youtube-auto-sync.test.mjs \
+            tests/r19-fix8-integrity.test.mjs \
+            tests/r19-interaction-stability.test.mjs \
+            tests/run15-build-readiness.test.mjs \
+            tests/run15-runtime-contract.test.mjs; do
+            test -s "$test_file" || { echo "::error::Missing regression test: $test_file"; exit 1; }
+          done
+          echo "Source syntax + regression inventory: PASS"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+
+      - name: Source lint format static gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm run format:check
+          npm run verify:static
+
+      - name: Production web build import-export gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          test -s dist/index.html
+          echo "Production web build: PASS"
+
+      - name: Cumulative regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/final-integration-01-14.test.mjs
+          node --test tests/project09-dashboard-responsive.test.mjs
+          node --test tests/project10-online-class.test.mjs
+          node --test tests/project11-student-sync.test.mjs
+          node --test tests/project12-integrated.test.mjs
+          node --test tests/project13-integrated.test.mjs
+          node --test tests/project14-youtube-auto-sync.test.mjs
+          node --test tests/r19-fix8-integrity.test.mjs
+          node --test tests/r19-interaction-stability.test.mjs
+          node --test tests/run15-build-readiness.test.mjs
+          node --test tests/run15-runtime-contract.test.mjs
+
+      - name: Capacitor Android sync with recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf android/capacitor-cordova-android-plugins
+          rm -f android/app/capacitor.build.gradle android/capacitor.settings.gradle
+
+          set +e
+          npx cap sync android
+          SYNC_RC=$?
+          set -e
+
+          if [ "$SYNC_RC" -ne 0 ] \
+             || [ ! -s android/capacitor-cordova-android-plugins/cordova.variables.gradle ] \
+             || [ ! -s android/app/capacitor.build.gradle ]; then
+            echo "Primary cap sync incomplete; running update + copy recovery."
+            npx cap update android
+            npx cap copy android
+          fi
+
+          test -s android/app/src/main/assets/public/index.html
+          test -s android/capacitor-cordova-android-plugins/cordova.variables.gradle
+          test -s android/app/capacitor.build.gradle
+          test -s android/capacitor.settings.gradle
+          grep -Fq "cordova.variables.gradle" android/app/capacitor.build.gradle
+          echo "Capacitor Android sync + generated Gradle files: PASS"
+
+      - name: Android Java compile gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:compileDebugJavaWithJavac --stacktrace
+
+      - name: Android debug unit test gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon testDebugUnitTest --stacktrace
+
+      - name: Android lintDebug gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon lintDebug --stacktrace
+
+      - name: Build debug APK
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug --stacktrace
+          test -s app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify final APK identity signature and alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BT="$SDK/build-tools/35.0.0"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          test -s "$APK"
+          "$BT/aapt" dump badging "$APK" > /tmp/apk-badging.txt
+          head -30 /tmp/apk-badging.txt
+
+          grep -Fq "package: name='com.mobdea.education'" /tmp/apk-badging.txt
+          grep -Fq "versionCode='$EXPECTED_VERSION_CODE'" /tmp/apk-badging.txt
+          grep -Fq "versionName='$EXPECTED_VERSION_NAME'" /tmp/apk-badging.txt
+          grep -Fq "targetSdkVersion:'35'" /tmp/apk-badging.txt
+          unzip -l "$APK" | grep -Fq "assets/public/index.html"
+
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/apksigner.txt
+          "$BT/zipalign" -c -P 16 -v 4 "$APK" | tee /tmp/zipalign.txt
+
+          sha256sum "$APK" | tee /tmp/apk.sha256
+          echo "Final APK verification: PASS"
+
+      - name: Package final result
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="/tmp/mobdea-r19-final-01-14"
+          mkdir -p "$OUT"
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          FINAL_APK="$OUT/mobdea-r19-final-01-14-fix8-13-10.14.1-v118-debug.apk"
+          cp "$APK" "$FINAL_APK"
+          sha256sum "$FINAL_APK" > "$OUT/mobdea-r19-final-01-14-fix8-13-10.14.1-v118-debug.sha256"
+
+          cp /tmp/apk-badging.txt "$OUT/APK-BADGING.txt"
+          cp /tmp/apksigner.txt "$OUT/APK-SIGNATURE.txt"
+          cp /tmp/zipalign.txt "$OUT/APK-ZIPALIGN.txt"
+          cp /tmp/r19-run17/R19_RUN17_DIFFSTAT.txt "$OUT/R19-01-14-DIFFSTAT.txt"
+          cp /tmp/r19-run17/R19_RUN17_FINAL.patch "$OUT/R19-01-14-REVIEWED.patch"
+          cp /tmp/refreshed-regression-contracts.patch "$OUT/REGRESSION-CONTRACT-COMPATIBILITY.patch"
+          cp src/styles/r19-final-runtime-fixes.css "$OUT/R19-FINAL-RUNTIME-FIXES.css"
+          cp src/pages/ClassMode.jsx "$OUT/ClassMode.V6.jsx"
+          cp src/pages/MapChallenge.jsx "$OUT/MapChallenge.V6.jsx"
+          cp src/components/AppShell.jsx "$OUT/AppShell.V6.jsx"
+
+          git diff --check
+          git diff --binary > "$OUT/R19-FINAL-01-14-WITH-RUN18-ROOT-CLOSURE.patch"
+
+          cat > "$OUT/FINAL-VERIFICATION.txt" <<'VERIFY'
+          R19 FINAL 01-14 + RUN18 ROOT CLOSURE
+          Baseline: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+          Reviewed RUN17 source diff SHA256: 6bc7ddab1e908916cf1bb01c59a4aff463c33220931f82c314c27178ce7d4270
+          VersionName: 10.14.1
+          VersionCode: 118
+
+          Gates:
+          - exact baseline: PASS
+          - reviewed Repairs 01-14 diff: PASS
+          - RUN18 sendAbsenceWhatsApp export closure: PASS
+          - protected-page size + exact marker checks: PASS
+          - ClassMode/Online TDZ runtime repair: PASS
+          - one-owner tablet/page vertical scrolling repair: PASS
+          - native navigation resets app-content scroll owner: PASS
+          - Map Challenge nested-grid left-crop repair: PASS
+          - Map Challenge Nile tab + tablet geometry repair: PASS
+          - Dashboard all-sections-visible responsive repair: PASS
+          - stale test contracts refreshed + traced independently of git tracking: PASS
+          - npm lint: PASS
+          - npm format check: PASS
+          - static verification: PASS
+          - production web import/export build: PASS
+          - cumulative regression tests: PASS
+          - Capacitor Android sync: PASS
+          - Android Java compile: PASS
+          - Android unit tests: PASS
+          - Android lintDebug: PASS
+          - assembleDebug: PASS
+          - APK package/version/web-assets identity: PASS
+          - APK signature verification: PASS
+          - APK zip alignment: PASS
+          VERIFY
+
+      - name: Upload final APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-final-01-14-fix8-13-v118
+          path: /tmp/mobdea-r19-final-01-14/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          OUT="/tmp/mobdea-r19-final-01-14-failure"
+          mkdir -p "$OUT"
+          git status --short > "$OUT/git-status.txt" 2>&1
+          git diff --check > "$OUT/git-diff-check.txt" 2>&1
+          git diff --binary > "$OUT/current.patch" 2>&1
+          if [ -d android/app/build/reports ]; then
+            find android/app/build/reports -maxdepth 3 -type f -print > "$OUT/android-reports-list.txt" 2>&1
+          fi
+          if [ -s android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk "$OUT/partial-app-debug.apk"
+          fi
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-final-01-14-failure
+          path: /tmp/mobdea-r19-final-01-14-failure/*
+          if-no-files-found: ignore
+          retention-days: 14
