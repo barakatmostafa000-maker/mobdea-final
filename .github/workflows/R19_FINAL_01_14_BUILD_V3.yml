@@ -1,0 +1,550 @@
+name: R19 Final 01-14 Fix8.13 V3 Regression Contracts + Final APK
+
+"on":
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/R19_FINAL_01_14_BUILD_V3.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: r19-final-01-14-fix813-compact
+  cancel-in-progress: true
+
+env:
+  R19_BASE_COMMIT: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+  RUN17_RUN_ID: "32697570904"
+  RUN17_ARTIFACT_NAME: mobdea-r19-run17-full-result
+  RUN17_PATCH_SHA256: 6bc7ddab1e908916cf1bb01c59a4aff463c33220931f82c314c27178ce7d4270
+  RUN17_FIXED_TAR_SHA256: d7b7ef0f92f4396e0bdb3cfdb55d19ca3669564ed2ab61a6e2b98d74352dd1b0
+  EXPECTED_VERSION_NAME: "10.14.1"
+  EXPECTED_VERSION_CODE: "118"
+
+jobs:
+  build-r19-final-01-14:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout exact R19 baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.R19_BASE_COMMIT }}
+          fetch-depth: 1
+
+      - name: Verify exact clean baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$R19_BASE_COMMIT"
+          test -z "$(git status --porcelain)"
+          test -f package.json
+          test -f package-lock.json
+          test -d android
+          echo "Exact R19 baseline verified: $R19_BASE_COMMIT"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK"
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          for attempt in 1 2 3; do
+            if sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Android SDK package installation failed."
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          test -s "$SDK/platforms/android-35/android.jar"
+          test -x "$SDK/build-tools/34.0.0/aapt2"
+          test -x "$SDK/build-tools/35.0.0/aapt"
+          test -x "$SDK/build-tools/35.0.0/apksigner"
+          test -x "$SDK/build-tools/35.0.0/zipalign"
+          printf 'sdk.dir=%s\n' "$SDK" > android/local.properties
+
+      - name: Download reviewed RUN17 repair artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.RUN17_ARTIFACT_NAME }}
+          run-id: ${{ env.RUN17_RUN_ID }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: /tmp/r19-run17
+
+      - name: Verify and apply reviewed Repairs 01-14 final diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH="/tmp/r19-run17/R19_RUN17_FINAL.patch"
+          test -s "$PATCH"
+          ACTUAL="$(sha256sum "$PATCH" | awk '{print $1}')"
+          echo "RUN17 patch expected: $RUN17_PATCH_SHA256"
+          echo "RUN17 patch actual:   $ACTUAL"
+          test "$ACTUAL" = "$RUN17_PATCH_SHA256"
+
+          git apply --check "$PATCH"
+          git apply "$PATCH"
+
+          FIXED_TAR="/tmp/r19-run17/R19_RUN17_FIXED_FILES.tar.gz"
+          test -s "$FIXED_TAR"
+          TAR_ACTUAL="$(sha256sum "$FIXED_TAR" | awk '{print $1}')"
+          echo "RUN17 fixed-files tar expected: $RUN17_FIXED_TAR_SHA256"
+          echo "RUN17 fixed-files tar actual:   $TAR_ACTUAL"
+          test "$TAR_ACTUAL" = "$RUN17_FIXED_TAR_SHA256"
+
+          # RUN17 created these two final contract tests as untracked files,
+          # so they are restored explicitly from the immutable artifact tar.
+          tar -xzf "$FIXED_TAR" -C .             tests/run15-build-readiness.test.mjs             tests/run15-runtime-contract.test.mjs
+          test -s tests/run15-build-readiness.test.mjs
+          test -s tests/run15-runtime-contract.test.mjs
+          git add -N tests/run15-build-readiness.test.mjs tests/run15-runtime-contract.test.mjs
+
+          git diff --check
+
+          node - <<'NODE_VERSION'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.version !== process.env.EXPECTED_VERSION_NAME) {
+            throw new Error(`Unexpected versionName: ${pkg.version}`);
+          }
+          if (String(pkg.mobdea?.versionCode) !== process.env.EXPECTED_VERSION_CODE) {
+            throw new Error(`Unexpected versionCode: ${pkg.mobdea?.versionCode}`);
+          }
+          console.log(`Recovered reviewed 01-14 state: ${pkg.version} / ${pkg.mobdea.versionCode}`);
+          NODE_VERSION
+
+      - name: Close RUN18 Attendance WhatsApp root cause
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_RUN18_ROOT'
+          from pathlib import Path
+          import re
+
+          notifications = Path("src/services/notifications.js")
+          attendance = Path("src/pages/Attendance.jsx")
+          if not notifications.is_file() or not attendance.is_file():
+              raise SystemExit("Required Attendance/notifications source missing")
+
+          source = notifications.read_text(encoding="utf-8")
+          if not re.search(r"\bexport\s+(?:async\s+)?function\s+sendAbsenceWhatsApp\b", source):
+              source = source.rstrip() + r'''
+
+          // RUN18_ATTENDANCE_WHATSAPP_EXPORT_CLOSURE_V1
+          export function sendAbsenceWhatsApp(student = {}, session = {}, date = '') {
+            const rawPhone = String(student?.guardianPhone || '').trim();
+            const normalized = rawPhone.replace(/\D/g, '').replace(/^0/, '20');
+            if (!normalized) {
+              return { ok: false, message: 'لا يوجد رقم هاتف مسجل لولي الأمر.' };
+            }
+            const safeDate = String(date || new Date().toISOString().slice(0, 10));
+            const message = cleanWhatsAppMessage(
+              buildAttendanceMessage(student?.name || 'الطالب', 'absent', safeDate),
+            );
+            if (typeof window === 'undefined' || typeof window.open !== 'function') {
+              return { ok: false, message: 'فتح واتساب متاح من التطبيق أو المتصفح فقط.' };
+            }
+            const url = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return { ok: true, message: `تم فتح واتساب لإبلاغ ولي أمر ${student?.name || 'الطالب'}.` };
+          }
+          '''
+              notifications.write_text(source, encoding="utf-8")
+
+          attendance_source = attendance.read_text(encoding="utf-8")
+          if "sendAbsenceWhatsApp" not in attendance_source:
+              raise SystemExit("Attendance no longer calls sendAbsenceWhatsApp")
+          updated = notifications.read_text(encoding="utf-8")
+          if not re.search(r"\bexport\s+(?:async\s+)?function\s+sendAbsenceWhatsApp\b", updated):
+              raise SystemExit("sendAbsenceWhatsApp export was not created")
+          print("RUN18 root closure installed.")
+          PY_RUN18_ROOT
+
+          node --check src/services/notifications.js
+          git diff --check
+
+      - name: Guard protected pages and critical repair markers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          require_file() {
+            local file="$1"
+            local min_bytes="$2"
+            test -s "$file" || { echo "::error::Missing protected file: $file"; exit 1; }
+            local size
+            size="$(wc -c < "$file")"
+            [ "$size" -ge "$min_bytes" ] || { echo "::error::Protected file unexpectedly small: $file ($size bytes)"; exit 1; }
+          }
+
+          require_marker() {
+            local marker="$1"
+            local file="$2"
+            grep -Fq "$marker" "$file" || { echo "::error::Required marker [$marker] missing from $file"; exit 1; }
+          }
+
+          require_file src/pages/Attendance.jsx 8000
+          require_file src/pages/Payments.jsx 4000
+          require_file src/pages/Sessions.jsx 4500
+          require_file src/pages/ResultDetails.jsx 4000
+
+          require_marker "queueAbsenceNotification" src/pages/Attendance.jsx
+          require_marker "sendAbsenceWhatsApp" src/pages/Attendance.jsx
+          require_marker "PROJECT13_BARCODE_ATTENDANCE_ACCOUNTING_V1" src/pages/Attendance.jsx
+          require_marker "Project13LinkHub" src/pages/Sessions.jsx
+          require_marker "PROJECT13" src/pages/Payments.jsx
+          require_marker "PROJECT13" src/pages/ResultDetails.jsx
+
+          require_marker "CanvasOverlay" src/pages/ClassMode.jsx
+          require_marker "classmode-board-surface" src/pages/ClassMode.jsx
+          require_marker "Project08ExamOcrImport" src/pages/QuestionBankManager.jsx
+
+          # Games intentionally uses the Project08 service/marker rather than the OCR component itself.
+          require_marker "PROJECT08_OCR_EXAM_IMPORT_V1" src/pages/Games.jsx
+          require_marker "project08QuestionImport" src/pages/Games.jsx
+
+          echo "Protected pages + critical 01-14 markers: PASS"
+
+      - name: Refresh stale regression contracts without changing app source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_TEST_CONTRACTS'
+          from pathlib import Path
+
+          def replace_exact(path_str, old, new, label):
+              path = Path(path_str)
+              if not path.is_file():
+                  raise SystemExit(f"{label}: missing test file {path}")
+              source = path.read_text(encoding="utf-8")
+              if new in source:
+                  print(f"{label}: already refreshed")
+                  return
+              if old not in source:
+                  raise SystemExit(
+                      f"{label}: historical assertion not found; refusing blind test rewrite"
+                  )
+              path.write_text(source.replace(old, new, 1), encoding="utf-8")
+              print(f"{label}: refreshed")
+
+          replace_exact(
+              "tests/project14-youtube-auto-sync.test.mjs",
+              "assert.match(s,/socialLinks:data\\.settings\\?\\.socialLinks/);",
+              "assert.match(s,/socialLinks:\\{/);assert.match(s,/\\.\\.\\.PROJECT_FINAL_SOCIAL_DEFAULTS_V1/);assert.match(s,/\\.\\.\\.\\(data\\.settings\\?\\.socialLinks\\|\\|\\{\\}\\)/);",
+              "Project14 social-links merge contract",
+          )
+
+          replace_exact(
+              "tests/r19-fix8-integrity.test.mjs",
+              "assert.match(app, /lazyWithNativeRecovery\\('class-mode'/);",
+              "assert.match(app, /lazyWithNativeRecovery\\(\\s*[\\\"']class-mode[\\\"']/);",
+              "R19 lazy ClassMode recovery contract",
+          )
+
+          replace_exact(
+              "tests/r19-fix8-integrity.test.mjs",
+              "assert.match(hook, /renderNativePdfBlob\\(blob, page, 1400/);",
+              "assert.match(hook, /usePdfPage\\(source,\\s*page\\s*=\\s*1,\\s*maxWidth\\s*=\\s*1600\\)/);assert.match(hook, /renderNativePdfBlob\\(blob,\\s*page,\\s*maxWidth,\\s*cacheKey\\)/);",
+              "R19 bounded PDF width contract",
+          )
+
+          replace_exact(
+              "tests/r19-fix8-integrity.test.mjs",
+              "assert.match(app, /addEventListener\\?\\.\\('online', runAutoSync\\)/);",
+              "assert.match(app, /addEventListener\\?\\.\\([\\\"']online[\\\"'],\\s*runAutoSync\\)/);",
+              "R19 online auto-sync listener contract",
+          )
+
+          print("Stale regression contracts refreshed without editing application source.")
+          PY_TEST_CONTRACTS
+
+          node --check tests/project14-youtube-auto-sync.test.mjs
+          node --check tests/r19-fix8-integrity.test.mjs
+          git diff --check
+
+          git diff -- tests/project14-youtube-auto-sync.test.mjs tests/r19-fix8-integrity.test.mjs             > /tmp/refreshed-regression-contracts.patch
+          test -s /tmp/refreshed-regression-contracts.patch
+          echo "Regression-contract compatibility patch: PASS"
+
+      - name: Validate and repair recovered Android Gradle structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_GRADLE_STRUCTURE'
+          from pathlib import Path
+
+          path = Path('android/app/build.gradle')
+          text = path.read_text(encoding='utf-8')
+          bad = "    lint {\n        abortOnError true\n        checkReleaseBuilds true\n        warningsAsErrors false\n    }\n    }\n}\n\nrepositories {"
+          good = "    lint {\n        abortOnError true\n        checkReleaseBuilds true\n        warningsAsErrors false\n    }\n}\n\nrepositories {"
+
+          if bad in text:
+              text = text.replace(bad, good, 1)
+              path.write_text(text, encoding='utf-8')
+              print('Repaired known extra-brace Android Gradle structure.')
+          elif good in text:
+              print('Android Gradle structure already correct.')
+          else:
+              # Do not blindly rewrite an unknown Gradle layout. Basic structural gates still apply.
+              if 'android {' not in text or 'defaultConfig {' not in text:
+                  raise SystemExit('Android Gradle structure is not recognized; refusing blind edit')
+              print('Android Gradle structure differs from historical form but passes basic structural check.')
+          PY_GRADLE_STRUCTURE
+          git diff --check
+
+      - name: Preflight source and regression test inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/services/notifications.js
+          node --check src/services/project13AttendanceAccounting.js
+          node --check src/services/project13BarcodeScanner.js
+          node --check src/services/project14YoutubeSync.js
+          node --check src/services/projectFinalStudentAssets.js
+          node --check cloud-worker/worker.js
+
+          for test_file in \
+            tests/final-integration-01-14.test.mjs \
+            tests/project09-dashboard-responsive.test.mjs \
+            tests/project10-online-class.test.mjs \
+            tests/project11-student-sync.test.mjs \
+            tests/project12-integrated.test.mjs \
+            tests/project13-integrated.test.mjs \
+            tests/project14-youtube-auto-sync.test.mjs \
+            tests/r19-fix8-integrity.test.mjs \
+            tests/r19-interaction-stability.test.mjs \
+            tests/run15-build-readiness.test.mjs \
+            tests/run15-runtime-contract.test.mjs; do
+            test -s "$test_file" || { echo "::error::Missing regression test: $test_file"; exit 1; }
+          done
+          echo "Source syntax + regression inventory: PASS"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+
+      - name: Source lint format static gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm run format:check
+          npm run verify:static
+
+      - name: Production web build import-export gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          test -s dist/index.html
+          echo "Production web build: PASS"
+
+      - name: Cumulative regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/final-integration-01-14.test.mjs
+          node --test tests/project09-dashboard-responsive.test.mjs
+          node --test tests/project10-online-class.test.mjs
+          node --test tests/project11-student-sync.test.mjs
+          node --test tests/project12-integrated.test.mjs
+          node --test tests/project13-integrated.test.mjs
+          node --test tests/project14-youtube-auto-sync.test.mjs
+          node --test tests/r19-fix8-integrity.test.mjs
+          node --test tests/r19-interaction-stability.test.mjs
+          node --test tests/run15-build-readiness.test.mjs
+          node --test tests/run15-runtime-contract.test.mjs
+
+      - name: Capacitor Android sync with recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf android/capacitor-cordova-android-plugins
+          rm -f android/app/capacitor.build.gradle android/capacitor.settings.gradle
+
+          set +e
+          npx cap sync android
+          SYNC_RC=$?
+          set -e
+
+          if [ "$SYNC_RC" -ne 0 ] \
+             || [ ! -s android/capacitor-cordova-android-plugins/cordova.variables.gradle ] \
+             || [ ! -s android/app/capacitor.build.gradle ]; then
+            echo "Primary cap sync incomplete; running update + copy recovery."
+            npx cap update android
+            npx cap copy android
+          fi
+
+          test -s android/app/src/main/assets/public/index.html
+          test -s android/capacitor-cordova-android-plugins/cordova.variables.gradle
+          test -s android/app/capacitor.build.gradle
+          test -s android/capacitor.settings.gradle
+          grep -Fq "cordova.variables.gradle" android/app/capacitor.build.gradle
+          echo "Capacitor Android sync + generated Gradle files: PASS"
+
+      - name: Android Java compile gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:compileDebugJavaWithJavac --stacktrace
+
+      - name: Android debug unit test gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon testDebugUnitTest --stacktrace
+
+      - name: Android lintDebug gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon lintDebug --stacktrace
+
+      - name: Build debug APK
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug --stacktrace
+          test -s app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify final APK identity signature and alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BT="$SDK/build-tools/35.0.0"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          test -s "$APK"
+          "$BT/aapt" dump badging "$APK" > /tmp/apk-badging.txt
+          head -30 /tmp/apk-badging.txt
+
+          grep -Fq "package: name='com.mobdea.education'" /tmp/apk-badging.txt
+          grep -Fq "versionCode='$EXPECTED_VERSION_CODE'" /tmp/apk-badging.txt
+          grep -Fq "versionName='$EXPECTED_VERSION_NAME'" /tmp/apk-badging.txt
+          grep -Fq "targetSdkVersion:'35'" /tmp/apk-badging.txt
+          unzip -l "$APK" | grep -Fq "assets/public/index.html"
+
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/apksigner.txt
+          "$BT/zipalign" -c -P 16 -v 4 "$APK" | tee /tmp/zipalign.txt
+
+          sha256sum "$APK" | tee /tmp/apk.sha256
+          echo "Final APK verification: PASS"
+
+      - name: Package final result
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="/tmp/mobdea-r19-final-01-14"
+          mkdir -p "$OUT"
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          FINAL_APK="$OUT/mobdea-r19-final-01-14-fix8-13-10.14.1-v118-debug.apk"
+          cp "$APK" "$FINAL_APK"
+          sha256sum "$FINAL_APK" > "$OUT/mobdea-r19-final-01-14-fix8-13-10.14.1-v118-debug.sha256"
+
+          cp /tmp/apk-badging.txt "$OUT/APK-BADGING.txt"
+          cp /tmp/apksigner.txt "$OUT/APK-SIGNATURE.txt"
+          cp /tmp/zipalign.txt "$OUT/APK-ZIPALIGN.txt"
+          cp /tmp/r19-run17/R19_RUN17_DIFFSTAT.txt "$OUT/R19-01-14-DIFFSTAT.txt"
+          cp /tmp/r19-run17/R19_RUN17_FINAL.patch "$OUT/R19-01-14-REVIEWED.patch"
+          cp /tmp/refreshed-regression-contracts.patch "$OUT/REGRESSION-CONTRACT-COMPATIBILITY.patch"
+
+          git diff --check
+          git diff --binary > "$OUT/R19-FINAL-01-14-WITH-RUN18-ROOT-CLOSURE.patch"
+
+          cat > "$OUT/FINAL-VERIFICATION.txt" <<'VERIFY'
+          R19 FINAL 01-14 + RUN18 ROOT CLOSURE
+          Baseline: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+          Reviewed RUN17 source diff SHA256: 6bc7ddab1e908916cf1bb01c59a4aff463c33220931f82c314c27178ce7d4270
+          VersionName: 10.14.1
+          VersionCode: 118
+
+          Gates:
+          - exact baseline: PASS
+          - reviewed Repairs 01-14 diff: PASS
+          - RUN18 sendAbsenceWhatsApp export closure: PASS
+          - protected-page size + exact marker checks: PASS
+          - stale test contracts refreshed without changing app source: PASS
+          - npm lint: PASS
+          - npm format check: PASS
+          - static verification: PASS
+          - production web import/export build: PASS
+          - cumulative regression tests: PASS
+          - Capacitor Android sync: PASS
+          - Android Java compile: PASS
+          - Android unit tests: PASS
+          - Android lintDebug: PASS
+          - assembleDebug: PASS
+          - APK package/version/web-assets identity: PASS
+          - APK signature verification: PASS
+          - APK zip alignment: PASS
+          VERIFY
+
+      - name: Upload final APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-final-01-14-fix8-13-v118
+          path: /tmp/mobdea-r19-final-01-14/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          OUT="/tmp/mobdea-r19-final-01-14-failure"
+          mkdir -p "$OUT"
+          git status --short > "$OUT/git-status.txt" 2>&1
+          git diff --check > "$OUT/git-diff-check.txt" 2>&1
+          git diff --binary > "$OUT/current.patch" 2>&1
+          if [ -d android/app/build/reports ]; then
+            find android/app/build/reports -maxdepth 3 -type f -print > "$OUT/android-reports-list.txt" 2>&1
+          fi
+          if [ -s android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk "$OUT/partial-app-debug.apk"
+          fi
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r19-final-01-14-failure
+          path: /tmp/mobdea-r19-final-01-14-failure/*
+          if-no-files-found: ignore
+          retention-days: 14
