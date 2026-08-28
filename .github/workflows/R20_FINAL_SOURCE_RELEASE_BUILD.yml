@@ -1,0 +1,329 @@
+name: R20 Final Source Release 01-26 Build APK
+"on":
+  workflow_dispatch: {}
+  push:
+    branches:
+    - main
+    paths:
+    - .github/workflows/R20_FINAL_SOURCE_RELEASE_BUILD.yml
+    - R20_FINAL_SOURCE_RELEASE_01_26.zip
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: r20-final-source-release-01-26
+  cancel-in-progress: true
+env:
+  R19_BASE_COMMIT: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+  RUN17_RUN_ID: '32697570904'
+  RUN17_ARTIFACT_NAME: mobdea-r19-run17-full-result
+  RUN17_PATCH_SHA256: 6bc7ddab1e908916cf1bb01c59a4aff463c33220931f82c314c27178ce7d4270
+  RUN17_FIXED_TAR_SHA256: d7b7ef0f92f4396e0bdb3cfdb55d19ca3669564ed2ab61a6e2b98d74352dd1b0
+  R20_SOURCE_TAR_SHA256: 8eaccdbebb68153d9944816f0f588680594d0bdb492a06282849a2860806975b
+  EXPECTED_VERSION_NAME: 10.14.1
+  EXPECTED_VERSION_CODE: '118'
+jobs:
+  build-r20-final:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+    - name: Checkout current release assets
+      uses: actions/checkout@v4
+      with:
+        path: release-assets
+        fetch-depth: 1
+    - name: Extract uploaded R20 release bundle
+      shell: bash
+      run: 'set -euo pipefail
+
+        ZIP="release-assets/R20_FINAL_SOURCE_RELEASE_01_26.zip"
+
+        test -s "$ZIP"
+
+        rm -rf /tmp/r20-release-bundle
+
+        mkdir -p /tmp/r20-release-bundle
+
+        unzip -q "$ZIP" -d /tmp/r20-release-bundle
+
+        test -s /tmp/r20-release-bundle/release/r20/R20_SOURCE_RELEASE.tar.gz
+
+        test -s /tmp/r20-release-bundle/release/r20/R20_RELEASE_MANIFEST.json
+
+        test -s /tmp/r20-release-bundle/release/r20/prepare-r19-base.py
+
+        '
+    - name: Checkout exact R19 baseline
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.R19_BASE_COMMIT }}
+        path: app
+        fetch-depth: 1
+    - name: Verify exact clean baseline
+      shell: bash
+      run: 'set -euo pipefail
+
+        cd app
+
+        test "$(git rev-parse HEAD)" = "$R19_BASE_COMMIT"
+
+        test -z "$(git status --porcelain)"
+
+        test -f package.json
+
+        test -f package-lock.json
+
+        test -d android
+
+        echo "Exact baseline verified: $R19_BASE_COMMIT"
+
+        '
+    - name: Setup Node 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: app/package-lock.json
+    - name: Setup Java 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+        cache: gradle
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    - name: Install Android SDK 35
+      shell: bash
+      run: "set -euo pipefail\nSDK=\"${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}\"\ntest -n \"$SDK\"\nyes | sdkmanager --licenses >/dev/null 2>&1 || true\nfor attempt in 1 2 3; do\n  if sdkmanager \"platform-tools\" \"platforms;android-35\" \"build-tools;34.0.0\" \"build-tools;35.0.0\"; then\n    break\n  fi\n  test \"$attempt\" -lt 3\n  sleep $((attempt * 5))\ndone\ntest -s \"$SDK/platforms/android-35/android.jar\"\ntest -x \"$SDK/build-tools/35.0.0/apksigner\"\ntest -x \"$SDK/build-tools/35.0.0/zipalign\"\nprintf 'sdk.dir=%s\\n' \"$SDK\" > app/android/local.properties\n"
+    - name: Download proven RUN17 artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ env.RUN17_ARTIFACT_NAME }}
+        run-id: ${{ env.RUN17_RUN_ID }}
+        github-token: ${{ github.token }}
+        repository: ${{ github.repository }}
+        path: /tmp/r19-run17
+    - name: Reconstruct proven R19 source
+      shell: bash
+      run: 'set -euo pipefail
+
+        cd app
+
+        PATCH="/tmp/r19-run17/R19_RUN17_FINAL.patch"
+
+        FIXED="/tmp/r19-run17/R19_RUN17_FIXED_FILES.tar.gz"
+
+        test -s "$PATCH"
+
+        test -s "$FIXED"
+
+        test "$(sha256sum "$PATCH" | awk ''{print $1}'')" = "$RUN17_PATCH_SHA256"
+
+        test "$(sha256sum "$FIXED" | awk ''{print $1}'')" = "$RUN17_FIXED_TAR_SHA256"
+
+        git apply --check "$PATCH"
+
+        git apply "$PATCH"
+
+        tar -xzf "$FIXED" -C .
+
+        test -s tests/run15-build-readiness.test.mjs
+
+        test -s tests/run15-runtime-contract.test.mjs
+
+        git add -N tests/run15-build-readiness.test.mjs tests/run15-runtime-contract.test.mjs
+
+        python3 /tmp/r20-release-bundle/release/r20/prepare-r19-base.py .
+
+        node --check src/services/notifications.js
+
+        git diff --check
+
+        '
+    - name: Apply fixed R20 source release
+      shell: bash
+      run: 'set -euo pipefail
+
+        TAR="/tmp/r20-release-bundle/release/r20/R20_SOURCE_RELEASE.tar.gz"
+
+        test -s "$TAR"
+
+        ACTUAL="$(sha256sum "$TAR" | awk ''{print $1}'')"
+
+        echo "R20 source expected: $R20_SOURCE_TAR_SHA256"
+
+        echo "R20 source actual:   $ACTUAL"
+
+        test "$ACTUAL" = "$R20_SOURCE_TAR_SHA256"
+
+        tar -xzf "$TAR" -C app
+
+        cd app
+
+        grep -Fq "R20_FIX24_MOBDEA_ONLINE_CONFIG_V2_VERIFIED_LINKS" src/config/r20MobdeaOnlineConfig.js
+
+        grep -Fq "R20_FIX25_MONTHLY_EVALUATION_V1" src/services/r20MonthlyEvaluation.js
+
+        grep -Fq "R20_FIX07_PDF_PINCH_PAN_BOARD_OVERLAY_V2_AUDITED" src/services/r20PdfGestures.js
+
+        grep -Fq "R19_FINAL_RUNTIME_FIXES_V2" src/styles/r19-final-runtime-fixes.css
+
+        git diff --check
+
+        '
+    - name: R20 syntax inventory
+      shell: bash
+      run: "set -euo pipefail\ncd app\nfor f in src/services/r20*.js src/config/r20*.js tests/r20*.test.mjs; do\n  node --check \"$f\"\ndone\nnode --check cloud-worker/r20PortalAccounts.js\ntest -s scripts/r20-phase01-08-browser-audit.mjs\ntest -s scripts/r20-fix25-monthly-evaluation-smoke.mjs\n"
+    - name: Install dependencies
+      shell: bash
+      run: 'set -euo pipefail
+
+        cd app
+
+        npm ci
+
+        '
+    - name: Static gates
+      shell: bash
+      run: 'set -euo pipefail
+
+        cd app
+
+        npm run lint
+
+        npm run format:check
+
+        npm run verify:static
+
+        '
+    - name: R20 cumulative regression
+      shell: bash
+      run: 'set -euo pipefail
+
+        cd app
+
+        node --test tests/r20*.test.mjs
+
+        node --test tests/geography-maps.test.mjs
+
+        node --test tests/map-symbol-library-v13.test.mjs
+
+        node --test tests/gamification.test.mjs
+
+        node --test tests/online-game.test.mjs
+
+        node --test tests/student-ranking.test.mjs
+
+        node --test tests/pdf-question-ocr.test.mjs
+
+        node --test tests/question-rotation.test.mjs
+
+        node --test tests/student-card-printing-r14.test.mjs
+
+        '
+    - name: Production web build
+      shell: bash
+      run: 'set -euo pipefail
+
+        cd app
+
+        npm run build
+
+        test -s dist/index.html
+
+        '
+    - name: Capacitor Android sync with recovery
+      shell: bash
+      run: "set -euo pipefail\ncd app\nrm -rf android/capacitor-cordova-android-plugins\nrm -f android/app/capacitor.build.gradle android/capacitor.settings.gradle\nset +e\nnpx cap sync android\nRC=$?\nset -e\nif [ \"$RC\" -ne 0 ] || [ ! -s android/app/capacitor.build.gradle ]; then\n  npx cap update android\n  npx cap copy android\nfi\ntest -s android/app/src/main/assets/public/index.html\ntest -s android/app/capacitor.build.gradle\ntest -s android/capacitor.settings.gradle\n"
+    - name: Android compile unit lint and APK
+      shell: bash
+      run: 'set -euo pipefail
+
+        cd app/android
+
+        chmod +x gradlew
+
+        ./gradlew --no-daemon :app:compileDebugJavaWithJavac --stacktrace
+
+        ./gradlew --no-daemon testDebugUnitTest --stacktrace
+
+        ./gradlew --no-daemon lintDebug --stacktrace
+
+        ./gradlew --no-daemon assembleDebug --stacktrace
+
+        test -s app/build/outputs/apk/debug/app-debug.apk
+
+        '
+    - name: Verify final APK
+      shell: bash
+      run: 'set -euo pipefail
+
+        SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+
+        BT="$SDK/build-tools/35.0.0"
+
+        APK="app/android/app/build/outputs/apk/debug/app-debug.apk"
+
+        "$BT/aapt" dump badging "$APK" > /tmp/apk-badging.txt
+
+        grep -Fq "package: name=''com.mobdea.education''" /tmp/apk-badging.txt
+
+        grep -Fq "versionCode=''$EXPECTED_VERSION_CODE''" /tmp/apk-badging.txt
+
+        grep -Fq "versionName=''$EXPECTED_VERSION_NAME''" /tmp/apk-badging.txt
+
+        grep -Fq "targetSdkVersion:''35''" /tmp/apk-badging.txt
+
+        "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/apksigner.txt
+
+        "$BT/zipalign" -c -P 16 -v 4 "$APK" | tee /tmp/zipalign.txt
+
+        sha256sum "$APK" | tee /tmp/apk.sha256
+
+        '
+    - name: Package R20 final result
+      shell: bash
+      run: 'set -euo pipefail
+
+        OUT="/tmp/mobdea-r20-final"
+
+        mkdir -p "$OUT"
+
+        APK="app/android/app/build/outputs/apk/debug/app-debug.apk"
+
+        cp "$APK" "$OUT/mobdea-r20-final-10.14.1-v118-debug.apk"
+
+        cp /tmp/apk-badging.txt "$OUT/APK-BADGING.txt"
+
+        cp /tmp/apksigner.txt "$OUT/APK-SIGNATURE.txt"
+
+        cp /tmp/zipalign.txt "$OUT/APK-ZIPALIGN.txt"
+
+        cp /tmp/apk.sha256 "$OUT/APK-SHA256.txt"
+
+        cp /tmp/r20-release-bundle/release/r20/R20_RELEASE_MANIFEST.json "$OUT/"
+
+        cd app
+
+        git diff --binary > "$OUT/R20-FINAL-SOURCE.patch"
+
+        '
+    - name: Upload R20 final artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mobdea-r20-final-10.14.1-v118
+        path: /tmp/mobdea-r20-final/*
+        if-no-files-found: error
+        retention-days: 30
+    - name: Collect failure diagnostics
+      if: failure()
+      shell: bash
+      run: "set +e\nOUT=\"/tmp/mobdea-r20-final-failure\"\nmkdir -p \"$OUT\"\ncd app\ngit status --short > \"$OUT/git-status.txt\" 2>&1\ngit diff --check > \"$OUT/git-diff-check.txt\" 2>&1\ngit diff --binary > \"$OUT/current.patch\" 2>&1\nif [ -d android/app/build/reports ]; then\n  find android/app/build/reports -maxdepth 4 -type f -print > \"$OUT/android-reports-list.txt\" 2>&1\nfi\n"
+    - name: Upload failure diagnostics
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mobdea-r20-final-failure
+        path: /tmp/mobdea-r20-final-failure/*
+        if-no-files-found: ignore
+        retention-days: 14
