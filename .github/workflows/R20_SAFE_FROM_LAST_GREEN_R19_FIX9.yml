@@ -1,0 +1,1364 @@
+name: R20 SAFE FROM LAST GREEN R19 V6 FIX9
+
+"on":
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/R20_SAFE_FROM_LAST_GREEN_R19_FIX9.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: r20-safe-from-last-green-r19-v6-fix9
+  cancel-in-progress: true
+
+env:
+  R19_BASE_COMMIT: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+  RUN17_RUN_ID: "32697570904"
+  RUN17_ARTIFACT_NAME: mobdea-r19-run17-full-result
+  RUN17_PATCH_SHA256: 6bc7ddab1e908916cf1bb01c59a4aff463c33220931f82c314c27178ce7d4270
+  RUN17_FIXED_TAR_SHA256: d7b7ef0f92f4396e0bdb3cfdb55d19ca3669564ed2ab61a6e2b98d74352dd1b0
+  LAST_GREEN_RUN_ID: "32714480207"
+  LAST_GREEN_ARTIFACT_NAME: mobdea-r19-final-01-14-fix8-13-v118
+  R20_SOURCE_TAR_SHA256: 03804eefcfa7b8c2284dfb56303b7ff187af672036f041f41f267dd4283f653c
+  EXPECTED_VERSION_NAME: "10.14.1"
+  EXPECTED_VERSION_CODE: "118"
+
+jobs:
+  build-r20-final:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout exact R19 baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.R19_BASE_COMMIT }}
+          fetch-depth: 1
+
+      - name: Verify exact clean baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$R19_BASE_COMMIT"
+          test -z "$(git status --porcelain)"
+          test -f package.json
+          test -f package-lock.json
+          test -d android
+          echo "Exact R19 baseline verified: $R19_BASE_COMMIT"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK"
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          for attempt in 1 2 3; do
+            if sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Android SDK package installation failed."
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+          test -s "$SDK/platforms/android-35/android.jar"
+          test -x "$SDK/build-tools/34.0.0/aapt2"
+          test -x "$SDK/build-tools/35.0.0/aapt"
+          test -x "$SDK/build-tools/35.0.0/apksigner"
+          test -x "$SDK/build-tools/35.0.0/zipalign"
+          echo "$SDK/build-tools/35.0.0" >> "$GITHUB_PATH"
+          printf 'sdk.dir=%s\n' "$SDK" > android/local.properties
+
+      - name: Download reviewed RUN17 repair artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.RUN17_ARTIFACT_NAME }}
+          run-id: ${{ env.RUN17_RUN_ID }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: /tmp/r19-run17
+
+      - name: Verify and apply reviewed Repairs 01-14 final diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH="/tmp/r19-run17/R19_RUN17_FINAL.patch"
+          test -s "$PATCH"
+          ACTUAL="$(sha256sum "$PATCH" | awk '{print $1}')"
+          test "$ACTUAL" = "$RUN17_PATCH_SHA256"
+
+          git apply --check "$PATCH"
+          git apply "$PATCH"
+
+          FIXED_TAR="/tmp/r19-run17/R19_RUN17_FIXED_FILES.tar.gz"
+          test -s "$FIXED_TAR"
+          TAR_ACTUAL="$(sha256sum "$FIXED_TAR" | awk '{print $1}')"
+          test "$TAR_ACTUAL" = "$RUN17_FIXED_TAR_SHA256"
+
+          tar -xzf "$FIXED_TAR" -C . \
+            tests/run15-build-readiness.test.mjs \
+            tests/run15-runtime-contract.test.mjs
+
+          test -s tests/run15-build-readiness.test.mjs
+          test -s tests/run15-runtime-contract.test.mjs
+          git add -N tests/run15-build-readiness.test.mjs tests/run15-runtime-contract.test.mjs
+
+          git diff --check
+
+          node - <<'NODE_VERSION'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.version !== process.env.EXPECTED_VERSION_NAME) {
+            throw new Error(`Unexpected versionName: ${pkg.version}`);
+          }
+          if (String(pkg.mobdea?.versionCode) !== process.env.EXPECTED_VERSION_CODE) {
+            throw new Error(`Unexpected versionCode: ${pkg.mobdea?.versionCode}`);
+          }
+          NODE_VERSION
+
+      - name: Close RUN18 Attendance WhatsApp root cause
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_RUN18_ROOT'
+          from pathlib import Path
+          import re
+
+          notifications = Path("src/services/notifications.js")
+          attendance = Path("src/pages/Attendance.jsx")
+          if not notifications.is_file() or not attendance.is_file():
+              raise SystemExit("Required Attendance/notifications source missing")
+
+          source = notifications.read_text(encoding="utf-8")
+          if not re.search(r"\bexport\s+(?:async\s+)?function\s+sendAbsenceWhatsApp\b", source):
+              source = source.rstrip() + r'''
+
+          // RUN18_ATTENDANCE_WHATSAPP_EXPORT_CLOSURE_V1
+          export function sendAbsenceWhatsApp(student = {}, session = {}, date = '') {
+            const rawPhone = String(student?.guardianPhone || '').trim();
+            const normalized = rawPhone.replace(/\D/g, '').replace(/^0/, '20');
+            if (!normalized) {
+              return { ok: false, message: 'لا يوجد رقم هاتف مسجل لولي الأمر.' };
+            }
+            const safeDate = String(date || new Date().toISOString().slice(0, 10));
+            const message = cleanWhatsAppMessage(
+              buildAttendanceMessage(student?.name || 'الطالب', 'absent', safeDate),
+            );
+            if (typeof window === 'undefined' || typeof window.open !== 'function') {
+              return { ok: false, message: 'فتح واتساب متاح من التطبيق أو المتصفح فقط.' };
+            }
+            const url = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return { ok: true, message: `تم فتح واتساب لإبلاغ ولي أمر ${student?.name || 'الطالب'}.` };
+          }
+          '''
+              notifications.write_text(source, encoding="utf-8")
+
+          attendance_source = attendance.read_text(encoding="utf-8")
+          if "sendAbsenceWhatsApp" not in attendance_source:
+              raise SystemExit("Attendance no longer calls sendAbsenceWhatsApp")
+          updated = notifications.read_text(encoding="utf-8")
+          if not re.search(r"\bexport\s+(?:async\s+)?function\s+sendAbsenceWhatsApp\b", updated):
+              raise SystemExit("sendAbsenceWhatsApp export was not created")
+          PY_RUN18_ROOT
+
+          node --check src/services/notifications.js
+          git diff --check
+
+      - name: Download actual last green R19 V6 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.LAST_GREEN_ARTIFACT_NAME }}
+          run-id: ${{ env.LAST_GREEN_RUN_ID }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: /tmp/r19-last-green
+
+      - name: Restore exact last green V6 source closures
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for f in \
+            /tmp/r19-last-green/ClassMode.V6.jsx \
+            /tmp/r19-last-green/MapChallenge.V6.jsx \
+            /tmp/r19-last-green/AppShell.V6.jsx \
+            /tmp/r19-last-green/R19-FINAL-RUNTIME-FIXES.css \
+            /tmp/r19-last-green/REGRESSION-CONTRACT-COMPATIBILITY.patch; do
+            test -s "$f" || { echo "::error::Missing last-green artifact file: $f"; exit 1; }
+          done
+
+          cp /tmp/r19-last-green/ClassMode.V6.jsx src/pages/ClassMode.jsx
+          cp /tmp/r19-last-green/MapChallenge.V6.jsx src/pages/MapChallenge.jsx
+          cp /tmp/r19-last-green/AppShell.V6.jsx src/components/AppShell.jsx
+          cp /tmp/r19-last-green/R19-FINAL-RUNTIME-FIXES.css src/styles/r19-final-runtime-fixes.css
+
+          python3 - <<'PY_V6_IMPORT'
+          from pathlib import Path
+
+          main = Path("src/main.jsx")
+          source = main.read_text(encoding="utf-8")
+          final_import = "import './styles/r19-final-runtime-fixes.css';"
+          anchor = "import './styles/project14-youtube-auto-sync.css';"
+
+          source = source.replace(final_import + "\n", "").replace(final_import, "")
+          if anchor not in source:
+              raise SystemExit("Last-green CSS import anchor missing")
+          source = source.replace(anchor, anchor + "\n" + final_import, 1)
+          main.write_text(source, encoding="utf-8")
+
+          check = main.read_text(encoding="utf-8")
+          if check.find(final_import) < check.find(anchor):
+              raise SystemExit("Last-green CSS precedence verification failed")
+          PY_V6_IMPORT
+
+          git apply --check /tmp/r19-last-green/REGRESSION-CONTRACT-COMPATIBILITY.patch
+          git apply /tmp/r19-last-green/REGRESSION-CONTRACT-COMPATIBILITY.patch
+
+          git diff --check
+
+      - name: Validate and repair recovered Android Gradle structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_GRADLE_STRUCTURE'
+          from pathlib import Path
+
+          path = Path('android/app/build.gradle')
+          text = path.read_text(encoding='utf-8')
+          bad = "    lint {\n        abortOnError true\n        checkReleaseBuilds true\n        warningsAsErrors false\n    }\n    }\n}\n\nrepositories {"
+          good = "    lint {\n        abortOnError true\n        checkReleaseBuilds true\n        warningsAsErrors false\n    }\n}\n\nrepositories {"
+
+          if bad in text:
+              path.write_text(text.replace(bad, good, 1), encoding='utf-8')
+          elif good not in text:
+              if 'android {' not in text or 'defaultConfig {' not in text:
+                  raise SystemExit('Android Gradle structure is not recognized')
+          PY_GRADLE_STRUCTURE
+
+          git diff --check
+
+      - name: Last green R19 V6 source guards
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY_R19_GUARDS'
+          from pathlib import Path
+
+          class_source = Path("src/pages/ClassMode.jsx").read_text(encoding="utf-8")
+          related = class_source.find("const relatedQuestions = useMemo")
+          project12 = class_source.find("const [project12QuestionScope")
+          if related < 0 or project12 < 0 or related >= project12:
+              raise SystemExit("ClassMode TDZ guard failed")
+
+          main_source = Path("src/main.jsx").read_text(encoding="utf-8")
+          if "r19-final-runtime-fixes.css" not in main_source:
+              raise SystemExit("Final runtime stylesheet import missing")
+
+          map_source = Path("src/pages/MapChallenge.jsx").read_text(encoding="utf-8")
+          keys = map_source.split("const coreRegionKeys", 1)[1].split("];", 1)[0]
+          if '"nile"' not in keys:
+              raise SystemExit("Map Challenge Nile tab guard failed")
+
+          shell_source = Path("src/components/AppShell.jsx").read_text(encoding="utf-8")
+          if "document.querySelector('.app-shell-v103:not(.lesson-mode-shell) > .app-content')" not in shell_source:
+              raise SystemExit("AppShell content-scroll reset guard failed")
+
+          runtime_css = Path("src/styles/r19-final-runtime-fixes.css").read_text(encoding="utf-8")
+          for marker in (
+              "R19_FINAL_RUNTIME_FIXES_V2",
+              ".map-challenge-pro > .map-game-layout",
+              ".map-challenge-pro .map-game-question-panel",
+              ".dashboard-v103 .dashboard-reference-copy p",
+              "overflow-y: auto !important",
+          ):
+              if marker not in runtime_css:
+                  raise SystemExit(f"R19 V6 CSS marker missing: {marker}")
+          PY_R19_GUARDS
+
+          git diff --check
+
+      - name: Fetch and verify fixed R20 source package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REPO="${GITHUB_REPOSITORY}"
+          REF="${GITHUB_SHA}"
+          BASE_URL="https://raw.githubusercontent.com/${REPO}/${REF}"
+
+          rm -rf /tmp/r20-parts
+          mkdir -p /tmp/r20-parts
+
+          for n in 01 02 03 04; do
+            FILE="R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part${n}"
+            curl --fail --location --retry 4 --retry-all-errors \
+              --connect-timeout 20 --max-time 120 \
+              "${BASE_URL}/${FILE}" \
+              --output "/tmp/r20-parts/${FILE}"
+            test -s "/tmp/r20-parts/${FILE}"
+          done
+
+          cat /tmp/r20-parts/R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part* \
+            | base64 -d > /tmp/R20_SOURCE_RELEASE.tar.gz
+
+          ACTUAL="$(sha256sum /tmp/R20_SOURCE_RELEASE.tar.gz | awk '{print $1}')"
+          echo "R20 source expected: $R20_SOURCE_TAR_SHA256"
+          echo "R20 source actual:   $ACTUAL"
+          test "$ACTUAL" = "$R20_SOURCE_TAR_SHA256"
+
+          tar -tzf /tmp/R20_SOURCE_RELEASE.tar.gz > /tmp/r20-tar-list.txt
+          test -s /tmp/r20-tar-list.txt
+
+      - name: Apply R20 safely on protected R19 V6
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          rm -rf /tmp/r20-safe-overlay
+          mkdir -p /tmp/r20-safe-overlay
+          tar -xzf /tmp/R20_SOURCE_RELEASE.tar.gz -C /tmp/r20-safe-overlay
+          
+          echo "R20 archive extracted to /tmp only. R19 tree is still protected."
+          
+          python3 - <<'PY_SAFE_R20_MERGE'
+          from pathlib import Path
+          import shutil
+          import re
+          import base64
+          
+          root = Path(".")
+          overlay = Path("/tmp/r20-safe-overlay")
+          
+          def copy_file(rel):
+              src = overlay / rel
+              dst = root / rel
+              if not src.is_file():
+                  raise SystemExit(f"Missing R20 overlay file: {rel}")
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dst)
+          
+          for pattern in [
+              "scripts/r20*",
+              "src/config/r20*",
+              "src/services/r20*",
+              "src/styles/r20*",
+              "tests/r20*.test.mjs",
+          ]:
+              for src in overlay.glob(pattern):
+                  if not src.is_file():
+                      continue
+                  rel = src.relative_to(overlay)
+                  dst = root / rel
+                  dst.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(src, dst)
+          
+          copy_file("android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java")
+          copy_file("cloud-worker/r20PortalAccounts.js")
+          
+          r19_css = root / "src/styles/r19-final-runtime-fixes.css"
+          if not r19_css.is_file():
+              copy_file("src/styles/r19-final-runtime-fixes.css")
+          
+          path = root / "android/app/src/main/java/com/mobdea/education/MainActivity.java"
+          text = path.read_text(encoding="utf-8")
+          if "import com.mobdea.education.ocr.R20PageOcrPlugin;" not in text:
+              anchor = "import com.mobdea.education.ocr.MobdeaPdfOcrPlugin;"
+              if anchor not in text:
+                  raise SystemExit("R19 MainActivity OCR import anchor is missing")
+              text = text.replace(anchor, anchor + "\nimport com.mobdea.education.ocr.R20PageOcrPlugin;", 1)
+          if "registerPlugin(R20PageOcrPlugin.class);" not in text:
+              anchor = "        registerPlugin(MobdeaPdfOcrPlugin.class);"
+              if anchor not in text:
+                  raise SystemExit("R19 MainActivity OCR registration anchor is missing")
+              text = text.replace(anchor, anchor + "\n        registerPlugin(R20PageOcrPlugin.class);", 1)
+          if "R20_FIX01_TABLET_MEDIA_WEBVIEW_V1" not in text:
+              anchor = "        super.onCreate(savedInstanceState);"
+              if anchor not in text:
+                  raise SystemExit("R19 MainActivity onCreate anchor is missing")
+              block = """
+                  // R20_FIX01_TABLET_MEDIA_WEBVIEW_V1
+                  if (getBridge() != null && getBridge().getWebView() != null) {
+                      getBridge().getWebView().post(() -> {
+                          android.webkit.WebSettings settings =
+                              getBridge().getWebView().getSettings();
+                          settings.setMediaPlaybackRequiresUserGesture(false);
+                          settings.setDomStorageEnabled(true);
+                          settings.setAllowContentAccess(true);
+                          settings.setAllowFileAccess(true);
+                          if (android.os.Build.VERSION.SDK_INT >=
+                              android.os.Build.VERSION_CODES.LOLLIPOP) {
+                              settings.setMixedContentMode(
+                                  android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                              );
+                          }
+                      });
+                  }
+          """
+              text = text.replace(anchor, anchor + block, 1)
+          path.write_text(text, encoding="utf-8")
+          
+          path = root / "cloud-worker/worker.js"
+          text = path.read_text(encoding="utf-8")
+          if "maybeHandleR20PortalAccounts" not in text:
+              text = "import { maybeHandleR20PortalAccounts } from './r20PortalAccounts.js';\n" + text
+          if "const R20_LEGACY_WORKER =" not in text:
+              token = "export default {"
+              index = text.find(token)
+              if index < 0:
+                  raise SystemExit("R19 worker export default was not found")
+              text = text[:index] + "const R20_LEGACY_WORKER = {" + text[index + len(token):]
+              text += """
+          
+          /* R20_FIX04_WORKER_WRAPPER_V1
+           * SAFE MERGE: the complete R19 worker remains the default handler.
+           */
+          export default {
+            async fetch(request, env, ctx) {
+              const accountResponse = await maybeHandleR20PortalAccounts(request, env);
+              if (accountResponse) return accountResponse;
+              return R20_LEGACY_WORKER.fetch(request, env, ctx);
+            },
+          };
+          """
+          path.write_text(text, encoding="utf-8")
+          
+          path = root / "src/services/ocrQuestionParser.js"
+          text = path.read_text(encoding="utf-8")
+          if "block.sourceAnswer = answer;" not in text:
+              old = "  let answer = normalizeOcrText(rawAnswer);\n  if (!answer) return;"
+              new = (
+                  "  let answer = normalizeOcrText(rawAnswer);\n"
+                  "  if (!answer) return;\n"
+                  "  // R20 SAFE: preserve explicit source label for review/display.\n"
+                  "  block.sourceAnswer = answer;"
+              )
+              if old not in text:
+                  raise SystemExit("R19 OCR answer anchor changed unexpectedly")
+              text = text.replace(old, new, 1)
+          if "output.push(`الإجابة: ${block.sourceAnswer || block.answer}`);" not in text:
+              old = "output.push(`الإجابة: ${block.answer}`);"
+              if old not in text:
+                  raise SystemExit("R19 OCR output anchor changed unexpectedly")
+              text = text.replace(old, "output.push(`الإجابة: ${block.sourceAnswer || block.answer}`);", 1)
+          if "sourceAnswer: block.sourceAnswer || block.answer," not in text:
+              old = "      answer: block.answer,\n      answerIndex:"
+              if old not in text:
+                  raise SystemExit("R19 OCR record anchor changed unexpectedly")
+              text = text.replace(
+                  old,
+                  "      answer: block.answer,\n"
+                  "      sourceAnswer: block.sourceAnswer || block.answer,\n"
+                  "      answerIndex:",
+                  1,
+              )
+          path.write_text(text, encoding="utf-8")
+          
+          path = root / "src/services/pdfQuestionOcr.js"
+          text = path.read_text(encoding="utf-8")
+          text = text.replace('registerPlugin("R20PageOcr")', 'registerPlugin("MobdeaPdfOcr")')
+          path.write_text(text, encoding="utf-8")
+          
+          path = root / "src/pages/ClassMode.jsx"
+          text = path.read_text(encoding="utf-8")
+          if "recognizePageForQuestions" not in text:
+              anchor = "import Project13LinkHub from '../components/links/Project13LinkHub';"
+              if anchor not in text:
+                  raise SystemExit("R19 V6 ClassMode import anchor is missing")
+              text = text.replace(
+                  anchor,
+                  anchor + "\nimport { recognizePageForQuestions } from '../services/r20PageOcrPipeline.js';",
+                  1,
+              )
+          if "R20_FIX08_CLASSMODE_OCR_BRIDGE" not in text:
+              anchor = "const PROJECT13_CLASSMODE_IMAGE_LINKS_V1 = true;"
+              if anchor not in text:
+                  raise SystemExit("R19 V6 ClassMode marker anchor is missing")
+              text = text.replace(
+                  anchor,
+                  anchor + "\n\nconst R20_FIX08_CLASSMODE_OCR_BRIDGE = recognizePageForQuestions;",
+                  1,
+              )
+          path.write_text(text, encoding="utf-8")
+          
+          Path("src/services/r20SafeFeatureLoader.js").write_bytes(
+              base64.b64decode("LyoKICogUjIwIFNBRkUgRkVBVFVSRSBMT0FERVIKICogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICogUjE5IGlzIHRoZSBwcm90ZWN0ZWQgZGVmYXVsdCBydW50aW1lLgogKiBSMjAgc2lkZS1lZmZlY3Qgc2VydmljZXMgYXJlIGR5bmFtaWNhbGx5IGltcG9ydGVkIG9ubHkgd2hlbiB0aGVpciBvd25pbmcKICogc2NyZWVuIGlzIG9wZW5lZC4gSGlnaC1yaXNrIGdsb2JhbCBET00gZ3VhcmRzIGFyZSBpbnRlbnRpb25hbGx5IE5PVCBib290ZWQuCiAqLwoKZXhwb3J0IGNvbnN0IFIyMF9TQUZFX0ZFQVRVUkVfTE9BREVSX01BUktFUiA9CiAgIlIyMF9TQUZFX0ZST01fUjE5X1NDT1BFRF9GRUFUVVJFX0xPQURFUl9WMSI7Cgpjb25zdCBsb2FkZWRHcm91cHMgPSBuZXcgU2V0KCk7Cgpjb25zdCBHUk9VUFMgPSBPYmplY3QuZnJlZXplKHsKICBkYXNoYm9hcmQ6IFsKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgwNS1yb2xlLWRhc2hib2FyZC5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgwNi10ZWFjaGVyLXRhYmxldC1kYXNoYm9hcmQuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MjQtbW9iZGVhLW9ubGluZS5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgyNS1tb250aGx5LWV2YWx1YXRpb24uY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwUG9ydGFsRGFzaGJvYXJkLmpzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwVGVhY2hlclRhYmxldERhc2hib2FyZC5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyME1vYmRlYU9ubGluZS5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyME1vbnRobHlFdmFsdWF0aW9uLmpzIiksCiAgXSwKCiAgc3R1ZGVudHM6IFsKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgwMy1zdHVkZW50LW1hbmFnZW1lbnQuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MDQtYWNjb3VudHMuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwU3R1ZGVudE1hbmFnZW1lbnQuanMiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBQb3J0YWxBY2NvdW50UnVudGltZS5qcyIpLAogIF0sCgogIGNsYXNzTW9kZTogWwogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDAxLWNvcmUtcnVudGltZS5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBSdW50aW1lQ29yZS5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDAyLXVuaWZpZWQtY2xhc3Ntb2RlLWxheW91dC5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgwNy1wZGYtZ2VzdHVyZXMuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MDgtb2NyLXBhZ2UtcXVlc3Rpb25zLmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDEwLWVkdWNhdGlvbmFsLWNhcmRzLmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDExLWNvdW50cnktY2FyZHMuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MTItbWFwcy5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgxMy1hdGxhcy5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgxNC1nZW9ncmFwaHktY29ycmVjdG5lc3MuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MTctbWVkaWEuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwVW5pZmllZENsYXNzTW9kZUxheW91dC5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMFBkZkdlc3R1cmVzLmpzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwUGFnZU9jclBpcGVsaW5lLmpzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwT2NyVWlHdWFyZC5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMEVkdWNhdGlvbmFsQ2FyZHMuanMiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBDb3VudHJ5Q2FyZHMuanMiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBNYXBzUnVudGltZS5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMEF0bGFzUnVudGltZS5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMEdlb2dyYXBoeUNvcnJlY3RuZXNzUnVudGltZS5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyME1lZGlhQ29udHJvbHMuanMiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBQb3dlclBvaW50TW9kZS5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMFF1ZXN0aW9uQmFua1BpcGVsaW5lLmpzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwRXhhbVRyYWNraW5nLmpzIiksCiAgXSwKCiAgd2hpdGVib2FyZDogWwogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDA5LXdoaXRlYm9hcmQuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwV2hpdGVib2FyZFJ1bnRpbWUuanMiKSwKICBdLAoKICBjb250ZW50TGlicmFyeTogWwogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDEwLWVkdWNhdGlvbmFsLWNhcmRzLmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDExLWNvdW50cnktY2FyZHMuY3NzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MTItbWFwcy5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgxMy1hdGxhcy5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBFZHVjYXRpb25hbENhcmRzLmpzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwQ291bnRyeUNhcmRzLmpzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwTWFwc1J1bnRpbWUuanMiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBBdGxhc1J1bnRpbWUuanMiKSwKICBdLAoKICBtYXBDaGFsbGVuZ2U6IFsKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgxNS1tYXAtY2hhbGxlbmdlLmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDE2LW1hcC1uYXR1cmFsLWxheWVycy5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgxNi1pbWFnZS1tb2RlLmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyME1hcENoYWxsZW5nZVJ1bnRpbWUuanMiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBNYXBDaGFsbGVuZ2VOYXR1cmFsTGF5ZXJzLmpzIiksCiAgICAoKSA9PiBpbXBvcnQoIi4vcjIwSW1hZ2VNb2RlLmpzIiksCiAgXSwKCiAgZ2FtZXM6IFsKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgxOC1nYW1lcy5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBHYW1lc1J1bnRpbWUuanMiKSwKICBdLAoKICBxdWVzdGlvbkJhbms6IFsKICAgICgpID0+IGltcG9ydCgiLi9yMjBRdWVzdGlvbkJhbmtQaXBlbGluZS5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMEV4YW1UcmFja2luZy5qcyIpLAogIF0sCgogIHJlcG9ydHM6IFsKICAgICgpID0+IGltcG9ydCgiLi4vc3R5bGVzL3IyMC1maXgyMS1yZXBvcnRzLXdoYXRzYXBwLmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMEV4YW1UcmFja2luZy5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMFJlcG9ydHNXaGF0c0FwcC5qcyIpLAogIF0sCgogIHNtYXJ0QXNzaXN0YW50OiBbCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MjItcmVtZWRpYWwtYXNzaXN0YW50LmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMEV4YW1UcmFja2luZy5qcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMFJlbWVkaWFsQXNzaXN0YW50LmpzIiksCiAgXSwKCiAgc3R1ZGVudENhcmRzOiBbCiAgICAoKSA9PiBpbXBvcnQoIi4uL3N0eWxlcy9yMjAtZml4MjMtZHVwbGV4LXByaW50LmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuL3IyMER1cGxleFByaW50aW5nLmpzIiksCiAgXSwKCiAgcG9ydGFsUHJldmlldzogWwogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDA1LXJvbGUtZGFzaGJvYXJkLmNzcyIpLAogICAgKCkgPT4gaW1wb3J0KCIuLi9zdHlsZXMvcjIwLWZpeDI1LW1vbnRobHktZXZhbHVhdGlvbi5jc3MiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBQb3J0YWxEYXNoYm9hcmQuanMiKSwKICAgICgpID0+IGltcG9ydCgiLi9yMjBNb250aGx5RXZhbHVhdGlvbi5qcyIpLAogIF0sCn0pOwoKZnVuY3Rpb24gZ3JvdXBzRm9yU2NyZWVuKHNjcmVlbikgewogIGNvbnN0IHZhbHVlID0gU3RyaW5nKHNjcmVlbiB8fCAiZGFzaGJvYXJkIik7CiAgaWYgKHZhbHVlID09PSAib25saW5lQ2xhc3MiKSByZXR1cm4gWyJjbGFzc01vZGUiXTsKICByZXR1cm4gR1JPVVBTW3ZhbHVlXSA/IFt2YWx1ZV0gOiBbXTsKfQoKYXN5bmMgZnVuY3Rpb24gbG9hZEdyb3VwKGdyb3VwKSB7CiAgaWYgKGxvYWRlZEdyb3Vwcy5oYXMoZ3JvdXApKSByZXR1cm47CiAgY29uc3QgZmFjdG9yaWVzID0gR1JPVVBTW2dyb3VwXSB8fCBbXTsKICAvLyBNYXJrIGJlZm9yZSBpbXBvcnRzIHNvIHJlY3Vyc2l2ZSBtdXRhdGlvbiBvYnNlcnZlcnMgY2Fubm90IHRyaWdnZXIgYSBzZWNvbmQgbG9hZC4KICBsb2FkZWRHcm91cHMuYWRkKGdyb3VwKTsKICB0cnkgewogICAgZm9yIChjb25zdCBmYWN0b3J5IG9mIGZhY3RvcmllcykgYXdhaXQgZmFjdG9yeSgpOwogIH0gY2F0Y2ggKGVycm9yKSB7CiAgICBsb2FkZWRHcm91cHMuZGVsZXRlKGdyb3VwKTsKICAgIHRocm93IGVycm9yOwogIH0KfQoKZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGxvYWRSMjBGZWF0dXJlc0ZvclNjcmVlbihzY3JlZW4sIGNvbnRleHQgPSB7fSkgewogIGNvbnN0IGdyb3VwcyA9IGdyb3Vwc0ZvclNjcmVlbihzY3JlZW4pOwogIGZvciAoY29uc3QgZ3JvdXAgb2YgZ3JvdXBzKSBhd2FpdCBsb2FkR3JvdXAoZ3JvdXApOwoKICBpZiAodHlwZW9mIHdpbmRvdyAhPT0gInVuZGVmaW5lZCIpIHsKICAgIHdpbmRvdy5fX01PQkRFQV9SMjBfU0FGRV9fID0gT2JqZWN0LmZyZWV6ZSh7CiAgICAgIG1hcmtlcjogUjIwX1NBRkVfRkVBVFVSRV9MT0FERVJfTUFSS0VSLAogICAgICBzY3JlZW46IFN0cmluZyhzY3JlZW4gfHwgIiIpLAogICAgICByb2xlOiBTdHJpbmcoY29udGV4dC5yb2xlIHx8ICIiKSwKICAgICAgbG9hZGVkR3JvdXBzOiBbLi4ubG9hZGVkR3JvdXBzXSwKICAgIH0pOwogIH0KCiAgcmV0dXJuIHsgb2s6IHRydWUsIHNjcmVlbiwgZ3JvdXBzOiBbLi4uZ3JvdXBzXSB9Owp9CgpleHBvcnQgZnVuY3Rpb24gZ2V0TG9hZGVkUjIwU2FmZUdyb3VwcygpIHsKICByZXR1cm4gWy4uLmxvYWRlZEdyb3Vwc107Cn0K")
+          )
+          
+          path = root / "src/App.jsx"
+          text = path.read_text(encoding="utf-8")
+          loader_import = 'import { loadR20FeaturesForScreen } from "./services/r20SafeFeatureLoader.js";'
+          if loader_import not in text:
+              anchor = "function lazyWithNativeRecovery"
+              index = text.find(anchor)
+              if index < 0:
+                  raise SystemExit("R19 App lazy-loader anchor is missing")
+              text = text[:index] + loader_import + "\n\n" + text[index:]
+          if "mobdea:r20-open-map-challenge" not in text:
+              anchor = '  const [active, setActive] = useState("dashboard");'
+              if anchor not in text:
+                  raise SystemExit("R19 App active-screen anchor is missing")
+              block = """
+            useEffect(() => {
+              const openMapChallenge = (event) => {
+                if ((event?.detail?.screen || "mapChallenge") === "mapChallenge") {
+                  setActive("mapChallenge");
+                }
+              };
+              globalThis.addEventListener?.(
+                "mobdea:r20-open-map-challenge",
+                openMapChallenge,
+              );
+              return () => globalThis.removeEventListener?.(
+                "mobdea:r20-open-map-challenge",
+                openMapChallenge,
+              );
+            }, []);
+          """
+              text = text.replace(anchor, anchor + "\n" + block, 1)
+          if "R20_SAFE_SCOPED_FEATURE_LOADING_V1" not in text:
+              anchor = "  const [auth, setAuth] = useState(() => readAuthFromStorage());"
+              if anchor not in text:
+                  raise SystemExit("R19 App auth anchor is missing")
+              block = """
+            // R20_SAFE_SCOPED_FEATURE_LOADING_V1
+            useEffect(() => {
+              if (!auth) return undefined;
+          
+              const safeScreen =
+                active === "dashboard" && ["student", "guardian"].includes(auth.role)
+                  ? "portalPreview"
+                  : active;
+          
+              document.documentElement.setAttribute(
+                "data-r20-safe-screen",
+                safeScreen,
+              );
+          
+              void loadR20FeaturesForScreen(
+                safeScreen,
+                { role: auth.role },
+              ).catch((error) => {
+                console.error("R20 scoped feature load failed", error);
+              });
+          
+              return () => {
+                if (
+                  document.documentElement.getAttribute("data-r20-safe-screen")
+                  === safeScreen
+                ) {
+                  document.documentElement.removeAttribute(
+                    "data-r20-safe-screen",
+                  );
+                }
+              };
+            }, [active, auth?.role]);
+          """
+              text = text.replace(anchor, anchor + "\n" + block, 1)
+          path.write_text(text, encoding="utf-8")
+          
+          path = root / "src/main.jsx"
+          text = path.read_text(encoding="utf-8")
+          lines = []
+          for line in text.splitlines():
+              if re.search(r"import ['\"]\./(?:services|styles)/r20", line, re.I):
+                  continue
+              lines.append(line)
+          text = "\n".join(lines) + "\n"
+          css_anchor = "import './styles/project14-youtube-auto-sync.css';"
+          if "r19-final-runtime-fixes.css" not in text:
+              if css_anchor not in text:
+                  raise SystemExit("R19 main CSS anchor is missing")
+              text = text.replace(
+                  css_anchor,
+                  css_anchor + "\nimport './styles/r19-final-runtime-fixes.css';",
+                  1,
+              )
+          if "R20_SAFE_SCOPED_MANIFEST_START" not in text:
+              anchor = "import './styles/r19-final-runtime-fixes.css';"
+              manifest = """
+          /*
+          R20_SAFE_SCOPED_MANIFEST_START
+          These names are an audit manifest, NOT global imports.
+          Actual loading is screen-scoped by r20SafeFeatureLoader.js.
+          
+          r20-fix01-core-runtime.css
+          r20RuntimeCore.js
+          r20-fix02-unified-classmode-layout.css
+          r20UnifiedClassModeLayout.js
+          r20-fix03-student-management.css
+          r20StudentManagement.js
+          r20PortalAccountRuntime.js
+          r20-fix04-accounts.css
+          r20PortalDashboard.js
+          r20-fix05-role-dashboard.css
+          r20TeacherTabletDashboard.js
+          r20-fix06-teacher-tablet-dashboard.css
+          r20PdfGestures.js
+          r20-fix07-pdf-gestures.css
+          r20PageOcrPipeline.js
+          r20OcrUiGuard.js
+          r20-fix08-ocr-page-questions.css
+          r20WhiteboardRuntime.js
+          r20-fix09-whiteboard.css
+          r20EducationalCards.js
+          r20-fix10-educational-cards.css
+          r20CountryCards.js
+          r20-fix11-country-cards.css
+          r20MapsRuntime.js
+          r20-fix12-maps.css
+          r20UnifiedClassModeLayout.js
+          r20AtlasRuntime.js
+          r20-fix13-atlas.css
+          r20GeographyTruth.js
+          r20GeographyCorrectnessRuntime.js
+          r20-fix14-geography-correctness.css
+          r20MapChallengeRuntime.js
+          r20-fix15-map-challenge.css
+          r20MapChallengeNaturalLayers.js
+          r20-fix16-map-natural-layers.css
+          r20ImageMode.js
+          r20-fix16-image-mode.css
+          r20MediaControls.js
+          r20PowerPointMode.js
+          r20-fix17-media.css
+          r20GamesRuntime.js
+          r20-fix18-games.css
+          r20QuestionBankPipeline.js
+          r20ExamTracking.js
+          r20ReportsWhatsApp.js
+          r20-fix21-reports-whatsapp.css
+          r20RemedialAssistant.js
+          r20-fix22-remedial-assistant.css
+          r20DuplexPrinting.js
+          r20-fix23-duplex-print.css
+          r20MobdeaOnline.js
+          r20-fix24-mobdea-online.css
+          r20MonthlyEvaluation.js
+          r20-fix25-monthly-evaluation.css
+          R20_SAFE_SCOPED_MANIFEST_END
+          */
+          """
+              if anchor not in text:
+                  raise SystemExit("R19 V6 runtime CSS import is missing")
+              text = text.replace(anchor, anchor + manifest, 1)
+          path.write_text(text, encoding="utf-8")
+          
+          Path("tests/r20-safe-from-r19.test.mjs").write_bytes(
+              base64.b64decode("aW1wb3J0IGFzc2VydCBmcm9tICJub2RlOmFzc2VydC9zdHJpY3QiOwppbXBvcnQgZnMgZnJvbSAibm9kZTpmcyI7CmltcG9ydCB0ZXN0IGZyb20gIm5vZGU6dGVzdCI7Cgpjb25zdCByZWFkID0gKHApID0+IGZzLnJlYWRGaWxlU3luYyhwLCAidXRmOCIpOwoKdGVzdCgiUjIwIFNBRkUga2VlcHMgZ2xvYmFsIGJvb3Qgb24gcHJvdGVjdGVkIFIxOSBydW50aW1lIiwgKCkgPT4gewogIGNvbnN0IG1haW4gPSByZWFkKCJzcmMvbWFpbi5qc3giKTsKICBhc3NlcnQubWF0Y2gobWFpbiwgL3IxOS1maW5hbC1ydW50aW1lLWZpeGVzXC5jc3MvKTsKICBhc3NlcnQuZG9lc05vdE1hdGNoKG1haW4sIC9pbXBvcnQgWyciXVwuXC9zZXJ2aWNlc1wvcjIwUnVudGltZUNvcmVcLmpzWyciXS8pOwogIGFzc2VydC5kb2VzTm90TWF0Y2gobWFpbiwgL2ltcG9ydCBbJyJdXC5cL3NlcnZpY2VzXC9yMjBDcml0aWNhbFZpZXdHdWFyZFwuanNbJyJdLyk7CiAgYXNzZXJ0LmRvZXNOb3RNYXRjaChtYWluLCAvaW1wb3J0IFsnIl1cLlwvc2VydmljZXNcL3IyMFVuaWZpZWRDbGFzc01vZGVMYXlvdXRcLmpzWyciXS8pOwp9KTsKCnRlc3QoIlIyMCBTQUZFIHNjb3BlcyBzaWRlLWVmZmVjdCBmZWF0dXJlcyBieSBvd25pbmcgc2NyZWVuIiwgKCkgPT4gewogIGNvbnN0IGxvYWRlciA9IHJlYWQoInNyYy9zZXJ2aWNlcy9yMjBTYWZlRmVhdHVyZUxvYWRlci5qcyIpOwogIGFzc2VydC5tYXRjaChsb2FkZXIsIC9kYXNoYm9hcmQ6Lyk7CiAgYXNzZXJ0Lm1hdGNoKGxvYWRlciwgL2NsYXNzTW9kZTovKTsKICBhc3NlcnQubWF0Y2gobG9hZGVyLCAvc3R1ZGVudHM6Lyk7CiAgYXNzZXJ0Lm1hdGNoKGxvYWRlciwgL21hcENoYWxsZW5nZTovKTsKICBhc3NlcnQubWF0Y2gobG9hZGVyLCAvc3R1ZGVudENhcmRzOi8pOwogIGFzc2VydC5tYXRjaChsb2FkZXIsIC9yMjBVbmlmaWVkQ2xhc3NNb2RlTGF5b3V0XC5qcy8pOwogIGFzc2VydC5tYXRjaChsb2FkZXIsIC9yMjBXaGl0ZWJvYXJkUnVudGltZVwuanMvKTsKICBhc3NlcnQubWF0Y2gobG9hZGVyLCAvcjIwTWFwQ2hhbGxlbmdlUnVudGltZVwuanMvKTsKICBhc3NlcnQubWF0Y2gobG9hZGVyLCAvcjIwRHVwbGV4UHJpbnRpbmdcLmpzLyk7CiAgYXNzZXJ0Lm1hdGNoKGxvYWRlciwgL3IyMFJ1bnRpbWVDb3JlXC5qcy8pOwogIGFzc2VydC5kb2VzTm90TWF0Y2gobG9hZGVyLCAvcjIwQ3JpdGljYWxWaWV3R3VhcmRcLmpzLyk7Cn0pOwoKdGVzdCgiUjIwIFNBRkUga2VlcHMgbGVnYWN5IFBERiBPQ1IgYW5kIGFkZHMgcGFnZSBPQ1Igc2VwYXJhdGVseSIsICgpID0+IHsKICBjb25zdCBsZWdhY3kgPSByZWFkKCJzcmMvc2VydmljZXMvcGRmUXVlc3Rpb25PY3IuanMiKTsKICBjb25zdCBhY3Rpdml0eSA9IHJlYWQoImFuZHJvaWQvYXBwL3NyYy9tYWluL2phdmEvY29tL21vYmRlYS9lZHVjYXRpb24vTWFpbkFjdGl2aXR5LmphdmEiKTsKICBjb25zdCBwYWdlID0gcmVhZCgic3JjL3NlcnZpY2VzL3IyMFBhZ2VPY3JQaXBlbGluZS5qcyIpOwogIGFzc2VydC5tYXRjaChsZWdhY3ksIC9yZWdpc3RlclBsdWdpblwoWyInXU1vYmRlYVBkZk9jclsiJ11cKS8pOwogIGFzc2VydC5kb2VzTm90TWF0Y2gobGVnYWN5LCAvcmVnaXN0ZXJQbHVnaW5cKFsiJ11SMjBQYWdlT2NyWyInXVwpLyk7CiAgYXNzZXJ0Lm1hdGNoKGFjdGl2aXR5LCAvcmVnaXN0ZXJQbHVnaW5cKFIyMFBhZ2VPY3JQbHVnaW5cLmNsYXNzXCkvKTsKICBhc3NlcnQubWF0Y2gocGFnZSwgL1IyMFBhZ2VPY3IvKTsKfSk7Cgp0ZXN0KCJSMjAgU0FGRSBwcmVzZXJ2ZXMgUjE5IFY2IG5hdmlnYXRpb24gYW5kIGNsYXNzLW1vZGUgY2xvc3VyZXMiLCAoKSA9PiB7CiAgY29uc3Qgc2hlbGwgPSByZWFkKCJzcmMvY29tcG9uZW50cy9BcHBTaGVsbC5qc3giKTsKICBjb25zdCBjbSA9IHJlYWQoInNyYy9wYWdlcy9DbGFzc01vZGUuanN4Iik7CiAgY29uc3QgbWFwID0gcmVhZCgic3JjL3BhZ2VzL01hcENoYWxsZW5nZS5qc3giKTsKICBhc3NlcnQubWF0Y2goc2hlbGwsIC9yZXF1ZXN0QW5pbWF0aW9uRnJhbWUvKTsKICBhc3NlcnQubWF0Y2goc2hlbGwsIC9hcHAtc2hlbGwtdjEwMzpub3RcKFwubGVzc29uLW1vZGUtc2hlbGxcKS8pOwogIGFzc2VydC5tYXRjaChjbSwgL3JlbGF0ZWRRdWVzdGlvbnMvKTsKICBhc3NlcnQubWF0Y2goY20sIC9SMjBfRklYMDhfQ0xBU1NNT0RFX09DUl9CUklER0UvKTsKICBhc3NlcnQubWF0Y2gobWFwLCAvWyInXW5pbGVbIiddLyk7Cn0pOwoKdGVzdCgiUjIwIFNBRkUgcHJlc2VydmVzIE9DUiBzb3VyY2UgYW5zd2VyIHdoaWxlIGdyYWRpbmcgcmVzb2x2ZWQgb3B0aW9uIiwgKCkgPT4gewogIGNvbnN0IHBhcnNlciA9IHJlYWQoInNyYy9zZXJ2aWNlcy9vY3JRdWVzdGlvblBhcnNlci5qcyIpOwogIGFzc2VydC5tYXRjaChwYXJzZXIsIC9ibG9ja1wuc291cmNlQW5zd2VyID0gYW5zd2VyLyk7CiAgYXNzZXJ0Lm1hdGNoKHBhcnNlciwgL2Jsb2NrXC5zb3VyY2VBbnN3ZXIgXHxcfCBibG9ja1wuYW5zd2VyLyk7Cn0pOwo=")
+          )
+          
+          checks = {
+              "R19 V6 AppShell scroll closure": (
+                  Path("src/components/AppShell.jsx"),
+                  "app-shell-v103:not(.lesson-mode-shell)",
+              ),
+              "R19 V6 ClassMode closure": (
+                  Path("src/pages/ClassMode.jsx"),
+                  "const relatedQuestions = useMemo",
+              ),
+              "R19 V6 Nile map region": (
+                  Path("src/pages/MapChallenge.jsx"),
+                  '"nile"',
+              ),
+              "legacy PDF OCR": (
+                  Path("src/services/pdfQuestionOcr.js"),
+                  'registerPlugin("MobdeaPdfOcr")',
+              ),
+              "R20 safe loader": (
+                  Path("src/services/r20SafeFeatureLoader.js"),
+                  "R20_SAFE_FROM_R19_SCOPED_FEATURE_LOADER_V1",
+              ),
+          }
+          for label, (file, marker) in checks.items():
+              body = file.read_text(encoding="utf-8")
+              if marker not in body:
+                  raise SystemExit(f"SAFE merge guard failed: {label}")
+          
+          main = Path("src/main.jsx").read_text(encoding="utf-8")
+          for forbidden in [
+              "import './services/r20RuntimeCore.js';",
+              "import './services/r20CriticalViewGuard.js';",
+              "import './services/r20UnifiedClassModeLayout.js';",
+              "import './services/r20StudentManagement.js';",
+          ]:
+              if forbidden in main:
+                  raise SystemExit("Global R20 auto-boot survived SAFE merge: " + forbidden)
+          
+          print("R20 SAFE selective merge onto R19 V6: PASS")
+          print("R19 core files were NOT replaced wholesale.")
+          print("R20 side-effect runtimes are screen-scoped.")
+          
+          PY_SAFE_R20_MERGE
+          
+          node --check src/services/r20SafeFeatureLoader.js
+          node --check tests/r20-safe-from-r19.test.mjs
+          node --test tests/r20-safe-from-r19.test.mjs
+          
+          grep -Fq "R20_FIX24_MOBDEA_ONLINE_CONFIG_V2_VERIFIED_LINKS" src/config/r20MobdeaOnlineConfig.js
+          grep -Fq "R20_FIX25_MONTHLY_EVALUATION_V1" src/services/r20MonthlyEvaluation.js
+          grep -Fq "R20_FIX07_PDF_PINCH_PAN_BOARD_OVERLAY_V2_AUDITED" src/services/r20PdfGestures.js
+          
+          grep -Fq "R19_FINAL_RUNTIME_FIXES_V2" src/styles/r19-final-runtime-fixes.css
+          grep -Fq "app-shell-v103:not(.lesson-mode-shell)" src/components/AppShell.jsx
+          grep -Fq '"nile"' src/pages/MapChallenge.jsx
+          
+          git diff --check
+
+      - name: Close all legacy duplex formatting regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY_DUPLEX_COMPAT'
+          from pathlib import Path
+
+          path = Path("tests/student-card-printing-r14.test.mjs")
+          if not path.is_file():
+              raise SystemExit("Legacy R14 printing test is missing")
+
+          text = path.read_text(encoding="utf-8")
+
+          pairs = [
+              (
+                  """assert.match(source, /startPrinting\('both'\)/);""",
+                  """assert.match(source, /startPrinting\(["']both["']\)/);""",
+                  "startPrinting both",
+              ),
+              (
+                  """assert.match(source, /printCurrentView\('بطاقات طلاب المبدع', \{/);""",
+                  """assert.match(source, /printCurrentView\(["']بطاقات طلاب المبدع["']\s*,\s*\{/);""",
+                  "printCurrentView title",
+              ),
+              (
+                  """assert.match(source, /duplexMode: normalizedMode === 'both' \? nativeDuplexMode\(duplexMode\) : 'none'/);""",
+                  """assert.match(source, /duplexMode:\s*normalizedMode\s*===\s*["']both["']\s*\?\s*nativeDuplexMode\(duplexMode\)\s*:\s*["']none["']/);""",
+                  "duplex mode expression",
+              ),
+          ]
+
+          changed = []
+          for old, new, label in pairs:
+              if old in text:
+                  text = text.replace(old, new, 1)
+                  changed.append(label)
+              elif new in text:
+                  pass
+              else:
+                  raise SystemExit(
+                      f"Unexpected R14 assertion for {label}; refusing blind edit"
+                  )
+
+          path.write_text(text, encoding="utf-8")
+          print("Closed legacy formatting assertions:", ", ".join(changed) or "already compatible")
+          PY_DUPLEX_COMPAT
+
+          node --check tests/student-card-printing-r14.test.mjs
+
+          # Exact GitHub subtest that failed in FIX3.
+          node --test \
+            --test-name-pattern="top card print action prepares both faces" \
+            tests/student-card-printing-r14.test.mjs
+
+          # The production behavior itself remains mandatory.
+          node --input-type=module - <<'NODE_DUPLEX_SOURCE'
+          import fs from 'node:fs';
+
+          const source = fs.readFileSync('src/pages/StudentCards.jsx', 'utf8');
+          const required = [
+            [/startPrinting\(["']both["']\)/, 'both print action'],
+            [/printCurrentView\(["']بطاقات طلاب المبدع["']\s*,\s*\{/, 'print title'],
+            [/duplexMode:\s*normalizedMode\s*===\s*["']both["']\s*\?\s*nativeDuplexMode\(duplexMode\)\s*:\s*["']none["']/, 'duplex mode mapping'],
+            [/<DuplexPrintRun/, 'DuplexPrintRun'],
+            [/data-side=["']front["']/, 'front side'],
+            [/data-side=["']back["']/, 'back side'],
+          ];
+
+          for (const [pattern, label] of required) {
+            if (!pattern.test(source)) {
+              throw new Error(`Missing duplex behavior: ${label}`);
+            }
+          }
+
+          const front = source.indexOf('duplex-front-page');
+          const back = source.indexOf('duplex-back-page');
+          if (front < 0 || back < 0 || front >= back) {
+            throw new Error('Front/back physical order contract failed');
+          }
+
+          console.log('Legacy duplex production-source contract: PASS (7/7)');
+          NODE_DUPLEX_SOURCE
+
+      - name: Guard protected R19 pages and R20 critical markers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          require_file() {
+            local file="$1"
+            local min_bytes="$2"
+            test -s "$file" || { echo "::error::Missing protected file: $file"; exit 1; }
+            local size
+            size="$(wc -c < "$file")"
+            [ "$size" -ge "$min_bytes" ] || { echo "::error::Protected file unexpectedly small: $file ($size bytes)"; exit 1; }
+          }
+
+          require_marker() {
+            local marker="$1"
+            local file="$2"
+            grep -Fq "$marker" "$file" || { echo "::error::Required marker [$marker] missing from $file"; exit 1; }
+          }
+
+          require_file src/pages/Attendance.jsx 8000
+          require_file src/pages/Payments.jsx 4000
+          require_file src/pages/Sessions.jsx 4500
+          require_file src/pages/ResultDetails.jsx 4000
+
+          require_marker "queueAbsenceNotification" src/pages/Attendance.jsx
+          require_marker "sendAbsenceWhatsApp" src/pages/Attendance.jsx
+          require_marker "PROJECT13_BARCODE_ATTENDANCE_ACCOUNTING_V1" src/pages/Attendance.jsx
+          require_marker "Project13LinkHub" src/pages/Sessions.jsx
+          require_marker "PROJECT13" src/pages/Payments.jsx
+          require_marker "PROJECT13" src/pages/ResultDetails.jsx
+
+          require_marker "CanvasOverlay" src/pages/ClassMode.jsx
+          require_marker "classmode-board-surface" src/pages/ClassMode.jsx
+          require_marker "Project08ExamOcrImport" src/pages/QuestionBankManager.jsx
+          require_marker "PROJECT08_OCR_EXAM_IMPORT_V1" src/pages/Games.jsx
+          require_marker "project08QuestionImport" src/pages/Games.jsx
+
+          require_marker "R19_FINAL_RUNTIME_FIXES_V2" src/styles/r19-final-runtime-fixes.css
+
+          require_marker "R20_FIX01" src/services/r20RuntimeCore.js
+          require_marker "R20_FIX05" src/services/r20PortalDashboard.js
+          require_marker "R20_FIX08" src/services/r20PageOcrPipeline.js
+          require_marker "R20_FIX15" src/services/r20MapChallengeRuntime.js
+          require_marker "R20_FIX19" src/services/r20QuestionBankPipeline.js
+          require_marker "R20_FIX20" src/services/r20ExamTracking.js
+          require_marker "R20_FIX21" src/services/r20ReportsWhatsApp.js
+          require_marker "R20_FIX22" src/services/r20RemedialAssistant.js
+          require_marker "R20_FIX23" src/services/r20DuplexPrinting.js
+          require_marker "R20_FIX24" src/services/r20MobdeaOnline.js
+          require_marker "R20_FIX25" src/services/r20MonthlyEvaluation.js
+
+          grep -Fq "R20_SAFE_FROM_R19_SCOPED_FEATURE_LOADER_V1" src/services/r20SafeFeatureLoader.js
+          grep -Fq "R20_SAFE_SCOPED_FEATURE_LOADING_V1" src/App.jsx
+
+          if grep -Fq "import './services/r20RuntimeCore.js';" src/main.jsx; then
+            echo "::error::Unsafe global R20 runtime import detected"
+            exit 1
+          fi
+          if grep -Fq "import './services/r20CriticalViewGuard.js';" src/main.jsx; then
+            echo "::error::Unsafe global R20 critical guard import detected"
+            exit 1
+          fi
+
+      - name: Preflight R19 and R20 source inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node --check src/services/notifications.js
+          node --check src/services/project13AttendanceAccounting.js
+          node --check src/services/project13BarcodeScanner.js
+          node --check src/services/project14YoutubeSync.js
+          node --check src/services/projectFinalStudentAssets.js
+          node --check cloud-worker/worker.js
+
+          for f in src/services/r20*.js src/config/r20*.js tests/r20*.test.mjs; do
+            node --check "$f"
+          done
+          node --check cloud-worker/r20PortalAccounts.js
+
+          for test_file in \
+            tests/final-integration-01-14.test.mjs \
+            tests/project09-dashboard-responsive.test.mjs \
+            tests/project10-online-class.test.mjs \
+            tests/project11-student-sync.test.mjs \
+            tests/project12-integrated.test.mjs \
+            tests/project13-integrated.test.mjs \
+            tests/project14-youtube-auto-sync.test.mjs \
+            tests/r19-fix8-integrity.test.mjs \
+            tests/r19-interaction-stability.test.mjs \
+            tests/run15-build-readiness.test.mjs \
+            tests/run15-runtime-contract.test.mjs \
+            tests/r20-audit-phase01-08.test.mjs \
+            tests/r20-fix25-monthly-evaluation.test.mjs; do
+            test -s "$test_file" || { echo "::error::Missing regression test: $test_file"; exit 1; }
+          done
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+
+      - name: Source lint format static gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm run format:check
+          npm run verify:static
+
+      - name: Production web build import-export gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          test -s dist/index.html
+
+      - name: Last green R19 cumulative regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/final-integration-01-14.test.mjs
+          node --test tests/project09-dashboard-responsive.test.mjs
+          node --test tests/project10-online-class.test.mjs
+          node --test tests/project11-student-sync.test.mjs
+          node --test tests/project12-integrated.test.mjs
+          node --test tests/project13-integrated.test.mjs
+          node --test tests/project14-youtube-auto-sync.test.mjs
+          node --test tests/r19-fix8-integrity.test.mjs
+          node --test tests/r19-interaction-stability.test.mjs
+          node --test tests/run15-build-readiness.test.mjs
+          node --test tests/run15-runtime-contract.test.mjs
+
+      - name: OCR explicit-answer compatibility gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE_OCR_FIX2'
+          import { structureOcrQuestions } from './src/services/ocrQuestionParser.js';
+
+          const result = structureOcrQuestions([
+            'أسئلة الدرس',
+            '١- ما عاصمة مصر؟',
+            'أ) القاهرة',
+            'ب) الإسكندرية',
+            'ج) أسوان',
+            'د) الأقصر',
+            'الإجابة: أ',
+            '٢- يمر نهر النيل في مصر؟',
+            'الإجابة: صح',
+            '٣- اذكر نتيجة بناء السد العالي.',
+          ].join('\n'));
+
+          if (result.questionCount !== 3) throw new Error(`OCR questionCount=${result.questionCount}`);
+          if (result.answeredCount !== 2) throw new Error(`OCR answeredCount=${result.answeredCount}`);
+          if (result.reviewCount !== 1) throw new Error(`OCR reviewCount=${result.reviewCount}`);
+          if (!/الإجابة: أ/.test(result.questionText)) throw new Error('OCR explicit source answer label was not preserved');
+          if (result.questions?.[0]?.answer !== 'القاهرة') throw new Error('OCR grading answer did not resolve to option text');
+          if (result.questions?.[0]?.sourceAnswer !== 'أ') throw new Error('OCR sourceAnswer was not preserved');
+          console.log('OCR explicit-answer compatibility: PASS');
+          NODE_OCR_FIX2
+
+          node --test tests/pdf-question-ocr.test.mjs
+
+      - name: Duplex legacy and R20 compatibility gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/student-card-printing-r14.test.mjs
+          node --test tests/r20-fix23-duplex-printing.test.mjs
+
+      - name: R20 cumulative regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/r20*.test.mjs
+          node --test tests/geography-maps.test.mjs
+          node --test tests/map-symbol-library-v13.test.mjs
+          node --test tests/gamification.test.mjs
+          node --test tests/online-game.test.mjs
+          node --test tests/student-ranking.test.mjs
+          node --test tests/pdf-question-ocr.test.mjs
+          node --test tests/question-rotation.test.mjs
+          node --test tests/student-card-printing-r14.test.mjs
+
+      - name: Capacitor Android sync with recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf android/capacitor-cordova-android-plugins
+          rm -f android/app/capacitor.build.gradle android/capacitor.settings.gradle
+
+          set +e
+          npx cap sync android
+          SYNC_RC=$?
+          set -e
+
+          if [ "$SYNC_RC" -ne 0 ] \
+             || [ ! -s android/capacitor-cordova-android-plugins/cordova.variables.gradle ] \
+             || [ ! -s android/app/capacitor.build.gradle ]; then
+            npx cap update android
+            npx cap copy android
+          fi
+
+          test -s android/app/src/main/assets/public/index.html
+          test -s android/capacitor-cordova-android-plugins/cordova.variables.gradle
+          test -s android/app/capacitor.build.gradle
+          test -s android/capacitor.settings.gradle
+          grep -Fq "cordova.variables.gradle" android/app/capacitor.build.gradle
+
+      - name: Close Android API 23 lint regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY_ANDROID_API23'
+          from pathlib import Path
+
+          path = Path("android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java")
+          if not path.is_file():
+              raise SystemExit(f"Missing OCR plugin: {path}")
+
+          text = path.read_text(encoding="utf-8")
+
+          old_method = (
+              "    private String read(File file) throws Exception {\n"
+              "        return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).trim();\n"
+              "    }"
+          )
+
+          new_method = (
+              "    private String read(File file) throws Exception {\n"
+              "        try (java.io.InputStream in = new java.io.FileInputStream(file);\n"
+              "             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {\n"
+              "            byte[] buffer = new byte[8192];\n"
+              "            int n;\n"
+              "            while ((n = in.read(buffer)) != -1) {\n"
+              "                out.write(buffer, 0, n);\n"
+              "            }\n"
+              "            return new String(out.toByteArray(), StandardCharsets.UTF_8).trim();\n"
+              "        }\n"
+              "    }"
+          )
+
+          if old_method in text:
+              text = text.replace(old_method, new_method, 1)
+          elif new_method in text:
+              pass
+          else:
+              raise SystemExit(
+                  "R20PageOcrPlugin.read(File) changed unexpectedly; refusing blind Android edit"
+              )
+
+          text = text.replace("import java.nio.file.Files;\n", "")
+          path.write_text(text, encoding="utf-8")
+
+          forbidden = ["java.nio.file.Files", "Files.readAllBytes", "file.toPath()"]
+          remaining = [token for token in forbidden if token in text]
+          if remaining:
+              raise SystemExit(
+                  "API-26 file I/O remains in OCR plugin: " + ", ".join(remaining)
+              )
+
+          required = [
+              "java.io.InputStream in = new java.io.FileInputStream(file)",
+              "java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()",
+              "while ((n = in.read(buffer)) != -1)",
+              "StandardCharsets.UTF_8",
+          ]
+          missing = [token for token in required if token not in text]
+          if missing:
+              raise SystemExit(
+                  "API-23-safe OCR file reader contract incomplete: " + ", ".join(missing)
+              )
+
+          print("R20 OCR Android file reader is API-23-safe: PASS")
+          PY_ANDROID_API23
+
+          ! grep -Fq "java.nio.file.Files" android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java
+          ! grep -Fq "Files.readAllBytes" android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java
+          ! grep -Fq "file.toPath()" android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java
+
+      - name: Verify last-green Android runtime toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BT="$SDK/build-tools/35.0.0"
+
+          test -n "$SDK"
+          test -s "$SDK/platforms/android-35/android.jar"
+          test -x "$BT/aapt"
+          test -x "$BT/apksigner"
+          test -x "$BT/zipalign"
+
+          java -version 2>&1 | tee /tmp/r20-java-version.txt
+          node --version | tee /tmp/r20-node-version.txt
+
+          (
+            cd android
+            chmod +x gradlew
+            ./gradlew --version
+          ) 2>&1 | tee /tmp/r20-gradle-version.txt
+
+          grep -Eq 'Gradle[[:space:]]+8\.11\.1' /tmp/r20-gradle-version.txt
+
+          # Gradle itself proves the Android project/configuration loads.
+          # This replaces brittle literal greps against build.gradle formatting.
+          (
+            cd android
+            ./gradlew --no-daemon :app:tasks --all
+          ) 2>&1 | tee /tmp/r20-gradle-project-load.log
+
+          "$BT/aapt" version | tee /tmp/r20-aapt-version.txt
+          "$BT/apksigner" --version | tee /tmp/r20-apksigner-version.txt
+
+          # Help output is diagnostic only; some versions return non-zero for -h.
+          "$BT/zipalign" -h > /tmp/r20-zipalign-help.txt 2>&1 || true
+
+          echo "Last-green Android runtime toolchain: PASS"
+
+      - name: Android Java compile gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+
+          set +e
+          ./gradlew --no-daemon :app:compileDebugJavaWithJavac --stacktrace 2>&1 | tee /tmp/r20-java-compile.log
+          JAVA_RC=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$JAVA_RC" -ne 0 ]; then
+            echo "::group::Java compiler error summary"
+            grep -nE '(^|: )(error:|cannot find symbol|symbol:|location:)' /tmp/r20-java-compile.log || true
+            echo "::endgroup::"
+            exit "$JAVA_RC"
+          fi
+
+          echo "Android Java compile: PASS"
+
+      - name: Android debug unit test gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+
+          set +e
+          ./gradlew --no-daemon testDebugUnitTest --stacktrace 2>&1 | tee /tmp/r20-unit-test.log
+          TEST_RC=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$TEST_RC" -ne 0 ]; then
+            echo "::group::Android unit-test failure summary"
+            grep -nE 'FAILED|FAILURE:|There were failing tests|Execution failed for task|error:|Exception' /tmp/r20-unit-test.log || true
+            echo "::endgroup::"
+            exit "$TEST_RC"
+          fi
+
+          echo "Android debug unit tests: PASS"
+
+      - name: Android lintDebug gate
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+
+          set +e
+          ./gradlew --no-daemon lintDebug --stacktrace 2>&1 | tee /tmp/r20-lint-debug.log
+          LINT_RC=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$LINT_RC" -ne 0 ]; then
+            echo "::group::Android lint failure summary"
+            grep -nE 'Error:|Fatal|NewApi|requires API|MissingPermission|WrongThread|UnsafeOptInUsageError|Execution failed for task|FAILURE:' /tmp/r20-lint-debug.log || true
+            echo "::endgroup::"
+
+            echo "::group::Full Android lint text report"
+            while IFS= read -r report; do
+              echo "===== $report ====="
+              cat "$report" || true
+            done < <(find app/build -type f -name 'lint-results-debug.txt' -print 2>/dev/null | sort)
+            echo "::endgroup::"
+
+            exit "$LINT_RC"
+          fi
+
+          echo "Android lintDebug: PASS"
+
+      - name: Build debug APK
+        shell: bash
+        working-directory: android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+
+          set +e
+          ./gradlew --no-daemon clean :app:assembleDebug --stacktrace 2>&1 | tee /tmp/r20-assemble-debug.log
+          BUILD_RC=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$BUILD_RC" -ne 0 ]; then
+            echo "::group::Android assemble failure summary"
+            grep -nE 'FAILED|FAILURE:|Execution failed for task|error:|AAPT2|DexArchive|Duplicate class|Manifest merger failed|Could not resolve' /tmp/r20-assemble-debug.log || true
+            echo "::endgroup::"
+            exit "$BUILD_RC"
+          fi
+
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          echo "Android debug APK build: PASS"
+
+      - name: Verify final APK identity signature and alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BT="$SDK/build-tools/35.0.0"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          test -s "$APK"
+          test -x "$BT/aapt"
+          test -x "$BT/apksigner"
+          test -x "$BT/zipalign"
+
+          "$BT/aapt" dump badging "$APK" > /tmp/apk-badging.txt
+          head -30 /tmp/apk-badging.txt
+
+          grep -Fq "package: name='com.mobdea.education'" /tmp/apk-badging.txt
+          grep -Fq "versionCode='$EXPECTED_VERSION_CODE'" /tmp/apk-badging.txt
+          grep -Fq "versionName='$EXPECTED_VERSION_NAME'" /tmp/apk-badging.txt
+
+          unzip -l "$APK" > /tmp/apk-files.txt
+          grep -Fq "assets/public/index.html" /tmp/apk-files.txt
+
+          unzip -t "$APK" 2>&1 | tee /tmp/apk-unzip-test.log
+
+          "$BT/apksigner" verify --verbose --print-certs "$APK" 2>&1 | tee /tmp/apksigner.txt
+          "$BT/zipalign" -c -v 4 "$APK" 2>&1 | tee /tmp/zipalign.txt
+
+          sha256sum "$APK" | tee /tmp/apk.sha256
+          echo "Final R20 APK verification: PASS"
+
+      - name: Package final R20 SAFE result
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="/tmp/mobdea-r20-final"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          FINAL_APK="$OUT/mobdea-r20-safe-from-r19-10.14.1-v118-debug.apk"
+
+          test -s "$APK"
+          cp "$APK" "$FINAL_APK"
+          test -s "$FINAL_APK"
+          cmp -s "$APK" "$FINAL_APK"
+
+          sha256sum "$FINAL_APK" > "$OUT/mobdea-r20-safe-from-r19-10.14.1-v118-debug.sha256"
+
+          cp /tmp/apk-badging.txt "$OUT/APK-BADGING.txt"
+          cp /tmp/apksigner.txt "$OUT/APK-SIGNATURE.txt"
+          cp /tmp/zipalign.txt "$OUT/APK-ZIPALIGN.txt"
+          cp /tmp/apk-unzip-test.log "$OUT/APK-INTEGRITY.txt"
+          cp /tmp/apk-files.txt "$OUT/APK-FILES.txt"
+
+          git diff --check > "$OUT/GIT-DIFF-CHECK.txt" 2>&1 || true
+          git diff --binary > "$OUT/R20-FINAL-SOURCE.patch" 2>/dev/null || true
+
+          cat > "$OUT/FINAL-VERIFICATION.txt" <<'VERIFY'
+          R20 SAFE FROM LAST GREEN R19 V6 FIX9
+          Baseline: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+          Last green R19 V6 run: 32714480207
+          R20 source release SHA256: 03804eefcfa7b8c2284dfb56303b7ff187af672036f041f41f267dd4283f653c
+          VersionName: 10.14.1
+          VersionCode: 118
+          Final Android build shape: clean :app:assembleDebug
+          APK package/version: verified with aapt
+          APK archive integrity: verified with unzip -t
+          APK signature: verified with apksigner
+          APK alignment: verified with zipalign -c -v 4
+          VERIFY
+
+          echo "Final R20 package: PASS"
+
+      - name: Upload final R20 SAFE APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r20-safe-from-r19-fix9-v118
+          path: /tmp/mobdea-r20-final/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          OUT="/tmp/mobdea-r20-final-failure"
+          mkdir -p "$OUT"
+
+          for log in             /tmp/r20-java-compile.log             /tmp/r20-unit-test.log             /tmp/r20-lint-debug.log             /tmp/r20-assemble-debug.log             /tmp/apk-badging.txt             /tmp/apk-files.txt             /tmp/apk-unzip-test.log             /tmp/apksigner.txt             /tmp/zipalign.txt             /tmp/apk.sha256             /tmp/r20-gradle-version.txt             /tmp/r20-gradle-project-load.log             /tmp/r20-java-version.txt             /tmp/r20-node-version.txt             /tmp/r20-aapt-version.txt             /tmp/r20-apksigner-version.txt             /tmp/r20-zipalign-help.txt; do
+            if [ -f "$log" ]; then
+              cp "$log" "$OUT/$(basename "$log")"
+            fi
+          done
+
+          git status --short > "$OUT/git-status.txt" 2>&1
+          git diff --check > "$OUT/git-diff-check.txt" 2>&1
+          git diff --binary > "$OUT/current.patch" 2>&1
+          cp /tmp/r20-tar-list.txt "$OUT/r20-tar-list.txt" 2>/dev/null || true
+
+          if [ -d android/app/build/reports ]; then
+            find android/app/build/reports -maxdepth 4 -type f -print > "$OUT/android-reports-list.txt" 2>&1
+          fi
+
+          if [ -d android/app/build/test-results/testDebugUnitTest ]; then
+            mkdir -p "$OUT/test-results"
+            cp -R android/app/build/test-results/testDebugUnitTest/. "$OUT/test-results/" 2>/dev/null || true
+          fi
+
+          if [ -d android/app/build/reports/tests/testDebugUnitTest ]; then
+            mkdir -p "$OUT/unit-test-report"
+            cp -R android/app/build/reports/tests/testDebugUnitTest/. "$OUT/unit-test-report/" 2>/dev/null || true
+          fi
+
+          find android/app/build -type f \( -name 'lint-results-debug.txt' -o -name 'lint-results-debug.html' \) -print 2>/dev/null |
+          while IFS= read -r report; do
+            cp "$report" "$OUT/$(basename "$report")" 2>/dev/null || true
+          done
+
+          if [ -s android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk "$OUT/partial-app-debug.apk"
+          fi
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r20-safe-from-r19-fix9-failure
+          path: /tmp/mobdea-r20-final-failure/*
+          if-no-files-found: ignore
+          retention-days: 14
