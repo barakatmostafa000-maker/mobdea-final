@@ -1,0 +1,506 @@
+name: R20 SAFE SURGICAL MERGE ON PROTECTED R19 FIX01-25
+'on':
+  workflow_dispatch: null
+  push:
+    branches:
+    - main
+    paths:
+    - .github/workflows/R20_SAFE_R19_FIX01_25.yml
+    - .github/r20_payload.zip
+permissions:
+  contents: read
+  actions: read
+env:
+  R19_BASE_COMMIT: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+  EXPECTED_VERSION_NAME: 10.14.1
+  EXPECTED_VERSION_CODE: '118'
+  R19_PATCH_SHA256: cdde2432847080323e32430c86e5a717877a6f54a5c21a32820072c1761c7332
+  R19_FIX3_PAYLOAD_COMMIT: 3477b1b9b7f2210823054634e4f840ff9744910c
+jobs:
+  r20_final_audited_01_26:
+    name: Safe surgical R19 + FIX01-25 + final audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 800
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - name: Checkout workflow package commit
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - name: Preserve and verify R20 surgical repair payload
+      shell: bash
+      run: |
+        set -euo pipefail
+        test -f .github/r20_payload.zip
+        echo "b6958f87ce6287685e98c3fd707eb7b7e0eec84eaa3471c615153b437138bb39  .github/r20_payload.zip" | sha256sum -c -
+        cp .github/r20_payload.zip "$RUNNER_TEMP/r20_payload.zip"
+    - name: Checkout exact protected R19 baseline
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.R19_BASE_COMMIT }}
+        fetch-depth: 1
+        clean: true
+    - name: Restore FIX01-25 scripts over protected R19 workspace
+      shell: bash
+      run: |
+        set -euo pipefail
+        unzip -q "$RUNNER_TEMP/r20_payload.zip" -d .
+        test -f .github/r20/scripts/002_Confirm_protected_baseline.sh
+        chmod +x .github/r20/scripts/*.sh
+    - name: Confirm protected baseline
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/002_Confirm_protected_baseline.sh
+    - name: Reconstruct exact approved R19 Fix8.9 baseline
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/003_Reconstruct_exact_approved_R19_Fix8.9_baseline.sh
+    - name: Setup Node 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: package-lock.json
+    - name: Verify successful R19 toolchain contract
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/005_Verify_successful_R19_toolchain_contract.sh
+    - name: Install R19 surgical merge guard
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/006_Install_R19_surgical_merge_guard.sh
+    - name: Surgical snapshot before FIX01
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/007_Surgical_snapshot_before_FIX01.sh
+    - name: Apply R20 FIX01 source repairs
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/008_Apply_R20_FIX01_source_repairs.sh
+    - name: Enforce surgical scope after FIX01
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/009_Enforce_surgical_scope_after_FIX01.sh
+    - name: Surgical snapshot before FIX02
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/010_Surgical_snapshot_before_FIX02.sh
+    - name: Apply FIX02 unified layout
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/011_Apply_FIX02_unified_layout.sh
+    - name: Enforce surgical scope after FIX02
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/012_Enforce_surgical_scope_after_FIX02.sh
+    - name: Surgical snapshot before FIX03
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/013_Surgical_snapshot_before_FIX03.sh
+    - name: Apply FIX03 student management
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/014_Apply_FIX03_student_management.sh
+    - name: Enforce surgical scope after FIX03
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/015_Enforce_surgical_scope_after_FIX03.sh
+    - name: Surgical snapshot before FIX04
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/016_Surgical_snapshot_before_FIX04.sh
+    - name: Apply FIX04 student parent accounts
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/017_Apply_FIX04_student_parent_accounts.sh
+    - name: Enforce surgical scope after FIX04
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/018_Enforce_surgical_scope_after_FIX04.sh
+    - name: Surgical snapshot before FIX05
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/019_Surgical_snapshot_before_FIX05.sh
+    - name: Apply FIX05 role dashboard
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/020_Apply_FIX05_role_dashboard.sh
+    - name: Enforce surgical scope after FIX05
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/021_Enforce_surgical_scope_after_FIX05.sh
+    - name: Surgical snapshot before FIX06
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/022_Surgical_snapshot_before_FIX06.sh
+    - name: Apply FIX06 teacher tablet dashboard
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/023_Apply_FIX06_teacher_tablet_dashboard.sh
+    - name: Enforce surgical scope after FIX06
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/024_Enforce_surgical_scope_after_FIX06.sh
+    - name: Surgical snapshot before FIX07
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/025_Surgical_snapshot_before_FIX07.sh
+    - name: Apply FIX07 PDF pinch pan and board overlay
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/026_Apply_FIX07_PDF_pinch_pan_and_board_overlay.sh
+    - name: Enforce surgical scope after FIX07
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/027_Enforce_surgical_scope_after_FIX07.sh
+    - name: Surgical snapshot before AUDIT01_08
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/028_Surgical_snapshot_before_AUDIT01_08.sh
+    - name: Audit repair phases 01-08
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/029_Audit_repair_phases_01-08.sh
+    - name: Enforce surgical scope after AUDIT01_08
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/030_Enforce_surgical_scope_after_AUDIT01_08.sh
+    - name: Surgical snapshot before FIX08
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/031_Surgical_snapshot_before_FIX08.sh
+    - name: Apply FIX08 OCR and per-page questions
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/032_Apply_FIX08_OCR_and_per-page_questions.sh
+    - name: Enforce surgical scope after FIX08
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/033_Enforce_surgical_scope_after_FIX08.sh
+    - name: Surgical snapshot before FIX09
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/034_Surgical_snapshot_before_FIX09.sh
+    - name: Apply FIX09 whiteboard rendering and layout
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/035_Apply_FIX09_whiteboard_rendering_and_layout.sh
+    - name: Enforce surgical scope after FIX09
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/036_Enforce_surgical_scope_after_FIX09.sh
+    - name: Surgical snapshot before FIX10
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/037_Surgical_snapshot_before_FIX10.sh
+    - name: Apply FIX10 educational cards
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/038_Apply_FIX10_educational_cards.sh
+    - name: Enforce surgical scope after FIX10
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/039_Enforce_surgical_scope_after_FIX10.sh
+    - name: Surgical snapshot before FIX11
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/040_Surgical_snapshot_before_FIX11.sh
+    - name: Apply FIX11 country cards
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/041_Apply_FIX11_country_cards.sh
+    - name: Enforce surgical scope after FIX11
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/042_Enforce_surgical_scope_after_FIX11.sh
+    - name: Surgical snapshot before FIX12
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/043_Surgical_snapshot_before_FIX12.sh
+    - name: Apply FIX12 maps rendering and interaction
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/044_Apply_FIX12_maps_rendering_and_interaction.sh
+    - name: Enforce surgical scope after FIX12
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/045_Enforce_surgical_scope_after_FIX12.sh
+    - name: Surgical snapshot before FIX13
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/046_Surgical_snapshot_before_FIX13.sh
+    - name: Apply FIX13 atlas boundaries and names
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/047_Apply_FIX13_atlas_boundaries_and_names.sh
+    - name: Enforce surgical scope after FIX13
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/048_Enforce_surgical_scope_after_FIX13.sh
+    - name: Surgical snapshot before FIX14
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/049_Surgical_snapshot_before_FIX14.sh
+    - name: Apply FIX14 geography correctness
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/050_Apply_FIX14_geography_correctness.sh
+    - name: Enforce surgical scope after FIX14
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/051_Enforce_surgical_scope_after_FIX14.sh
+    - name: Surgical snapshot before FIX15
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/052_Surgical_snapshot_before_FIX15.sh
+    - name: Apply FIX15 Map Challenge
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/053_Apply_FIX15_Map_Challenge.sh
+    - name: Enforce surgical scope after FIX15
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/054_Enforce_surgical_scope_after_FIX15.sh
+    - name: Surgical snapshot before FIX16
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/055_Surgical_snapshot_before_FIX16.sh
+    - name: Apply FIX16 Image Mode and natural map layers
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/056_Apply_FIX16_Image_Mode_and_natural_map_layers.sh
+    - name: Enforce surgical scope after FIX16
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/057_Enforce_surgical_scope_after_FIX16.sh
+    - name: Surgical snapshot before FIX17
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/058_Surgical_snapshot_before_FIX17.sh
+    - name: Apply FIX17 Video Audio PowerPoint
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/059_Apply_FIX17_Video_Audio_PowerPoint.sh
+    - name: Enforce surgical scope after FIX17
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/060_Enforce_surgical_scope_after_FIX17.sh
+    - name: Surgical snapshot before FIX18
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/061_Surgical_snapshot_before_FIX18.sh
+    - name: Apply FIX18 Games question flow
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/062_Apply_FIX18_Games_question_flow.sh
+    - name: Enforce surgical scope after FIX18
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/063_Enforce_surgical_scope_after_FIX18.sh
+    - name: Surgical snapshot before FIX19
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/064_Surgical_snapshot_before_FIX19.sh
+    - name: Apply FIX19 Question Bank pipeline
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/065_Apply_FIX19_Question_Bank_pipeline.sh
+    - name: Enforce surgical scope after FIX19
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/066_Enforce_surgical_scope_after_FIX19.sh
+    - name: Surgical snapshot before FIX20
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/067_Surgical_snapshot_before_FIX20.sh
+    - name: Apply FIX20 Exam Tracking by code
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/068_Apply_FIX20_Exam_Tracking_by_code.sh
+    - name: Enforce surgical scope after FIX20
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/069_Enforce_surgical_scope_after_FIX20.sh
+    - name: Surgical snapshot before FIX21
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/070_Surgical_snapshot_before_FIX21.sh
+    - name: Apply FIX21 Weakness Reports WhatsApp
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/071_Apply_FIX21_Weakness_Reports_WhatsApp.sh
+    - name: Enforce surgical scope after FIX21
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/072_Enforce_surgical_scope_after_FIX21.sh
+    - name: Surgical snapshot before FIX22
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/073_Surgical_snapshot_before_FIX22.sh
+    - name: Apply FIX22 Mobdea Assistant remedial exams
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/074_Apply_FIX22_Mobdea_Assistant_remedial_exams.sh
+    - name: Enforce surgical scope after FIX22
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/075_Enforce_surgical_scope_after_FIX22.sh
+    - name: Surgical snapshot before FIX23
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/076_Surgical_snapshot_before_FIX23.sh
+    - name: Apply FIX23 Duplex Printing
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/077_Apply_FIX23_Duplex_Printing.sh
+    - name: Enforce surgical scope after FIX23
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/078_Enforce_surgical_scope_after_FIX23.sh
+    - name: Surgical snapshot before FIX24
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/079_Surgical_snapshot_before_FIX24.sh
+    - name: Apply FIX24 Mobdea Online
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/080_Apply_FIX24_Mobdea_Online.sh
+    - name: Enforce surgical scope after FIX24
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/081_Enforce_surgical_scope_after_FIX24.sh
+    - name: Surgical snapshot before FIX25
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/082_Surgical_snapshot_before_FIX25.sh
+    - name: Apply FIX25 Monthly Student Evaluation
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/083_Apply_FIX25_Monthly_Student_Evaluation.sh
+    - name: Enforce surgical scope after FIX25
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/084_Enforce_surgical_scope_after_FIX25.sh
+    - name: Final surgical merge scope audit before dependencies
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/085_Final_surgical_merge_scope_audit_before_dependencies.sh
+    - name: Verify portable student login architecture before install
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/086_Verify_portable_student_login_architecture_before_install.sh
+    - name: Install locked dependencies
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/087_Install_locked_dependencies.sh
+    - name: FIX25 Monthly Evaluation hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/088_FIX25_Monthly_Evaluation_hard_gates.sh
+    - name: FIX24 Mobdea Online hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/089_FIX24_Mobdea_Online_hard_gates.sh
+    - name: FIX23 Duplex Printing hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/090_FIX23_Duplex_Printing_hard_gates.sh
+    - name: FIX22 Mobdea Assistant remedial hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/091_FIX22_Mobdea_Assistant_remedial_hard_gates.sh
+    - name: FIX21 Reports WhatsApp hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/092_FIX21_Reports_WhatsApp_hard_gates.sh
+    - name: FIX20 Exam Tracking hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/093_FIX20_Exam_Tracking_hard_gates.sh
+    - name: FIX19 Question Bank hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/094_FIX19_Question_Bank_hard_gates.sh
+    - name: FIX18 Games hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/095_FIX18_Games_hard_gates.sh
+    - name: FIX17 Video Audio PowerPoint hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/096_FIX17_Video_Audio_PowerPoint_hard_gates.sh
+    - name: FIX16 Image Mode and natural layers hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/097_FIX16_Image_Mode_and_natural_layers_hard_gates.sh
+    - name: FIX15 Map Challenge hard gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/098_FIX15_Map_Challenge_hard_gates.sh
+    - name: FIX14 geography correctness gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/099_FIX14_geography_correctness_gates.sh
+    - name: FIX13 atlas layer gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/100_FIX13_atlas_layer_gates.sh
+    - name: FIX12 maps rendering gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/101_FIX12_maps_rendering_gates.sh
+    - name: FIX11 country-card gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/102_FIX11_country-card_gates.sh
+    - name: FIX10 educational cards gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/103_FIX10_educational_cards_gates.sh
+    - name: FIX09 whiteboard rendering gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/104_FIX09_whiteboard_rendering_gates.sh
+    - name: FIX08 OCR page-question web and source gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/105_FIX08_OCR_page-question_web_and_source_gates.sh
+    - name: FIX07 PDF gesture and overlay gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/106_FIX07_PDF_gesture_and_overlay_gates.sh
+    - name: FIX06 teacher dashboard tablet gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/107_FIX06_teacher_dashboard_tablet_gates.sh
+    - name: FIX05 role dashboard permission gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/108_FIX05_role_dashboard_permission_gates.sh
+    - name: FIX04 account lifecycle and legacy portal gates
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/109_FIX04_account_lifecycle_and_legacy_portal_gates.sh
+    - name: Stage10-26 integrated implementation audit
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/110_Stage10-26_integrated_implementation_audit.sh
+    - name: Phases 01-26 full release regression gate
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/111_Phases_01-26_full_release_regression_gate.sh
+    - name: Install browser audit dependencies once
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/112_Install_browser_audit_dependencies_once.sh
+    - name: FIX25 real Monthly Evaluation browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/113_FIX25_real_Monthly_Evaluation_browser_smoke.sh
+    - name: FIX24 real Mobdea Online browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/114_FIX24_real_Mobdea_Online_browser_smoke.sh
+    - name: FIX23 real Duplex A4 PDF browser audit
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/115_FIX23_real_Duplex_A4_PDF_browser_audit.sh
+    - name: FIX22 real personalized remedial browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/116_FIX22_real_personalized_remedial_browser_smoke.sh
+    - name: FIX21 real Reports WhatsApp browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/117_FIX21_real_Reports_WhatsApp_browser_smoke.sh
+    - name: FIX20 real Exam Tracking browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/118_FIX20_real_Exam_Tracking_browser_smoke.sh
+    - name: FIX19 real Question Bank browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/119_FIX19_real_Question_Bank_browser_smoke.sh
+    - name: FIX18 real student Games browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/120_FIX18_real_student_Games_browser_smoke.sh
+    - name: FIX17 real Video Audio PowerPoint browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/121_FIX17_real_Video_Audio_PowerPoint_browser_smoke.sh
+    - name: FIX16 real natural map layers browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/122_FIX16_real_natural_map_layers_browser_smoke.sh
+    - name: FIX16 real Image Mode browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/123_FIX16_real_Image_Mode_browser_smoke.sh
+    - name: FIX15 real student Map Challenge browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/124_FIX15_real_student_Map_Challenge_browser_smoke.sh
+    - name: FIX14 real geography browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/125_FIX14_real_geography_browser_smoke.sh
+    - name: FIX13 real atlas browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/126_FIX13_real_atlas_browser_smoke.sh
+    - name: FIX12 real maps browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/127_FIX12_real_maps_browser_smoke.sh
+    - name: FIX11 real country-card browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/128_FIX11_real_country-card_browser_smoke.sh
+    - name: FIX10 real educational-card browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/129_FIX10_real_educational-card_browser_smoke.sh
+    - name: FIX09 real whiteboard browser smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/130_FIX09_real_whiteboard_browser_smoke.sh
+    - name: FIX06 tablet dashboard smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/131_FIX06_tablet_dashboard_smoke.sh
+    - name: Tablet cumulative smoke
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/132_Tablet_cumulative_smoke.sh
+    - name: Phases 01-08 real browser runtime audit
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/133_Phases_01-08_real_browser_runtime_audit.sh
+    - name: Verify OCR native source before Android build
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/134_Verify_OCR_native_source_before_Android_build.sh
+    - name: Setup Java 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+        cache: gradle
+    - name: Verify Gradle 8.11.1 with Java 21
+      working-directory: android
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/136_Verify_Gradle_8.11.1_with_Java_21.sh
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    - name: Prepare Android SDK
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/138_Prepare_Android_SDK.sh
+    - name: Capacitor sync
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/139_Capacitor_sync.sh
+    - name: Install hash-pinned 17-file OCR model pack for FIX08
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/140_Install_hash-pinned_17-file_OCR_model_pack_for_FIX08.sh
+    - name: FIX08 native OCR APK gate
+      working-directory: android
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/141_FIX08_native_OCR_APK_gate.sh
+    - name: Verify phases 01-26 audited markers inside APK
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/142_Verify_phases_01-26_audited_markers_inside_APK.sh
+    - name: Package final audited 01-26
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/143_Package_final_audited_01-26.sh
+    - name: Upload final audited 01-26 result
+      uses: actions/upload-artifact@v4
+      with:
+        name: mobdea-r20-final-audited-01-26-run-ready
+        path: /tmp/mobdea-r20-final-audited-01-26/*
+        if-no-files-found: error
+        retention-days: 30
+    - name: Collect final audited 01-26 failure diagnostics
+      if: failure()
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/145_Collect_final_audited_01-26_failure_diagnostics.sh
+    - name: Upload final audited 01-26 failure diagnostics
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mobdea-r20-final-audited-01-26-failure
+        path: /tmp/mobdea-r20-final-audited-01-26-failure/*
+        if-no-files-found: ignore
+        retention-days: 14
+    - name: Final summary
+      if: always()
+      shell: bash
+      run: bash --noprofile --norc -e -o pipefail .github/r20/scripts/147_Final_summary.sh
