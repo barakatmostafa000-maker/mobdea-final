@@ -1,0 +1,319 @@
+name: "R20 SAFE R19 + FIX01...FIX25 (FIX23-25 HARDENED)"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      STRIP_YELLOW_GOLD: 'false'
+      QA_CONTRAST_MIN: '7.0'
+      QA_BLUE_MAX_SAT: '0.90'
+      QA_BLUE_MAX_VAL: '0.80'
+      # IMPORTANT: available to every Actions step, not only R20 Build.
+      R20_REPO_ROOT: ${{ github.workspace }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps (R19/R20 + FIX01..FIX25)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install reportlab pypdf PyMuPDF pillow
+
+      - name: R19 — Build (UNCHANGED)
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .github/r19_bundle/scripts/*.sh || true
+          export R19_REPO_ROOT="${{ github.workspace }}"
+          .github/r19_bundle/scripts/00_RUN_ALL.sh
+
+      - name: R20 — Pull payload + PREFLIGHT ALL or FAIL
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          chmod +x .github/r20_payload/run_r20.sh
+          .github/r20_payload/run_r20.sh pull
+          chmod +x .github/r20_payload/scripts/*.sh || true
+
+          echo "=== R20 PREFLIGHT: verify all scripts required by FIX01..FIX25 ==="
+          test -d .github/r20_payload/scripts
+
+          scripts=(
+            00_RUN_R20.sh
+            01_PREFLIGHT.sh
+            02_UI_OPTIMIZE_WITHOUT_CHANGING_IDENTITY.sh
+            03_FILL_FORMS_LOGIC_AND_APPEARANCE.sh
+            04_BLUE_REMOVE_NEUTRAL.sh
+            05_EMBOSSING_SHADOWS_REFLECTIONS.sh
+            06_PERF_POLISH.sh
+            06_STRESS_TESTS.sh
+            07_DEMO_TESTS_AND_RESULTS.sh
+            08_GUARD_VALIDATION_AND_CLEAN_OUTPUT.sh
+            09_BUILD_GUIDE_PDF_PYTHON.sh
+            10_PACKAGE_ARTIFACTS.sh
+            050_FIX01_SIGNOFF_BOUNDARY.sh
+            051_FIX02_GOLD_TOUCH_UI_FINISHING.sh
+            052_FIX03_SMART_GUIDE_CORE.sh
+            053_FIX04_SMART_GUIDE_PRO.sh
+            054_FIX05_PRINT_WIZARD_PRO.sh
+            055_FIX06_TEMPLATE_DESIGNER_CORE.sh
+            056_FIX07_TEMPLATE_DESIGNER_PRO.sh
+            057_FIX08_TEMPLATE_PREVIEW_3D.sh
+            058_FIX09_DEMO_DATA_AND_RECOMMENDATIONS.sh
+            059_FIX10_PRINT_ECARE_UI_ONLY_PRINT_DESIGNER.sh
+            060_FIX11_PRINTDESIGNER_AI_SUMMARY_AND_SWITCH.sh
+            061_FIX12_WATERMARK_PDFX1A.sh
+            062_FIX13_PDFX1A_POLICY.sh
+            063_FIX14_OVERPRINT_KNOCKOUT_POLICY.sh
+            064_FIX15_VECTOR_DIALOG_GRADIENTS.sh
+            065_FIX16_VARIABLE_DATA_PRINTING.sh
+            066_FIX17_JOB_FINGERPRINT_REPRO.sh
+            067_FIX18_PREVIEW_PIXEL_DIFF.sh
+            068_FIX19_PAGINATION_IMPOSITION.sh
+            069_FIX20_FAILSAFE_AUTOSAVE_RECOVERY.sh
+            074_FIX21_JDF_JMF_PRINT_TICKETS.sh
+            075_FIX22_HOTFOLDERS_QUEUES.sh
+            077_Apply_FIX23_Duplex_Printing.sh
+            078_Apply_FIX24_Color_Bars_and_Print_Marks.sh
+            079_Apply_FIX25_Embedded_PDF_Preflight_Engine.sh
+          )
+
+          missing=0
+          for f in "${scripts[@]}"; do
+            if [[ ! -f ".github/r20_payload/scripts/$f" ]]; then
+              echo "::error::MISSING: .github/r20_payload/scripts/$f"
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            echo "::error::R20 PREFLIGHT: missing scripts => FAIL"
+            exit 1
+          fi
+
+          echo "=== FIX23/FIX24/FIX25 shell syntax audit ==="
+          bash -n .github/r20_payload/scripts/077_Apply_FIX23_Duplex_Printing.sh
+          bash -n .github/r20_payload/scripts/078_Apply_FIX24_Color_Bars_and_Print_Marks.sh
+          bash -n .github/r20_payload/scripts/079_Apply_FIX25_Embedded_PDF_Preflight_Engine.sh
+
+          echo "R20 PREFLIGHT: OK"
+
+      - name: R20 — Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          export R20_REPO_ROOT="${{ github.workspace }}"
+          bash .github/r20_payload/scripts/00_RUN_R20.sh
+
+      - name: R20 FIX01 — Signoff Boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/050_FIX01_SIGNOFF_BOUNDARY.sh
+
+      - name: R20 FIX02 — Gold Touch UI Finishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/051_FIX02_GOLD_TOUCH_UI_FINISHING.sh
+
+      - name: R20 FIX03 — Smart Guide Core
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/052_FIX03_SMART_GUIDE_CORE.sh
+
+      - name: R20 FIX04 — Smart Guide Pro
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/053_FIX04_SMART_GUIDE_PRO.sh
+
+      - name: R20 FIX05 — Print Wizard Pro
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/054_FIX05_PRINT_WIZARD_PRO.sh
+
+      - name: R20 FIX06 — Template Designer Core
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/055_FIX06_TEMPLATE_DESIGNER_CORE.sh
+
+      - name: R20 FIX07 — Template Designer Pro
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/056_FIX07_TEMPLATE_DESIGNER_PRO.sh
+
+      - name: R20 FIX08 — Template Preview 3D
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/057_FIX08_TEMPLATE_PREVIEW_3D.sh
+
+      - name: R20 FIX09 — Demo Data and Recommendations
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/058_FIX09_DEMO_DATA_AND_RECOMMENDATIONS.sh
+
+      - name: R20 FIX10 — Print eCare UI Only / Print Designer
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/059_FIX10_PRINT_ECARE_UI_ONLY_PRINT_DESIGNER.sh
+
+      - name: R20 FIX11 — PrintDesigner AI Summary and Switch
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/060_FIX11_PRINTDESIGNER_AI_SUMMARY_AND_SWITCH.sh
+
+      - name: R20 FIX12 — Watermark PDF/X-1a
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/061_FIX12_WATERMARK_PDFX1A.sh
+
+      - name: R20 FIX13 — PDF/X-1a Policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/062_FIX13_PDFX1A_POLICY.sh
+
+      - name: R20 FIX14 — Overprint / Knockout Policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/063_FIX14_OVERPRINT_KNOCKOUT_POLICY.sh
+
+      - name: R20 FIX15 — Vector Dialog Gradients
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/064_FIX15_VECTOR_DIALOG_GRADIENTS.sh
+
+      - name: R20 FIX16 — Variable Data Printing
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/065_FIX16_VARIABLE_DATA_PRINTING.sh
+
+      - name: R20 FIX17 — Job Fingerprint Repro
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/066_FIX17_JOB_FINGERPRINT_REPRO.sh
+
+      - name: R20 FIX18 — Preview Pixel Diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/067_FIX18_PREVIEW_PIXEL_DIFF.sh
+
+      - name: R20 FIX19 — Pagination / Imposition
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/068_FIX19_PAGINATION_IMPOSITION.sh
+
+      - name: R20 FIX20 — Failsafe Autosave Recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/069_FIX20_FAILSAFE_AUTOSAVE_RECOVERY.sh
+
+      - name: R20 FIX21 — JDF / JMF Print Tickets
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/074_FIX21_JDF_JMF_PRINT_TICKETS.sh
+
+      - name: R20 FIX22 — Hotfolders / Queues
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/r20_payload/scripts/075_FIX22_HOTFOLDERS_QUEUES.sh
+
+      # FIX23 failed in the previous run.  The root path is deliberately
+      # exported here as well as at job level because GitHub Actions does not
+      # persist `export` from a previous `run:` step.
+      - name: R20 FIX23 — Production Duplex / Manual-Duplex
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rc=$?; echo "::error::FIX23 failed (exit ${rc}) at line ${LINENO}"; exit ${rc}' ERR
+          export R20_REPO_ROOT="${{ github.workspace }}"
+          test -f .github/r20_payload/scripts/077_Apply_FIX23_Duplex_Printing.sh
+          bash -n .github/r20_payload/scripts/077_Apply_FIX23_Duplex_Printing.sh
+          bash .github/r20_payload/scripts/077_Apply_FIX23_Duplex_Printing.sh
+
+      - name: R20 FIX24 — Color Bars + Print Marks
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rc=$?; echo "::error::FIX24 failed (exit ${rc}) at line ${LINENO}"; exit ${rc}' ERR
+          export R20_REPO_ROOT="${{ github.workspace }}"
+          test -f .github/r20_payload/scripts/078_Apply_FIX24_Color_Bars_and_Print_Marks.sh
+          bash -n .github/r20_payload/scripts/078_Apply_FIX24_Color_Bars_and_Print_Marks.sh
+          bash .github/r20_payload/scripts/078_Apply_FIX24_Color_Bars_and_Print_Marks.sh
+
+      - name: R20 FIX25 — Embedded PDF Preflight Engine (Production Gate)
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rc=$?; echo "::error::FIX25 failed (exit ${rc}) at line ${LINENO}"; exit ${rc}' ERR
+          export R20_REPO_ROOT="${{ github.workspace }}"
+          test -f .github/r20_payload/scripts/079_Apply_FIX25_Embedded_PDF_Preflight_Engine.sh
+          bash -n .github/r20_payload/scripts/079_Apply_FIX25_Embedded_PDF_Preflight_Engine.sh
+          bash .github/r20_payload/scripts/079_Apply_FIX25_Embedded_PDF_Preflight_Engine.sh
+
+      - name: R20 — Release verification marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .github/R20_RELEASE_VERIFIED.txt <<'EOF'
+          R20_RELEASE_VERIFIED=TRUE
+          R19_BUILD_PASSED=TRUE
+          R20_BUILD_PASSED=TRUE
+          FIX01_22_PASSED=TRUE
+          FIX23_DUPLEX_PRINTING_READY=TRUE
+          FIX24_COLOR_BARS_PRINT_MARKS_READY=TRUE
+          FIX25_EMBEDDED_PDF_PREFLIGHT_READY=TRUE
+          EOF
+
+      - name: R20 — Package production artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f R20_READY_PRODUCTION.zip
+
+          # Package the produced R20 material and verification marker without
+          # recursively adding the resulting ZIP to itself.
+          zip -qr R20_READY_PRODUCTION.zip \
+            .github/r20_payload \
+            .github/R20_RELEASE_VERIFIED.txt \
+            -x "*.git*" "R20_READY_PRODUCTION.zip"
+
+          test -s R20_READY_PRODUCTION.zip
+
+      - name: Upload R20 production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: R20_READY_PRODUCTION
+          path: R20_READY_PRODUCTION.zip
+          if-no-files-found: error
