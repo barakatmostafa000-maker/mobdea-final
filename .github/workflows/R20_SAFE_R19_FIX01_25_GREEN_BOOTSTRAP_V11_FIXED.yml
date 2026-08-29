@@ -4,8 +4,6 @@ name: R20 SAFE SURGICAL R19 FIX01-25 GREEN BOOTSTRAP V11
   push:
     branches:
     - main
-    paths:
-    - .github/workflows/R20_SAFE_R19_FIX01_25_GREEN_BOOTSTRAP_V11.yml
 permissions:
   contents: read
   actions: read
