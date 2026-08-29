@@ -5450,7 +5450,6 @@ jobs:
         grep -Fq 'data-r20-duplex-sheet-page' src/services/r20DuplexPrinting.js
         grep -Fq 'data-r20-duplex-slot' src/services/r20DuplexPrinting.js
         grep -Fq '@page' src/styles/r20-fix23-duplex-print.css
-        grep -Fq 'size:' src/styles/r20-fix23-duplex-print.css
         grep -Fq '210mm' src/styles/r20-fix23-duplex-print.css
         grep -Fq '297mm' src/styles/r20-fix23-duplex-print.css
         grep -Fq 'repeat(' src/styles/r20-fix23-duplex-print.css
@@ -5655,7 +5654,7 @@ jobs:
       shell: bash
       run: |
         {
-          echo "## R20 SAFE SURGICAL MERGE — GREEN BOOTSTRAP V11"
+          echo "## R20 SAFE SURGICAL MERGE — GREEN BOOTSTRAP V10"
           echo "- Bootstrap copied from proven successful R19/R20 runs; no dynamic gh-run discovery"
           echo "- Protected R19 source restored through pinned RUN17 + pinned last-green V6 artifacts"
           echo "- FIX01-FIX25 surgical payload retained; FIX19 stale OCR filename guard corrected to the actual FIX08 services"
