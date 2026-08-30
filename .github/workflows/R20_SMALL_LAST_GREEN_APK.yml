@@ -1,0 +1,243 @@
+name: R20 SMALL - LAST GREEN + FIX01-25 APK
+
+"on":
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/R20_SMALL_LAST_GREEN_APK.yml
+      - .github/workflows/R19_LAST_GREEN_PLUS_ALL_TODAY_MODS_FINAL.yml
+      - R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part01
+      - R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part02
+      - R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part03
+      - R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part04
+      - r20_payload.zip
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: r20-small-last-green-apk
+  cancel-in-progress: true
+
+env:
+  # Internal reconstruction seed used by the proven Aug-24 green workflow.
+  R19_BASE_COMMIT: cd7e7cd597af23ca1169e1f19c3ac954727c3f2d
+  RUN17_RUN_ID: "32697570904"
+  RUN17_ARTIFACT_NAME: mobdea-r19-run17-full-result
+  RUN17_PATCH_SHA256: 6bc7ddab1e908916cf1bb01c59a4aff463c33220931f82c314c27178ce7d4270
+  RUN17_FIXED_TAR_SHA256: d7b7ef0f92f4396e0bdb3cfdb55d19ca3669564ed2ab61a6e2b98d74352dd1b0
+
+  # Real protected baseline: last successful R19 run on 2026-08-24.
+  LAST_GREEN_RUN_ID: "32714480207"
+  LAST_GREEN_ARTIFACT_NAME: mobdea-r19-final-01-14-fix8-13-v118
+
+  # Current FIXED2 R20 source package already stored in this repository.
+  R20_SOURCE_TAR_SHA256: 03804eefcfa7b8c2284dfb56303b7ff187af672036f041f41f267dd4283f653c
+  EXPECTED_VERSION_NAME: "10.14.1"
+  EXPECTED_VERSION_CODE: "118"
+
+jobs:
+  build-r20-apk:
+    name: Rebuild Aug-24 green, apply R20, test, build APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+
+    steps:
+      # Keep the current repository only as the source of the vetted R20 recipe/package.
+      - name: Checkout current R20 control files
+        uses: actions/checkout@v4
+        with:
+          path: control
+          fetch-depth: 1
+
+      # Rebuild the application from the same seed used by the Aug-24 green run.
+      - name: Checkout protected R19 reconstruction seed
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.R19_BASE_COMMIT }}
+          path: app
+          fetch-depth: 1
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35 build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK"
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          for attempt in 1 2 3; do
+            if sdkmanager \
+              "platform-tools" \
+              "platforms;android-35" \
+              "build-tools;34.0.0" \
+              "build-tools;35.0.0"; then
+              break
+            fi
+            test "$attempt" -lt 3
+            sleep $((attempt * 5))
+          done
+          test -s "$SDK/platforms/android-35/android.jar"
+          test -x "$SDK/build-tools/35.0.0/aapt"
+          test -x "$SDK/build-tools/35.0.0/apksigner"
+          test -x "$SDK/build-tools/35.0.0/zipalign"
+          echo "$SDK/build-tools/35.0.0" >> "$GITHUB_PATH"
+          printf 'sdk.dir=%s\n' "$SDK" > app/android/local.properties
+
+      - name: Download proven RUN17 repair artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.RUN17_ARTIFACT_NAME }}
+          run-id: ${{ env.RUN17_RUN_ID }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: /tmp/r19-run17
+
+      - name: Download actual Aug-24 last-green R19 V6 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.LAST_GREEN_ARTIFACT_NAME }}
+          run-id: ${{ env.LAST_GREEN_RUN_ID }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: /tmp/r19-last-green
+
+      - name: Verify control inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s control/.github/workflows/R19_LAST_GREEN_PLUS_ALL_TODAY_MODS_FINAL.yml
+          test -s control/r20_payload.zip
+          for n in 01 02 03 04; do
+            test -s "control/R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part${n}"
+          done
+          cat \
+            control/R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part01 \
+            control/R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part02 \
+            control/R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part03 \
+            control/R20_SOURCE_RELEASE_FIXED2.tar.gz.b64.part04 \
+            | tr -d '\r\n' | base64 -d > /tmp/R20_SOURCE_RELEASE.tar.gz
+          ACTUAL_R20_SHA="$(sha256sum /tmp/R20_SOURCE_RELEASE.tar.gz | awk '{print $1}')"
+          test "$ACTUAL_R20_SHA" = "$R20_SOURCE_TAR_SHA256"
+          tar -tzf /tmp/R20_SOURCE_RELEASE.tar.gz > /tmp/r20-tar-list.txt
+          test -s /tmp/r20-tar-list.txt
+
+          unzip -tq control/r20_payload.zip >/dev/null
+          rm -rf /tmp/r20-tools
+          mkdir -p /tmp/r20-tools
+          unzip -q control/r20_payload.zip -d /tmp/r20-tools
+          test -s /tmp/r20-tools/.github/r20/scripts/140_Install_hash-pinned_17-file_OCR_model_pack_for_FIX08.sh
+
+      - name: Execute vetted last-green + R20 recipe
+        shell: bash
+        env:
+          APP_DIR: ${{ github.workspace }}/app
+          RECIPE_FILE: ${{ github.workspace }}/control/.github/workflows/R19_LAST_GREEN_PLUS_ALL_TODAY_MODS_FINAL.yml
+        run: |
+          set -euo pipefail
+          ruby <<'RUBY'
+          require "yaml"
+          require "fileutils"
+
+          app = ENV.fetch("APP_DIR")
+          recipe_file = ENV.fetch("RECIPE_FILE")
+          workflow = YAML.safe_load(File.read(recipe_file), aliases: true)
+          steps = workflow.dig("jobs", "build-r20-final", "steps")
+          raise "Reference workflow steps not found" unless steps.is_a?(Array)
+
+          first = steps.index { |s| s["name"].to_s.include?("Verify and apply reviewed Repairs 01-14 final diff") }
+          last  = steps.index { |s| s["name"].to_s.include?("Upload R19 + all today mods APK artifact") }
+          raise "Reference recipe boundaries not found" unless first && last && first < last
+
+          base_env = ENV.to_h.merge("GITHUB_WORKSPACE" => app)
+          model_script = "/tmp/r20-tools/.github/r20/scripts/140_Install_hash-pinned_17-file_OCR_model_pack_for_FIX08.sh"
+          model_installed = false
+
+          steps[first...last].each do |step|
+            script = step["run"]
+            next unless script.is_a?(String) && !script.empty?
+
+            name = step["name"].to_s
+            # The package was assembled and hash-verified locally from this exact checkout.
+            next if name.include?("Fetch and verify fixed R20 source package")
+            raise "Unresolved GitHub expression inside recipe step: #{name}" if script.include?("${{")
+
+            relative_dir = step["working-directory"].to_s
+            cwd = relative_dir.empty? ? app : File.join(app, relative_dir)
+            raise "Missing working directory for #{name}: #{cwd}" unless Dir.exist?(cwd)
+
+            step_env = base_env.dup
+            (step["env"] || {}).each { |k, v| step_env[k.to_s] = v.to_s }
+
+            puts "\n===== #{name} ====="
+            ok = system(step_env, "bash", "--noprofile", "--norc", "-e", "-o", "pipefail", "-c", script, chdir: cwd)
+            raise "Recipe step failed: #{name}" unless ok
+
+            # FIX08 native OCR needs the pinned model pack after Capacitor sync,
+            # but before Java/lint/APK compilation. Reuse the audited repository script.
+            if name.include?("Capacitor Android sync with recovery")
+              raise "OCR model-pack script missing" unless File.file?(model_script)
+              target = File.join(app, ".github", "r20")
+              FileUtils.rm_rf(target)
+              FileUtils.mkdir_p(File.dirname(target))
+              FileUtils.cp_r("/tmp/r20-tools/.github/r20", target)
+              puts "\n===== Install FIX08 pinned OCR model pack ====="
+              ok = system(step_env, "bash", "--noprofile", "--norc", "-e", "-o", "pipefail", File.join(target, "scripts", "140_Install_hash-pinned_17-file_OCR_model_pack_for_FIX08.sh"), chdir: app)
+              raise "FIX08 OCR model-pack installation failed" unless ok
+              FileUtils.rm_rf(target)
+              model_installed = true
+            end
+          end
+
+          raise "FIX08 OCR model pack was never installed" unless model_installed
+          RUBY
+
+      - name: Upload final R20 APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r20-small-last-green-v118
+          path: /tmp/mobdea-r20-final/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          OUT=/tmp/mobdea-r20-small-failure
+          mkdir -p "$OUT"
+          if [ -d app ]; then
+            (cd app && git status --short) > "$OUT/git-status.txt" 2>&1
+            (cd app && git diff --check) > "$OUT/git-diff-check.txt" 2>&1
+          fi
+          for f in /tmp/r20-*.log /tmp/apk-*.txt /tmp/apk.sha256; do
+            [ -f "$f" ] && cp "$f" "$OUT/" || true
+          done
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r20-small-last-green-failure
+          path: /tmp/mobdea-r20-small-failure/*
+          if-no-files-found: ignore
+          retention-days: 14
