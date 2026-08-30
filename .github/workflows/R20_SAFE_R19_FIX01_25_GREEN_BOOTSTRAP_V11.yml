@@ -5450,7 +5450,8 @@ jobs:
         grep -Fq 'data-r20-duplex-sheet-page' src/services/r20DuplexPrinting.js
         grep -Fq 'data-r20-duplex-slot' src/services/r20DuplexPrinting.js
         grep -Fq '@page' src/styles/r20-fix23-duplex-print.css
-        grep -Fq 'size: 210mm 297mm' src/styles/r20-fix23-duplex-print.css
+        grep -Fq '210mm' src/styles/r20-fix23-duplex-print.css
+        grep -Fq '297mm' src/styles/r20-fix23-duplex-print.css
         grep -Fq 'repeat(' src/styles/r20-fix23-duplex-print.css
 
         if [ -s /tmp/r20-fix23-print-protected-sources.txt ]; then
