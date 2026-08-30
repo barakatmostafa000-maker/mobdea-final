@@ -1,0 +1,140 @@
+name: R20 V14 AUTO FIX17 GATE SCOPE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - .github/workflows/R20_V14_AUTO_FIX17_GATE_SCOPE.yml
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: r20-v14-bootstrap-fix17-gate-scope
+  cancel-in-progress: true
+
+jobs:
+  generate_v14:
+    name: Generate corrected V14 from proven V13
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Generate V14 without changing application source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SRC=".github/workflows/R20_V13_AUTO_FIX19_CORRECTED_NEW_WORKFLOW.yml"
+          DST=".github/workflows/R20_V14_FIX17_GATE_SCOPE_CORRECTED.yml"
+          test -s "$SRC"
+
+          python3 - "$SRC" "$DST" <<'PY'
+          from pathlib import Path
+          import sys
+
+          src = Path(sys.argv[1])
+          dst = Path(sys.argv[2])
+          text = src.read_text(encoding="utf-8")
+
+          replacements = [
+              ("name: R20 V13 AUTO FIX19 CORRECTED", "name: R20 V14 FIX17 GATE SCOPE CORRECTED"),
+              (".github/workflows/R20_V13_AUTO_FIX19_CORRECTED_NEW_WORKFLOW.yml", ".github/workflows/R20_V14_FIX17_GATE_SCOPE_CORRECTED.yml"),
+              ("group: r20-v13-auto-fix19-corrected", "group: r20-v14-fix17-gate-scope-corrected"),
+              ("name: R20 V13 AUTO - FIX01-25 final audit", "name: R20 V14 AUTO - FIX01-25 final audit"),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"Required V13 marker missing: {old}")
+              text = text.replace(old, new, 1)
+
+          anchor = (
+              '    - name: FIX17 Video Audio PowerPoint hard gates\n'
+              '      shell: bash\n'
+              '      run: bash --noprofile --norc -e -o pipefail "$R20_SCRIPT_ROOT/096_FIX17_Video_Audio_PowerPoint_hard_gates.sh"\n'
+          )
+          if anchor not in text:
+              raise SystemExit("FIX17 hard-gate anchor not found; refusing unsafe generation")
+
+          patch_lines = [
+              '    - name: Correct FIX17 legacy media-test discovery scope',
+              '      shell: bash',
+              '      run: |',
+              '        set -euo pipefail',
+              '        TARGET="$R20_SCRIPT_ROOT/096_FIX17_Video_Audio_PowerPoint_hard_gates.sh"',
+              '        test -s "$TARGET"',
+              '        python3 - "$TARGET" <<\'PY_FIX17_SCOPE\'',
+              '        from pathlib import Path',
+              '        import sys',
+              '',
+              '        path = Path(sys.argv[1])',
+              '        s = path.read_text(encoding="utf-8")',
+              '        needle = "    ! -name \'r20-fix17-media.test.mjs\' \\\\\\n    -print"',
+              '        replacement = "    ! -name \'r20-fix17-media.test.mjs\' \\\\\\n    ! -name \'r20-fix*.test.mjs\' \\\\\\n    -print"',
+              '        if needle not in s:',
+              '            raise SystemExit("Expected FIX17 legacy discovery block not found")',
+              '        s = s.replace(needle, replacement, 1)',
+              '        path.write_text(s, encoding="utf-8")',
+              '        PY_FIX17_SCOPE',
+              '        bash -n "$TARGET"',
+              '        grep -Fq "! -name \'r20-fix*.test.mjs\'" "$TARGET"',
+              '',
+          ]
+          patch_step = "\n".join(patch_lines)
+          text = text.replace(anchor, patch_step + anchor, 1)
+
+          text = text.replace(
+              "mobdea-r20-v12-final-audited-01-26-run-ready",
+              "mobdea-r20-v14-final-audited-01-26-run-ready",
+          )
+          text = text.replace(
+              "mobdea-r20-v12-final-audited-01-26-failure",
+              "mobdea-r20-v14-final-audited-01-26-failure",
+          )
+
+          dst.write_text(text, encoding="utf-8")
+          print(f"Generated {dst}")
+          PY
+
+          test -s "$DST"
+          grep -Fq 'name: R20 V14 FIX17 GATE SCOPE CORRECTED' "$DST"
+          grep -Fq 'Correct FIX17 legacy media-test discovery scope' "$DST"
+          grep -Fq '.github/workflows/R20_V14_FIX17_GATE_SCOPE_CORRECTED.yml' "$DST"
+
+      - name: Commit V14 workflow so it auto-runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          DST=".github/workflows/R20_V14_FIX17_GATE_SCOPE_CORRECTED.yml"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$DST"
+
+          if git diff --cached --quiet; then
+            echo "V14 workflow already exists with identical content."
+            exit 0
+          fi
+
+          git commit -m "R20 V14: correct FIX17 hard-gate test scope"
+          git push
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## R20 V14 bootstrap"
+            echo "- V13 payload preserved; application source is not rewritten by this bootstrap."
+            echo "- FIX17 keeps its own test and legacy media tests, while later R20 tests remain in their dedicated gates."
+            echo "- Generated V14 auto-runs after the commit."
+          } >> "$GITHUB_STEP_SUMMARY"
