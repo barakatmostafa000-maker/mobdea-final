@@ -178,7 +178,7 @@ jobs:
             name = step["name"].to_s
             # The package was assembled and hash-verified locally from this exact checkout.
             next if name.include?("Fetch and verify fixed R20 source package")
-            raise "Unresolved GitHub expression inside recipe step: #{name}" if script.include?("${{")
+            raise "Unresolved GitHub expression inside recipe step: #{name}" if script.include?("$" + "{{")
 
             relative_dir = step["working-directory"].to_s
             cwd = relative_dir.empty? ? app : File.join(app, relative_dir)
