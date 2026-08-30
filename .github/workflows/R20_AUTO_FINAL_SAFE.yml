@@ -1,0 +1,116 @@
+name: R20 AUTO FINAL SAFE
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: r20-auto-final-safe-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  run_verified_r20:
+    runs-on: ubuntu-latest
+    timeout-minutes: 900
+
+    steps:
+      - name: Start verified protected-R19 FIX01-25 workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TARGET_REF: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          BEFORE_ID="$(
+            gh run list \
+              --repo "$REPO" \
+              --workflow "R20_SAFE_R19_FIX01_25.yml" \
+              --branch "$TARGET_REF" \
+              --event workflow_dispatch \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // 0'
+          )"
+
+          gh workflow run "R20_SAFE_R19_FIX01_25.yml" \
+            --repo "$REPO" \
+            --ref "$TARGET_REF"
+
+          RUN_ID=""
+          for _ in $(seq 1 60); do
+            CURRENT_ID="$(
+              gh run list \
+                --repo "$REPO" \
+                --workflow "R20_SAFE_R19_FIX01_25.yml" \
+                --branch "$TARGET_REF" \
+                --event workflow_dispatch \
+                --limit 1 \
+                --json databaseId \
+                --jq '.[0].databaseId // 0'
+            )"
+
+            if [ "$CURRENT_ID" != "0" ] && [ "$CURRENT_ID" != "$BEFORE_ID" ]; then
+              RUN_ID="$CURRENT_ID"
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::Could not resolve the newly dispatched R20 run."
+            exit 1
+          fi
+
+          echo "CHILD_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "Started child run: $RUN_ID"
+
+      - name: Wait for full R20 run and require success
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh run watch "$CHILD_RUN_ID" \
+            --repo "$REPO" \
+            --exit-status
+
+      - name: Download successful APK artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          rm -rf downloaded
+          mkdir -p downloaded
+
+          gh run download "$CHILD_RUN_ID" \
+            --repo "$REPO" \
+            --dir downloaded
+
+          APK_COUNT="$(find downloaded -type f -name '*.apk' | wc -l | tr -d ' ')"
+
+          if [ "$APK_COUNT" -lt 1 ]; then
+            echo "::error::Child workflow succeeded but no APK artifact was found."
+            find downloaded -maxdepth 4 -type f -print || true
+            exit 1
+          fi
+
+          echo "APK files:"
+          find downloaded -type f -name '*.apk' -print
+
+      - name: Re-upload final APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobdea-r20-final-safe-apk
+          path: downloaded/**/*.apk
+          if-no-files-found: error
+          retention-days: 30
