@@ -91,6 +91,12 @@ import {
 import { rankStudentsByPoints } from "../services/studentRanking";
 import TeacherLivePanel from "../components/live/TeacherLivePanel";
 import OnlineGameHostPanel from "../components/live/OnlineGameHostPanel";
+import Project03StudentPanels from '../components/classmode/Project03StudentPanels';
+import Project11ClassSyncBridge from '../components/classmode/Project11ClassSyncBridge';
+import Project12PageQuestionDock from '../components/classmode/Project12PageQuestionDock';
+import { buildPageAwareQuestionSets, pickPageQuestionScope } from '../services/project12PageQuestions';
+import Project13LinkHub from '../components/links/Project13LinkHub';
+import { recognizePageForQuestions } from '../services/r20PageOcrPipeline.js';
 import {
   getAllLibraryGrades,
   getLessonsForGrade,
@@ -2551,17 +2557,17 @@ function drawBoardAction(ctx, action, selected = false) {
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.globalAlpha = action.tool === "highlighter" ? 0.3 : 1;
+    ctx.globalAlpha = action.tool === 'highlighter' ? 0.24 : 1;
     ctx.globalCompositeOperation =
       action.tool === "eraser" ? "destination-out" : "source-over";
     ctx.strokeStyle =
       action.tool === "eraser" ? "rgba(0,0,0,1)" : action.color || "#111827";
-    ctx.lineWidth =
-      action.tool === "eraser"
-        ? 22
-        : action.tool === "highlighter"
-          ? 16
-          : action.width || 4;
+    const actionWidth = Math.max(1, Number(action.width || 4));
+    ctx.lineWidth = action.tool === 'eraser'
+      ? Math.max(22, actionWidth)
+      : action.tool === 'highlighter'
+        ? Math.max(10, actionWidth)
+        : actionWidth;
     const points = action.points || [];
     if (points.length === 1) {
       ctx.beginPath();
@@ -2729,6 +2735,7 @@ function BoardCardOverlay({ action, selected, onSelect, onChange }) {
   return (
     <div
       className={`board-card-overlay ${selected ? "selected" : ""}`}
+      data-card-template={template.key}
       style={{
         left: `${(action.x / BOARD_CANVAS_WIDTH) * 100}%`,
         top: `${(action.y / BOARD_CANVAS_HEIGHT) * 100}%`,
@@ -3032,7 +3039,7 @@ function CountryCardOverlay({ action, selected, onSelect, onChange }) {
           top: `${field.y}%`,
           width: `${field.w}%`,
           height: `${field.h}%`,
-          fontSize: `clamp(8px, ${field.title ? 5.2 : 3.6}cqw, ${field.title ? 38 : 27}px)`,
+          fontSize: `${countryCardFontSize(action, value || field.label, field.title)}px`,
         };
         if (selected)
           return (
@@ -3186,6 +3193,10 @@ async function drawCountryCardToCanvas(ctx, action) {
   ctx.restore();
 }
 
+const BOARD_COORD_WIDTH = 1200;
+const BOARD_COORD_HEIGHT = 720;
+const PROJECT01_WHITEBOARD_ENGINE_V1 = true;
+
 function CanvasOverlay({
   actions,
   onDrawAction,
@@ -3218,23 +3229,50 @@ function CanvasOverlay({
   const currentStroke = useRef(null);
   const drawing = useRef(false);
   const moving = useRef(null);
+  const actionsRef = useRef(actions);
+  const selectedActionIdRef = useRef(selectedActionId);
+  actionsRef.current = actions;
+  selectedActionIdRef.current = selectedActionId;
   const [textEditor, setTextEditor] = useState(null);
 
   const render = (preview = null) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const { width, height } = canvas;
-    ctx.clearRect(0, 0, width, height);
-    actions.forEach((action) =>
-      drawBoardAction(ctx, action, action.id === selectedActionId),
-    );
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(canvas.width / BOARD_COORD_WIDTH, 0, 0, canvas.height / BOARD_COORD_HEIGHT, 0, 0);
+    actionsRef.current.forEach((action) => drawBoardAction(ctx, action, action.id === selectedActionIdRef.current));
     if (preview) drawBoardAction(ctx, preview, false);
   };
 
   useEffect(() => {
     render();
   }, [actions, selectedActionId]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(2, Math.max(1, Number(globalThis.devicePixelRatio || 1)));
+      const nextWidth = Math.max(1, Math.round(rect.width * dpr));
+      const nextHeight = Math.max(1, Math.round(rect.height * dpr));
+      if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+        canvas.width = nextWidth;
+        canvas.height = nextHeight;
+      }
+      render();
+    };
+    resizeCanvas();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resizeCanvas) : null;
+    observer?.observe(canvas);
+    globalThis.addEventListener?.('resize', resizeCanvas);
+    return () => {
+      observer?.disconnect();
+      globalThis.removeEventListener?.('resize', resizeCanvas);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -3264,28 +3302,14 @@ function CanvasOverlay({
 
   const getPoint = (event) => {
     const canvas = canvasRef.current;
-    const rect = canvas?.getBoundingClientRect?.();
-    const point = event.touches?.[0] || event;
-    if (
-      !canvas ||
-      !rect?.width ||
-      !rect?.height ||
-      !Number.isFinite(Number(point?.clientX)) ||
-      !Number.isFinite(Number(point?.clientY))
-    ) {
-      return { x: 0, y: 0 };
-    }
-    const localX = Math.max(
-      0,
-      Math.min(rect.width, Number(point.clientX) - rect.left),
-    );
-    const localY = Math.max(
-      0,
-      Math.min(rect.height, Number(point.clientY) - rect.top),
-    );
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+    const x = ((event.clientX - rect.left) / width) * BOARD_COORD_WIDTH;
+    const y = ((event.clientY - rect.top) / height) * BOARD_COORD_HEIGHT;
     return {
-      x: (localX / rect.width) * canvas.width,
-      y: (localY / rect.height) * canvas.height,
+      x: Math.max(0, Math.min(BOARD_COORD_WIDTH, x)),
+      y: Math.max(0, Math.min(BOARD_COORD_HEIGHT, y)),
     };
   };
 
@@ -3352,8 +3376,11 @@ function CanvasOverlay({
       kind: "stroke",
       tool,
       color: selectedColor,
-      width:
-        tool === "highlighter" ? (strokeWidth || 4) * 2.5 : strokeWidth || 4,
+      width: tool === 'highlighter'
+          ? Math.max(10, (strokeWidth || 4) * 3.2)
+          : tool === 'eraser'
+            ? Math.max(22, (strokeWidth || 4) * 5)
+            : (strokeWidth || 4),
       points: [
         {
           ...point,
@@ -3618,7 +3645,14 @@ function BoardLessonRibbon({ grade, lesson }) {
   );
 }
 
-export default function ClassMode({ data, updateData, navigate }) {
+const PROJECT12_PAGE_AWARE_CLASSMODE_V1 = true;
+
+const PROJECT13_CLASSMODE_IMAGE_LINKS_V1 = true;
+
+const R20_FIX08_CLASSMODE_OCR_BRIDGE = recognizePageForQuestions;
+
+export default function ClassMode({data, updateData, navigate, onlineEntry = false}) {
+  const PROJECT10_ONLINE_CLASS_V1 = true;
   const sessionList = Array.isArray(data.sessions) ? data.sessions : [];
   const current = sessionList.find((session) => session.current) ||
     sessionList[0] || {
@@ -3864,6 +3898,30 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [recordingWithAudio, setRecordingWithAudio] = useState(true);
   const [recordingBusy, setRecordingBusy] = useState(false);
   const [liveStartRequest, setLiveStartRequest] = useState(0);
+  const [boardSyncRevision, setBoardSyncRevision] = useState(0);
+  const [pointsSyncRevision, setPointsSyncRevision] = useState(0);
+  const onlineEntryHandledRef = useRef(false);
+  useEffect(() => {
+    setBoardSyncRevision((value) => value + 1);
+  }, [boardActions]);
+
+  useEffect(() => {
+    setPointsSyncRevision((value) => value + 1);
+  }, [points]);
+
+  useEffect(() => {
+    if (!onlineEntry || onlineEntryHandledRef.current) return undefined;
+    onlineEntryHandledRef.current = true;
+    setManagementOpen(true);
+    const timer = window.setTimeout(() => setLiveStartRequest(Date.now()), 80);
+    return () => window.clearTimeout(timer);
+  }, [onlineEntry]);
+
+  const openOnlineClassPanel = () => {
+    setManagementOpen(true);
+    setLiveStartRequest(Date.now());
+  };
+
   const [recordingPaused, setRecordingPaused] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingBackend, setRecordingBackend] = useState("");
@@ -3901,7 +3959,7 @@ export default function ClassMode({ data, updateData, navigate }) {
   const [arrowMode, setArrowMode] = useState("right");
   const [boardText, setBoardText] = useState("");
   const [textStyle, setTextStyle] = useState("plain");
-  const [fontFamily, setFontFamily] = useState(boardFontOptions[0].value);
+  const [fontFamily, setFontFamily] = useState("'Noto Naskh Arabic', Tahoma, serif");
   const [fontSize, setFontSize] = useState(
     BOARD_TEXT_PRESET_MAP.explanation.size,
   );
@@ -3912,6 +3970,8 @@ export default function ClassMode({ data, updateData, navigate }) {
   const resourceZoomMemoryRef = useRef(new Map());
   const appliedPreferredResourceRef = useRef("");
   const [boardReady, setBoardReady] = useState(false);
+  const PROJECT02_PDF_IMAGE_VIEWER_V1 = true;
+  const [boardToolsExpanded, setBoardToolsExpanded] = useState(false);
   const [handwritingBusy, setHandwritingBusy] = useState(false);
   const [cardsDrawerOpen, setCardsDrawerOpen] = useState(false);
   const [cardDrawerSection, setCardDrawerSection] = useState("education");
@@ -4157,6 +4217,67 @@ export default function ClassMode({ data, updateData, navigate }) {
     selectedResource?.pageStart,
     selectedResource?.pageEnd,
   ]);
+  const relatedQuestions = useMemo(() => {
+    const baseBank = [...questionBank, ...(data.customQuestionBank || [])];
+    const ids = normalizeTags(
+      selectedResource?.relatedQuestionIds ||
+        selectedResource?.questionIds ||
+        [],
+    );
+    const byIds = ids.length
+      ? ids
+          .map((id) =>
+            baseBank.find((question) => String(question.id) === String(id)),
+          )
+          .filter(Boolean)
+      : [];
+    if (byIds.length) return byIds;
+    const lessonId = String(
+      activeLesson?.id || selectedResource?.lessonId || "",
+    );
+    const sourceId = String(
+      selectedResource?.sourceResourceId || selectedResource?.id || "",
+    );
+    const lessonTitle = String(
+      activeLesson?.title || selectedResource?.lesson || "",
+    ).trim();
+    return baseBank.filter((question) => {
+      if (lessonId && String(question.lessonId || "") === lessonId) return true;
+      if (
+        sourceId &&
+        [
+          question.resourceId,
+          question.sourceResourceId,
+          question.sourceExamResourceId,
+        ].some((value) => String(value || "") === sourceId)
+      )
+        return true;
+      return Boolean(
+        selectedResource &&
+        question.grade === selectedResource.grade &&
+        question.unit === selectedResource.unit &&
+        (!lessonTitle || String(question.lesson || "").trim() === lessonTitle),
+      );
+    });
+  }, [
+    activeLesson?.id,
+    activeLesson?.title,
+    data.customQuestionBank,
+    selectedResource,
+  ]);
+
+  const [project12QuestionScope, setProject12QuestionScope] = useState('page');
+  const project12QuestionSets = useMemo(() => buildPageAwareQuestionSets({
+    allQuestions: [...questionBank, ...(data.customQuestionBank || [])],
+    relatedQuestions,
+    resource: selectedResource || {},
+    lesson: activeLesson || {},
+    page: classPage || selectedResource?.pageStart || 1,
+  }), [data.customQuestionBank, relatedQuestions, selectedResource, activeLesson, classPage]);
+  const project12GameQuestions = useMemo(
+    () => pickPageQuestionScope(project12QuestionSets, project12QuestionScope),
+    [project12QuestionSets, project12QuestionScope],
+  );
   useEffect(() => {
     const resourceKey = String(selectedResource?.id || "");
     if (!resourceKey || !classPage) return;
@@ -4203,6 +4324,12 @@ export default function ClassMode({ data, updateData, navigate }) {
   useEffect(() => {
     setWebPdfState({ dataUrl: "", pageCount: 0, loading: false, error: "" });
   }, [displayResource?.id]);
+  const pdfRenderWidth = useMemo(() => {
+    if (mediaZoom >= 3.5) return 3200;
+    if (mediaZoom >= 2.25) return 2800;
+    if (mediaZoom >= 1.4) return 2200;
+    return 1600;
+  }, [mediaZoom]);
   const nativePdfPage = usePdfPage(
     nativeRuntime &&
       contentMode === "pdf" &&
@@ -4217,6 +4344,7 @@ export default function ClassMode({ data, updateData, navigate }) {
         }
       : null,
     classPage || 1,
+    pdfRenderWidth,
   );
   const renderedPdf = nativeRuntime ? nativePdfPage : webPdfState;
   const boardLayerKey =
@@ -4301,56 +4429,6 @@ export default function ClassMode({ data, updateData, navigate }) {
   const resourceAnnotations = Array.isArray(selectedResource?.annotations)
     ? selectedResource.annotations
     : [];
-  const relatedQuestions = useMemo(() => {
-    const baseBank = [...questionBank, ...(data.customQuestionBank || [])];
-    const ids = normalizeTags(
-      selectedResource?.relatedQuestionIds ||
-        selectedResource?.questionIds ||
-        [],
-    );
-    const byIds = ids.length
-      ? ids
-          .map((id) =>
-            baseBank.find((question) => String(question.id) === String(id)),
-          )
-          .filter(Boolean)
-      : [];
-    if (byIds.length) return byIds;
-    const lessonId = String(
-      activeLesson?.id || selectedResource?.lessonId || "",
-    );
-    const sourceId = String(
-      selectedResource?.sourceResourceId || selectedResource?.id || "",
-    );
-    const lessonTitle = String(
-      activeLesson?.title || selectedResource?.lesson || "",
-    ).trim();
-    return baseBank.filter((question) => {
-      if (lessonId && String(question.lessonId || "") === lessonId) return true;
-      if (
-        sourceId &&
-        [
-          question.resourceId,
-          question.sourceResourceId,
-          question.sourceExamResourceId,
-        ].some((value) => String(value || "") === sourceId)
-      )
-        return true;
-      return Boolean(
-        selectedResource &&
-          question.grade === selectedResource.grade &&
-          question.unit === selectedResource.unit &&
-          (!lessonTitle ||
-            String(question.lesson || "").trim() === lessonTitle),
-      );
-    });
-  }, [
-    activeLesson?.id,
-    activeLesson?.title,
-    data.customQuestionBank,
-    selectedResource,
-  ]);
-
   const rememberGameQuestions = async (questionIds) => {
     const ids = (
       Array.isArray(questionIds) ? questionIds : [questionIds]
@@ -4577,7 +4655,7 @@ export default function ClassMode({ data, updateData, navigate }) {
           : null;
       })
       .filter(Boolean),
-    questions: relatedQuestions.map((question) => ({
+    questions: project12GameQuestions.map((question) => ({
       id: question.id,
       text: question.text,
       lesson: question.lesson,
@@ -4805,8 +4883,8 @@ export default function ClassMode({ data, updateData, navigate }) {
       sessionId: current.id,
       sessionTitle: current.title,
       lessonId: activeLesson?.id || null,
-      questionIds: relatedQuestions.map((question) => question.id),
-      questionCount: relatedQuestions.length,
+      questionIds: project12GameQuestions.map((question) => question.id),
+      questionCount: project12GameQuestions.length,
       sourceKind:
         selectedResource?.sourceKind ||
         (selectedResource?.virtualLessonTextbook
@@ -5140,21 +5218,66 @@ export default function ClassMode({ data, updateData, navigate }) {
     } catch (error) {
       setShareNotice(error?.message || "تعذر فتح الملف على هذا الجهاز.");
     }
-  };
-
-  const saveBoard = async () => {
+  };  const saveBoard = async () => {
     const image = await composeBoardImage();
-    const link = document.createElement("a");
-    link.download = `شرح-${current?.title || "الحصة"}-${today}.png`;
+    const link = document.createElement('a');
+    link.download = `شرح-${current?.title || 'الحصة'}-${today}.png`;
     link.href = image;
     link.click();
-    setShareNotice("تم حفظ لقطة كاملة تشمل المورد والكتابة فوقه.");
+    setShareNotice('تم حفظ لقطة كاملة تشمل المورد والكتابة فوقه.');
+  };
+
+  const saveBoardForStudents = async () => {
+    if (!activeLesson?.id) {
+      setShareNotice('اختر درسًا أولًا حتى تُحفظ الصورة داخله وتظهر للطلاب.');
+      return;
+    }
+    try {
+      const image = await composeBoardImage();
+      const asset = await importLegacyDataUrl(image, {
+        name: `شرح-${activeLesson.title || current?.title || 'الدرس'}-${Date.now()}.png`,
+        kind: 'lesson-image',
+      });
+      if (!asset?.id) throw new Error('تعذر إنشاء ملف الصورة.');
+      const now = new Date().toISOString();
+      const record = {
+        id: `lesson-image:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+        kind: 'lesson-media',
+        type: 'image',
+        title: `شرح ${activeLesson.title || current?.title || 'الدرس'}`,
+        assetId: asset.id,
+        fileName: asset.name || 'lesson-image.png',
+        mimeType: asset.type || 'image/png',
+        fileSize: Number(asset.size || 0),
+        lessonId: activeLesson.id,
+        parentLessonId: activeLesson.id,
+        grade: activeLesson.grade || currentGrade,
+        term: activeLesson.term || '',
+        unit: activeLesson.unit || '',
+        lesson: activeLesson.title || '',
+        studentVisible: true,
+        source: 'classmode-snapshot',
+        page: classPage || 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await updateData((latest) => ({ ...latest, contentLibrary: [...(latest.contentLibrary || []), record] }));
+      setShareNotice('تم حفظ صورة الشرح داخل الدرس، وستظهر للطلاب مع محتوى الدرس.');
+    } catch (error) {
+      setShareNotice(error?.message || 'تعذر حفظ صورة الشرح للطلاب.');
+    }
   };
 
   const saveLessonState = async () => {
     if (!current) return;
     await persistCurrentBoardLayer();
-    await recordLesson({ copyLink: false });
+    await updateData((latest) => ({
+      ...latest,
+      sessions: (latest.sessions || []).map((session) => String(session.id) === String(current.id)
+        ? { ...session, summary: notes.trim(), updatedAt: new Date().toISOString() }
+        : session),
+    }));
+    setShareNotice('تم حفظ ملخص الحصة وطبقة الكتابة دون تسجيل فيديو.');
   };
 
   const cleanupRecordingResources = () => {
@@ -5334,12 +5457,18 @@ export default function ClassMode({ data, updateData, navigate }) {
   };
 
   const endClass = async () => {
-    if (recordingActive || recordingBackendRef.current) {
-      await stopActiveRecording();
-    } else {
-      await recordLesson({ copyLink: false });
+    try {
+      await persistCurrentBoardLayer();
+      await updateData((latest) => ({
+        ...latest,
+        sessions: (latest.sessions || []).map((session) => String(session.id) === String(current.id)
+          ? { ...session, summary: notes.trim(), updatedAt: new Date().toISOString() }
+          : session),
+      }));
+    } catch (error) {
+      setShareNotice(error?.message || 'تعذر حفظ آخر تغييرات الحصة.');
     }
-    navigate("dashboard");
+    navigate('dashboard');
   };
 
   const toggleRecordingPause = async () => {
@@ -5943,6 +6072,26 @@ export default function ClassMode({ data, updateData, navigate }) {
       className={`page classmode-scene classmode-final-layout ${fullscreen ? "fullscreen presentation-fullscreen stage-focus-mode" : ""} ${!fullscreen && stageFocus ? "stage-focus-mode" : ""} ${managementOpen ? "management-open" : "management-closed"}`}
       sceneRef={sceneRef}
     >
+      <div className="project12-classmode-dock">
+        <button type="button" className="secondary-btn" onClick={() => setManagementOpen((value) => !value)} title="إدارة"><Users size={16}/><span>إدارة</span></button>
+        <button type="button" className="secondary-btn" onClick={saveBoard} title="حفظ"><Save size={16}/><span>حفظ</span></button>
+        <button type="button" className="secondary-btn" onClick={toggleFullscreen} title="ملء العرض"><Maximize2 size={16}/><span>ملء العرض</span></button>
+        <button type="button" className="secondary-btn" onClick={() => switchContentMode('board')} title="عودة للحصة"><Presentation size={16}/><span>عودة للحصة</span></button>
+      </div>
+      <Project12PageQuestionDock
+        visible={contentMode === 'pdf' && Boolean(selectedResource)}
+        page={classPage || selectedResource?.pageStart || 1}
+        pageCount={project12QuestionSets.pageCount}
+        lessonCount={project12QuestionSets.lessonCount}
+        manualCount={project12QuestionSets.manual.length}
+        scope={project12QuestionScope}
+        onScope={setProject12QuestionScope}
+        onPrepareGame={() => {
+          setManagementOpen(true);
+          setChallengeNotice(`تم تجهيز ${project12GameQuestions.length} سؤالًا. اختر الطلاب ثم ابدأ التحدي.`);
+        }}
+      />
+
       <ClassModeViewport.Header>
         <div className="classmode-top-header">
           <div className="classmode-header-brand">
@@ -6053,6 +6202,21 @@ export default function ClassMode({ data, updateData, navigate }) {
       </ClassModeViewport.Header>
       <ClassModeViewport.Body>
         <ClassModeViewport.Stage>
+          <button
+            type="button"
+            className="project10-online-class-entry"
+            onClick={openOnlineClassPanel}
+            data-testid="online-class-entry"
+            title="فتح الحصة الأونلاين"
+            aria-label="الحصة الأونلاين"
+          >
+            <Radio size={18} />
+            <span className="project10-live-dot" aria-hidden="true" />
+            <span className="project10-entry-copy">
+              <strong>أونلاين</strong>
+              <small>فتح الغرفة</small>
+            </span>
+          </button>
           {!fullscreen && (
             <button
               type="button"
@@ -6136,11 +6300,14 @@ export default function ClassMode({ data, updateData, navigate }) {
                   <Maximize2 />
                 </button>
                 <button
-                  className="secondary-btn"
-                  onClick={() => setLiveStartRequest((value) => value + 1)}
+                  className="secondary-btn classmode-online-entry"
+                  onClick={openOnlineClassPanel}
                   type="button"
+                  data-testid="online-class-top-action"
+                  title="فتح الحصة الأونلاين"
                 >
-                  الحصة الأونلاين
+                  <Radio size={17} />
+                  <span>الحصة الأونلاين</span>
                 </button>
                 <button className="danger-btn" onClick={endClass} type="button">
                   إنهاء الحصة
@@ -6199,10 +6366,10 @@ export default function ClassMode({ data, updateData, navigate }) {
                 </button>
                 <button
                   className="secondary-btn"
-                  onClick={() => setLiveStartRequest((value) => value + 1)}
+                  onClick={openOnlineClassPanel}
                   type="button"
                 >
-                  <ScanLine size={16} /> رابط مباشر
+                  <Radio size={16} /> الحصة الأونلاين
                 </button>
                 <button
                   className="primary-btn"
@@ -6532,7 +6699,19 @@ export default function ClassMode({ data, updateData, navigate }) {
                 className={`classmode-board-surface ${boardToolsVisible ? "with-tools" : ""}`}
               >
                 {boardToolsVisible && (
-                  <div
+                <button
+                  type="button"
+                  className="classmode-board-tool-toggle"
+                  onClick={() => setBoardToolsExpanded((value) => !value)}
+                  aria-expanded={boardToolsExpanded}
+                  aria-label="أدوات السبورة"
+                  title="أدوات السبورة"
+                >
+                  <LayoutGrid size={19} />
+                </button>
+              )}
+              {boardToolsVisible && boardToolsExpanded && (
+                <div
                     className={`classmode-board-sidebar-left ${contentMode !== "board" ? "media-annotation-tools" : ""}`}
                   >
                     {toolOptions.map(({ key, label, icon: Icon }) => (
@@ -6568,7 +6747,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                         contentMode === "board"
                           ? setZoom((value) => Math.min(2, value + 0.15))
                           : setMediaZoom((value) =>
-                              Math.min(2.5, Number((value + 0.15).toFixed(2))),
+                              Math.min(6, Number((value + 0.15).toFixed(2))),
                             )
                       }
                       title="تكبير"
@@ -6600,6 +6779,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                       <Redo2 size={19} />
                       <span>إعادة</span>
                     </button>
+                    <button type="button" onClick={persistCurrentBoardLayer} title="حفظ طبقة السبورة" aria-label="حفظ طبقة السبورة"><Save size={19} /><span>حفظ طبقة السبورة</span></button>
                     <button type="button" onClick={saveBoard} title="حفظ">
                       <Save size={19} />
                       <span>حفظ</span>
@@ -6819,12 +6999,12 @@ export default function ClassMode({ data, updateData, navigate }) {
                                     onClick={() =>
                                       setMediaZoom((value) =>
                                         Math.min(
-                                          2.5,
+                                          6,
                                           Number((value + 0.15).toFixed(2)),
                                         ),
                                       )
                                     }
-                                    disabled={mediaZoom >= 2.5}
+                                    disabled={mediaZoom >= 6}
                                     title="تكبير صفحة PDF"
                                   >
                                     <ZoomIn size={14} />
@@ -6936,7 +7116,7 @@ export default function ClassMode({ data, updateData, navigate }) {
               </div>
             </div>
 
-            {boardToolsVisible && (
+            {boardToolsVisible && boardToolsExpanded && (
               <div
                 className={`classmode-toolbar ${contentMode !== "board" ? "media-annotation-toolbar" : ""}`}
               >
@@ -7226,7 +7406,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                 <button
                   type="button"
                   className="secondary-btn classmode-live-shortcut"
-                  onClick={() => setLiveStartRequest(Date.now())}
+                  onClick={openOnlineClassPanel}
                 >
                   <Radio size={16} />
                   <span>الحصة أونلاين</span>
@@ -7292,11 +7472,9 @@ export default function ClassMode({ data, updateData, navigate }) {
                   activeLesson?.title ||
                   current.title,
                 page: classPage || 1,
-                boardRevision: boardActions.length,
-                pointsRevision: Object.values(points).reduce(
-                  (sum, value) => sum + Number(value || 0),
-                  0,
-                ),
+                boardRevision: boardSyncRevision,
+
+                pointsRevision: pointsSyncRevision,
                 elapsedSeconds: seconds,
               }}
               buildSnapshot={composeBoardImage}
@@ -7345,6 +7523,7 @@ export default function ClassMode({ data, updateData, navigate }) {
                   return (
                     <div
                       key={student.id}
+                      data-student-id={String(student.id)}
                       className={`classmode-student-row ${selectedStudent?.id === student.id ? "active" : ""}`}
                     >
                       <button
@@ -7373,39 +7552,60 @@ export default function ClassMode({ data, updateData, navigate }) {
                           )}
                         </span>
                       </button>
-                      <div className="classmode-student-row-actions">
+                      <div className="classmode-student-row-actions classmode-student-point-actions">
                         <button
                           type="button"
-                          className={`student-attendance-mini present ${status === "present" ? "selected" : ""}`}
-                          title="حاضر"
+                          className="student-row-point-btn decrement"
+                          title={`خصم نقطة من ${student.name}`}
+                          aria-label={`خصم نقطة من ${student.name}`}
                           onClick={(event) => {
                             event.stopPropagation();
-                            mark(student, "present");
+                            setSelectedStudent(student);
+                            adjustPoints(student, -1);
                           }}
                         >
-                          ح
+                          <Minus size={14} />
                         </button>
                         <button
                           type="button"
-                          className={`student-attendance-mini late ${status === "late" ? "selected" : ""}`}
-                          title="متأخر"
+                          className="student-row-point-btn increment"
+                          title={`إضافة نقطة إلى ${student.name}`}
+                          aria-label={`إضافة نقطة إلى ${student.name}`}
                           onClick={(event) => {
                             event.stopPropagation();
-                            mark(student, "late");
+                            setSelectedStudent(student);
+                            adjustPoints(student, 1);
                           }}
                         >
-                          ت
+                          <Plus size={14} />
                         </button>
                         <button
                           type="button"
-                          className={`student-attendance-mini absent ${status === "absent" ? "selected" : ""}`}
-                          title="غائب"
+                          className="student-row-phrase-btn positive"
+                          title={`فتح الجمل التشجيعية لـ ${student.name}`}
+                          aria-label={`الجمل التشجيعية للطالب ${student.name}`}
+                          data-testid={`student-row-praise-${student.id}`}
                           onClick={(event) => {
                             event.stopPropagation();
-                            mark(student, "absent");
+                            setSelectedStudent(student);
+                            setPhraseMenu("positive");
                           }}
                         >
-                          غ
+                          <Sparkles size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="student-row-phrase-btn corrective"
+                          title={`فتح الجمل التنبيهية لـ ${student.name}`}
+                          aria-label={`الجمل التنبيهية للطالب ${student.name}`}
+                          data-testid={`student-row-warning-${student.id}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedStudent(student);
+                            setPhraseMenu("corrective");
+                          }}
+                        >
+                          <MailCheck size={14} />
                         </button>
                       </div>
                     </div>
@@ -7618,7 +7818,7 @@ export default function ClassMode({ data, updateData, navigate }) {
               </div>
             </article>
 
-            <article className="panel classmode-side-panel">
+            <article className="panel classmode-side-panel project13-legacy-recordings-panel">
               <div className="panel-heading compact">
                 <div>
                   <span className="eyebrow">الأنشطة</span>
@@ -7803,7 +8003,9 @@ export default function ClassMode({ data, updateData, navigate }) {
               </div>
             </article>
 
-            <article className="panel classmode-side-panel classmode-challenge-panel">
+            <Project13LinkHub settings={data.settings} lesson={activeLesson} compact title="روابط المُبدع والدرس"/>
+
+          <article className="panel classmode-side-panel classmode-challenge-panel">
               <div className="panel-heading compact">
                 <div>
                   <span className="eyebrow">التحديات داخل الحصة</span>
@@ -8023,13 +8225,13 @@ export default function ClassMode({ data, updateData, navigate }) {
             )}
             <button
               type="button"
-              className="secondary-btn"
-              onClick={saveBoard}
-              title="حفظ لقطة من السبورة"
-              aria-label="حفظ لقطة من السبورة"
+              className="secondary-btn project13-student-image-btn"
+              onClick={saveBoardForStudents}
+              title="حفظ صورة الشرح داخل الدرس للطلاب"
+              aria-label="حفظ صورة للطلاب"
             >
               <Camera size={17} />
-              <span className="action-label">لقطة شاشة</span>
+              <span className="action-label">صورة للطلاب</span>
             </button>
             <button
               type="button"
@@ -8044,7 +8246,7 @@ export default function ClassMode({ data, updateData, navigate }) {
             <button
               type="button"
               className="secondary-btn classmode-live-shortcut"
-              onClick={() => setLiveStartRequest(Date.now())}
+              onClick={openOnlineClassPanel}
               title="إنشاء أو نسخ رابط الحصة الأونلاين"
               aria-label="رابط الحصة الأونلاين"
             >
@@ -8094,25 +8296,73 @@ export default function ClassMode({ data, updateData, navigate }) {
         </div>
       </ClassModeViewport.Footer>
       <ClassModeViewport.Overlays>
-        {lastPraise && (
-          <div
-            className="spoken-banner is-voice"
-            role="status"
-            aria-live="polite"
+        {/* PROJECT03_STUDENT_PANELS_RENDER */}
+<Project03StudentPanels
+students={students}
+attendanceMap={attendanceMap}
+        points={points}
+        studentProgress={studentProgress}
+        selectedStudent={selectedStudent}
+onSelectedStudent={setSelectedStudent}
+onMark={mark}
+onAdjustPoints={adjustPoints}
+phrases={phrases}
+correctivePhrases={correctivePhrases}
+voiceSettings={data.settings}
+groupLabel={`${current?.group || ''} ${current?.title || ''}`}
+        onSpoken={setLastPraise}
+        onNotice={setShareNotice}
+      />
+
+      <Project11ClassSyncBridge
+        data={data}
+        updateData={updateData}
+        sessionId={current?.id || 'standalone-class'}
+        group={current?.group || ''}
+        grade={currentGrade || ''}
+        lessonId={activeLesson?.id || activeLessonId || ''}
+        resourceId={selectedResourceId || ''}
+        contentMode={contentMode}
+        page={classPage || 1}
+        boardTemplate={boardTemplate}
+        boardActions={boardActions}
+        points={points}
+        selectedStudentId={selectedStudent?.id || ''}
+        students={students}
+        setLessonId={setActiveLessonId}
+        setResourceId={setSelectedResourceId}
+        setContentMode={setContentMode}
+        setPage={setClassPage}
+        setBoardTemplate={setBoardTemplate}
+        setBoardActions={setBoardActions}
+        setPoints={setPoints}
+        setSelectedStudent={setSelectedStudent}
+        onNotice={setShareNotice}
+      />
+
+      {lastPraise && (
+        <div className="spoken-banner">
+          <span>🔊 {lastPraise}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLastPraise("");
+              setShareNotice("");
+            }}
+            aria-label="إغلاق الرسالة"
           >
-            <span>{`🔊 ${lastPraise}`}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setLastPraise("");
-                setShareNotice("");
-              }}
-              aria-label="إغلاق الرسالة"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        )}
+            <X size={15} />
+          </button>
+        </div>
+      )}
+      {!lastPraise && shareNotice && (
+        <div className="spoken-banner">
+          <span>{shareNotice}</span>
+          <button type="button" onClick={() => setShareNotice("")} aria-label="إغلاق الرسالة">
+            <X size={15} />
+          </button>
+        </div>
+      )}
         {view === "students" && students.length > 0 && (
           <div
             className="classmode-student-drawer-backdrop"
