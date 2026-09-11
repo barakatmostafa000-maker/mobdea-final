@@ -6066,7 +6066,7 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
 
   return (
     <ClassModeViewport
-      className={`page classmode-scene classmode-final-layout classmode-v9-structural ${fullscreen ? "fullscreen presentation-fullscreen stage-focus-mode" : ""} ${!fullscreen && stageFocus ? "stage-focus-mode" : ""} ${managementOpen ? "management-open" : "management-closed"}`}
+      className={`page classmode-scene classmode-final-layout ${fullscreen ? "fullscreen presentation-fullscreen stage-focus-mode" : ""} ${!fullscreen && stageFocus ? "stage-focus-mode" : ""} ${managementOpen ? "management-open" : "management-closed"}`}
       sceneRef={sceneRef}
     >
       <div className="project12-classmode-dock classmode-user-bottom-dock">
@@ -6237,6 +6237,29 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
               <small>فتح الغرفة</small>
             </span>
           </button>
+          {!fullscreen && (
+            <button
+              type="button"
+              className={`classmode-management-toggle ${managementOpen ? "active" : ""}`}
+              onClick={() => setManagementOpen((value) => !value)}
+              title={managementOpen ? "طي إدارة الحصة" : "فتح إدارة الحصة"}
+              aria-label={managementOpen ? "طي إدارة الحصة" : "فتح إدارة الحصة"}
+            >
+              <Users size={17} />
+              <span>{managementOpen ? "طي" : "إدارة الحصة"}</span>
+            </button>
+          )}
+          {fullscreen && (
+            <button
+              type="button"
+              className="classmode-fullscreen-exit"
+              onClick={toggleFullscreen}
+              title="الخروج من ملء الشاشة"
+              aria-label="الخروج من ملء الشاشة"
+            >
+              <X size={18} />
+            </button>
+          )}
           <section className="classmode-board-panel">
             <div className="classmode-board-topbar">
               <div className="classmode-current-badge live-badge">
@@ -6542,6 +6565,21 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
                   <span>البطاقات</span>
                 </button>
               )}
+              <button
+                type="button"
+                className={`classmode-board-focus-toggle classmode-stage-focus-toggle ${stageFocus ? "active" : ""}`}
+                onClick={() => setStageFocus((value) => !value)}
+                title={stageFocus ? "العودة لوضع الحصة" : "ملء مساحة العرض"}
+              >
+                <Maximize2 size={17} />
+                <span>
+                  {stageFocus
+                    ? "عودة للحصة"
+                    : contentMode === "board"
+                      ? "ملء السبورة"
+                      : "ملء العرض"}
+                </span>
+              </button>
               {contentMode === "board" && cardsDrawerOpen && (
                 <aside
                   className="classmode-card-drawer"
@@ -6762,11 +6800,15 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
                       <span>إعادة</span>
                     </button>
                     <button type="button" onClick={persistCurrentBoardLayer} title="حفظ طبقة السبورة" aria-label="حفظ طبقة السبورة"><Save size={19} /><span>حفظ طبقة السبورة</span></button>
+                    <button type="button" onClick={saveBoard} title="حفظ">
+                      <Save size={19} />
+                      <span>حفظ</span>
+                    </button>
                   </div>
                 )}
 
                 <div
-                  className={`classmode-board-stage board-template-${boardTemplate} ${contentMode === "board" ? "has-lesson-ribbon" : ""} ${contentMode !== "board" && displayResource ? "has-display-resource" : ""}`}
+                  className={`classmode-board-stage board-template-${boardTemplate} ${contentMode === "board" ? "has-lesson-ribbon" : ""}`}
                 >
                   {contentMode === "board" && (
                     <BoardLessonRibbon

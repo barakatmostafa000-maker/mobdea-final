@@ -38,6 +38,10 @@ import './styles/project14-youtube-auto-sync.css';
 import './styles/r19-final-runtime-fixes.css';
 import './styles/r20-fix01-core-runtime.css';
 import './services/r20RuntimeCore.js';
+import './styles/r20-fix02-unified-classmode-layout.css';
+import './services/r20UnifiedClassModeLayout.js';
+import './styles/r20-fix03-student-management.css';
+import './services/r20StudentManagement.js';
 import './services/r20PortalAccountRuntime.js';
 import './styles/r20-fix04-accounts.css';
 import './services/r20PortalDashboard.js';
@@ -92,7 +96,6 @@ import './styles/r20-audit-phase01-08.css';
 import './styles/r20-classmode-final-rebuild.css';
 import './styles/r20-classmode-pdf-v6.css';
 import './styles/r20-classmode-geometry-v7.css';
-import './styles/r20-classmode-v9-structural.css';
 installViewportMetrics();
 
 const rootElement = document.getElementById("root");

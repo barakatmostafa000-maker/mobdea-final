@@ -1,0 +1,464 @@
+/* R20_CLASSMODE_V9_2_STRUCTURAL */
+
+.classmode-viewport.classmode-v103.classmode-final-layout{
+  --classmode-v9-ready:2;
+  position:fixed!important;
+  inset:0!important;
+  width:100dvw!important;
+  height:100dvh!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  overflow:hidden!important;
+  background:#070b12!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+> .classmode-viewport-body.classmode-layout{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  grid-template-columns:none!important;
+  grid-template-rows:none!important;
+  gap:0!important;
+  overflow:hidden!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+> .classmode-viewport-body.classmode-layout
+> .classmode-viewport-stage{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-viewport-stage > .classmode-board-panel{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:0!important;
+  overflow:hidden!important;
+  border:0!important;
+  border-radius:0!important;
+  background:#070b12!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-frame,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-surface,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-stage{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-topbar,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-resource-card,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-session-plan,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-media-navigator,
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-footer,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-management-toggle,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-fullscreen-exit,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-stage-focus-toggle,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-focus-toggle{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+> .classmode-viewport-header{
+  position:fixed!important;
+  top:8px!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:translateX(-50%)!important;
+  width:auto!important;
+  height:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:calc(100dvw - 150px)!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  overflow:visible!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:none!important;
+  background:transparent!important;
+  border:0!important;
+  z-index:9800!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-top-header{
+  width:auto!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  overflow:visible!important;
+  opacity:1!important;
+  visibility:visible!important;
+  background:transparent!important;
+  border:0!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-header-brand,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-header-meta{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-header-tabs{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:5px!important;
+  width:auto!important;
+  height:48px!important;
+  max-width:calc(100dvw - 150px)!important;
+  margin:0!important;
+  padding:4px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  border:1px solid rgba(215,173,53,.48)!important;
+  border-radius:14px!important;
+  background:rgba(5,8,14,.94)!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.35)!important;
+  scrollbar-width:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-header-tabs::-webkit-scrollbar{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-header-tabs > button{
+  flex:0 0 46px!important;
+  width:46px!important;
+  min-width:46px!important;
+  height:38px!important;
+  min-height:38px!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  opacity:1!important;
+  visibility:visible!important;
+  font-size:0!important;
+  border-radius:10px!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-header-tabs > button span{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-header-tabs > button svg{
+  display:block!important;
+  width:20px!important;
+  height:20px!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-user-fullscreen{
+  position:fixed!important;
+  top:8px!important;
+  right:12px!important;
+  left:auto!important;
+  bottom:auto!important;
+  width:48px!important;
+  min-width:48px!important;
+  height:48px!important;
+  min-height:48px!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  opacity:1!important;
+  visibility:visible!important;
+  z-index:9900!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock{
+  position:fixed!important;
+  right:12px!important;
+  bottom:max(10px,env(safe-area-inset-bottom,0px))!important;
+  left:auto!important;
+  top:auto!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:auto!important;
+  margin:0!important;
+  padding:5px!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  gap:6px!important;
+  transform:none!important;
+  opacity:1!important;
+  visibility:visible!important;
+  z-index:9900!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock > button{
+  position:static!important;
+  inset:auto!important;
+  width:48px!important;
+  min-width:48px!important;
+  height:48px!important;
+  min-height:48px!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  transform:none!important;
+  opacity:1!important;
+  visibility:visible!important;
+  font-size:0!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock > button span{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+> .classmode-viewport-body.classmode-layout
+> .classmode-viewport-students{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout.management-open
+> .classmode-viewport-body.classmode-layout
+> .classmode-viewport-students{
+  position:absolute!important;
+  inset:62px 8px 68px 8px!important;
+  width:auto!important;
+  height:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  display:block!important;
+  overflow:hidden!important;
+  z-index:9700!important;
+  background:rgba(3,6,11,.98)!important;
+  border:1px solid rgba(215,173,53,.40)!important;
+  border-radius:18px!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-resource-preview{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  overflow:hidden!important;
+  background:#070b12!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .resource-preview-head{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:0!important;
+  min-height:0!important;
+  max-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:visible!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  pointer-events:none!important;
+  z-index:9600!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .resource-preview-head > strong,
+.classmode-viewport.classmode-v103.classmode-final-layout .resource-preview-head > small,
+.classmode-viewport.classmode-v103.classmode-final-layout .resource-preview-head > .classmode-inline-media-switcher{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-page-nav{
+  position:fixed!important;
+  top:64px!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
+  width:auto!important;
+  height:38px!important;
+  margin:0!important;
+  padding:4px 7px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  z-index:9850!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.resource-preview-body.unified-media-renderer,
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-pdf-canvas-host,
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-pdf-panzoom,
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-panzoom-viewport{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+
+/* Resource layering is explicit: PDF/media below, annotation canvas above,
+   and the annotation layer must remain transparent. */
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-stage.has-display-resource{
+  background:#05080d!important;
+  background-image:none!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-stage.has-display-resource .classmode-resource-preview{
+  z-index:10!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-stage.has-display-resource .resource-preview-body.unified-media-renderer{
+  z-index:11!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-stage.has-display-resource .classmode-pdf-canvas-host,
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-stage.has-display-resource .classmode-pdf-panzoom,
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-stage.has-display-resource .classmode-panzoom-viewport{
+  z-index:12!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-pdf-rendered-image{
+  position:relative!important;
+  z-index:1!important;
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+  opacity:1!important;
+  visibility:visible!important;
+  background:#fff!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-pdf-panzoom .classmode-panzoom-content{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:visible!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.class-board-canvas-shell.has-resource-head{
+  position:absolute!important;
+  inset:0!important;
+  z-index:20!important;
+  width:100%!important;
+  height:100%!important;
+  background:transparent!important;
+  background-color:transparent!important;
+  background-image:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.class-board-canvas-shell.has-resource-head .class-board-canvas{
+  position:absolute!important;
+  inset:0!important;
+  z-index:2!important;
+  width:100%!important;
+  height:100%!important;
+  background:transparent!important;
+  background-color:transparent!important;
+  background-image:none!important;
+}
+
+/* Retire duplicate old page/resource edge navigation. The compact page bar
+   above the PDF is the single navigation surface. */
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-pdf-edge-nav,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-media-edge-nav{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-sidebar-left button[title="حفظ"],
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-board-sidebar-left button[aria-label="حفظ طبقة السبورة"]{
+  display:none!important;
+}

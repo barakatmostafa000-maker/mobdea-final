@@ -211,7 +211,10 @@
 
 .classmode-viewport.classmode-v103.classmode-final-layout
 .project12-classmode-dock.classmode-user-bottom-dock
-> button{
+> button[data-r20-control="students"],
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock
+> button[data-r20-control="save"]{
   position:static!important;
   inset:auto!important;
   right:auto!important;
@@ -260,12 +263,6 @@
   transform:none!important;
   opacity:1!important;
   z-index:8600!important;
-}
-
-/* The old board topbar contained its own save/fullscreen controls.
-   It is retired in the rebuilt ClassMode. */
-.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-topbar{
-  display:none!important;
 }
 
 /* PDF/media must own the full board stage in normal mode too. */

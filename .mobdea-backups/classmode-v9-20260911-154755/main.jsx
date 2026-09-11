@@ -92,7 +92,6 @@ import './styles/r20-audit-phase01-08.css';
 import './styles/r20-classmode-final-rebuild.css';
 import './styles/r20-classmode-pdf-v6.css';
 import './styles/r20-classmode-geometry-v7.css';
-import './styles/r20-classmode-v9-structural.css';
 installViewportMetrics();
 
 const rootElement = document.getElementById("root");
