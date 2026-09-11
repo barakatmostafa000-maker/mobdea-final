@@ -41,6 +41,7 @@ import {
 } from '../../data/mapEnrichment';
 
 const CORE_REGION_KEYS = ['egypt', 'arab', 'africa', 'asia', 'europe', 'northAmerica', 'southAmerica', 'australia', 'world'];
+const NILE_RIVER_IDS = new Set(['nile-main', 'white-nile', 'blue-nile', 'atbara']);
 
 function drawStrokes(canvas, strokes = []) {
   if (!canvas) return;
@@ -61,6 +62,8 @@ function drawStrokes(canvas, strokes = []) {
   });
 }
 
+const PROJECT12_MAP_SYMBOL_DRAWER_V1 = true;
+
 export default function LessonMapStudio({ grade = '', lesson = null, onSaveState }) {
   const recommendation = useMemo(() => getGradeMapRecommendation(grade), [grade]);
   const initial = useMemo(() => normalizeLessonMapState(lesson?.mapState, grade), [lesson?.id, grade]);
@@ -69,6 +72,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
   const [regionStates, setRegionStates] = useState(initial.regions);
   const [layerKey, setLayerKey] = useState('countries');
   const [labels, setLabels] = useState(initial.labels);
+  const [mapDisplayMode, setMapDisplayMode] = useState(initial.displayMode || 'atlas');
   const [mapStyle, setMapStyle] = useState('relief');
   const [silentMap, setSilentMap] = useState(false);
   const [zoom, setZoom] = useState(initial.zoom);
@@ -79,6 +83,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
   const [selectedSymbol, setSelectedSymbol] = useState(null);
   const [selectedPlacementId, setSelectedPlacementId] = useState('');
   const [symbolGroup, setSymbolGroup] = useState(GEOGRAPHY_SYMBOL_GROUPS[0].id);
+  const [project12SymbolsOpen, setProject12SymbolsOpen] = useState(false);
   const [drawTool, setDrawTool] = useState('select');
   const [drawColor, setDrawColor] = useState('#ef4444');
   const [strokeWidth, setStrokeWidth] = useState(5);
@@ -107,6 +112,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
     setRegionKey(next.regionKey);
     setRegionStates(next.regions);
     setLabels(next.labels);
+    setMapDisplayMode(next.displayMode || 'atlas');
     setZoom(next.zoom);
     setPlacements(next.placements);
     setStrokes(next.strokes);
@@ -126,7 +132,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
   const project = useMemo(() => createMapProjector(regionKey), [regionKey]);
   const countries = useMemo(() => getRegionCountries(geo, regionKey), [geo, regionKey]);
   const items = useMemo(() => getRegionLayerItems(geo, regionKey, layerKey), [geo, regionKey, layerKey]);
-  const riverLines = useMemo(() => nileMode ? MAP_RIVER_LINES.africa : (MAP_RIVER_LINES[regionKey] || []), [regionKey, nileMode]);
+  const riverLines = useMemo(() => nileMode ? MAP_RIVER_LINES.africa.filter((line) => NILE_RIVER_IDS.has(line.id)) : (MAP_RIVER_LINES[regionKey] || []), [regionKey, nileMode]);
   const nilePoints = nileMode ? NILE_POINTS : [];
   const activeGroup = GEOGRAPHY_SYMBOL_GROUPS.find((group) => group.id === symbolGroup) || GEOGRAPHY_SYMBOL_GROUPS[0];
   const searchable = useMemo(() => [
@@ -315,6 +321,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
   };
 
   const currentRegionSnapshot = () => ({
+    displayMode: mapDisplayMode,
     labels,
     selectedCountryId: ['countries', 'borders', 'population'].includes(layerKey) ? selectedId : '',
     selectedPlaceId: !['countries', 'borders', 'population'].includes(layerKey) ? selectedId : '',
@@ -358,6 +365,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
 
   const loadRegionSnapshot = (snapshot, activeLayer = layerKey) => {
     const normalized = normalizeMapRegionSnapshot(snapshot);
+    setMapDisplayMode(normalized.displayMode || 'atlas');
     setLabels(normalized.labels);
     setZoom(normalized.zoom);
     setPlacements(normalized.placements);
@@ -400,7 +408,7 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
   };
 
   const changeZoom = (delta) => {
-    setZoom((value) => Math.max(1, Math.min(2.1, Number((value + delta).toFixed(2)))));
+    setZoom((value) => Math.max(1, Math.min(3.2, Number((value + delta).toFixed(2)))));
     markDirty();
   };
 
@@ -436,8 +444,9 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
 
   return (
     <div className={`lesson-map-studio lesson-map-studio-v5 ${toolsOpen ? 'tools-open symbols-open' : 'tools-closed'} ${mapControlsOpen ? 'map-controls-open' : ''}`}>
+      <button type="button" className={`project12-map-symbol-toggle ${project12SymbolsOpen ? "active" : ""}`} onClick={() => { setProject12SymbolsOpen((value) => !value); setToolsOpen((value) => !value); }} title="رموز الخريطة"><Layers3 size={16}/> رموز الخريطة</button>
       {toolsOpen && (
-        <aside className="lesson-map-symbol-sidebar lesson-map-drawer lesson-map-drawer-symbols">
+        <aside className={`lesson-map-symbol-sidebar lesson-map-drawer lesson-map-drawer-symbols ${project12SymbolsOpen ? "project12-open" : ""}`}>
           <div className="lesson-map-drawer-head">
             <div className="lesson-map-sidebar-title"><Layers3 size={19}/><div><strong>رموز الخريطة</strong><small>19 تصنيفًا • 181 رمزًا — اختر التصنيف ثم اسحب الرمز إلى الخريطة</small></div></div>
             <button type="button" className="icon-action" onClick={() => setToolsOpen(false)} aria-label="إغلاق الرموز">×</button>
@@ -502,10 +511,10 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
             </section>
             <section className="lesson-map-control-section">
               <label>شكل الخريطة</label>
-              <div className="lesson-map-presentation-tabs">
-                <button type="button" className={!silentMap && mapStyle === 'relief' ? 'active' : ''} onClick={() => { setSilentMap(false); setMapStyle('relief'); }}>طبيعية مجسمة</button>
-                <button type="button" className={!silentMap && mapStyle === 'atlas' ? 'active' : ''} onClick={() => { setSilentMap(false); setMapStyle('atlas'); }}>أطلس تعليمي</button>
-                <button type="button" className={silentMap ? 'active' : ''} onClick={() => { setSilentMap(true); setLabels(false); }}>خريطة صماء</button>
+              <div className="lesson-map-presentation-tabs project06-map-display-modes" role="group" aria-label="نمط عرض الخريطة">
+                <button type="button" className={!silentMap && mapStyle === 'relief' ? 'active' : ''} onClick={() => { setSilentMap(false); setMapStyle('relief'); setMapDisplayMode('atlas'); setLabels(true); markDirty(); }}>طبيعية مجسمة</button>
+                <button type="button" className={!silentMap && mapStyle === 'atlas' && mapDisplayMode === 'atlas' ? 'active' : ''} onClick={() => { setSilentMap(false); setMapStyle('atlas'); setMapDisplayMode('atlas'); setLabels(true); markDirty(); }}>أطلس تعليمي</button>
+                <button type="button" className={silentMap || mapDisplayMode === 'blank' ? 'active' : ''} onClick={() => { setSilentMap(true); setMapDisplayMode('blank'); setLabels(false); markDirty(); }}>خريطة صماء</button>
               </div>
               <small className="lesson-map-silent-help">الخريطة الصماء تعرض شكل اليابس والمياه فقط لتشرح وتكتب عليها بنفسك.</small>
             </section>
@@ -570,6 +579,9 @@ export default function LessonMapStudio({ grade = '', lesson = null, onSaveState
             labels={labels}
             selectedId={selectedId}
             project={project}
+            regionKey={regionKey}
+            teachingMode
+            displayMode={mapDisplayMode}
             zoom={zoom}
             placements={placements}
             selectedPlacementId={selectedPlacementId}

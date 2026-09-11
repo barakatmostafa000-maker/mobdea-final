@@ -1,0 +1,20 @@
+/* R19 Fix8 — native black-screen recovery visibility. */
+.loading-screen,
+.runtime-error-screen {
+  position: relative !important;
+  z-index: 2147483000 !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  background: #080b11 !important;
+  color: #f7e5ad !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.classmode-v103,
+.classmode-page,
+.lesson-mode-shell {
+  isolation: isolate;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  contain: layout style;
+}

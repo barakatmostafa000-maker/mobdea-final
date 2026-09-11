@@ -1,0 +1,162 @@
+/* PROJECT06_PROFESSIONAL_TEACHING_MAPS_V1 */
+.map-pro-stage.project06-teaching-map {
+  background:
+    radial-gradient(circle at 52% 42%, rgba(40,119,145,.34), transparent 38%),
+    linear-gradient(150deg, #06263b 0%, #0b4869 48%, #031520 100%) !important;
+}
+.map-pro-stage.project06-teaching-map .map-pro-country {
+  stroke: rgba(239,230,191,.72) !important;
+  stroke-width: 1.25 !important;
+  vector-effect: non-scaling-stroke !important;
+}
+.project06-reference-grid { pointer-events: none; }
+.project06-reference-line {
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  opacity: .72;
+  stroke-width: 1.4;
+  stroke-dasharray: 7 7;
+}
+.project06-reference-line.latitude { stroke: rgba(116,218,244,.72); }
+.project06-reference-line.latitude.major { stroke-width: 1.8; opacity: .88; }
+.project06-reference-line.longitude { stroke: rgba(199,227,238,.55); }
+.project06-reference-line.longitude.prime {
+  stroke: #f0c75e;
+  stroke-width: 2.5;
+  stroke-dasharray: 10 6;
+  opacity: 1;
+}
+.project06-reference-line.active {
+  stroke-width: 3;
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(158,231,255,.72));
+}
+.project06-reference-line.longitude.active,
+.project06-reference-line.longitude.prime {
+  filter: drop-shadow(0 0 4px rgba(240,199,94,.62));
+}
+.project06-reference-label {
+  pointer-events: none;
+  font-family: "Noto Kufi Arabic", Tahoma, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  direction: rtl;
+  paint-order: stroke fill;
+  stroke: rgba(2,13,20,.95);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  fill: #bceeff;
+}
+.project06-reference-label.longitude { fill: #f4da8e; }
+.project06-reference-label.active { font-size: 16px; fill: #fff7d7; }
+.project06-river-overlay { pointer-events: none; }
+.project06-river-halo,
+.project06-river-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.project06-river-halo { stroke: rgba(1,17,31,.78); stroke-width: 8; }
+.project06-river-line {
+  stroke: #52c9ff;
+  stroke-width: 4.2;
+  filter: drop-shadow(0 0 3px rgba(75,203,255,.72));
+}
+.project06-river-group.white .project06-river-line { stroke: #d8f4ff; }
+.project06-river-group.blue .project06-river-line { stroke: #168cff; }
+.project06-river-group.main .project06-river-line { stroke: #27c4ff; stroke-width: 5.3; }
+.project06-river-group.tributary .project06-river-line { stroke: #63bbef; stroke-width: 3.4; }
+.project06-river-group.delta .project06-river-line { stroke: #66d7ff; stroke-width: 3.3; }
+.project06-river-label {
+  font-family: "Noto Kufi Arabic", Tahoma, Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  direction: rtl;
+  fill: #d9f7ff;
+  paint-order: stroke fill;
+  stroke: rgba(1,13,23,.96);
+  stroke-width: 4.5px;
+  stroke-linejoin: round;
+}
+.project06-nile-map .project06-river-label { font-size: 16px; }
+.project06-nile-landmark circle {
+  fill: #f4cf68;
+  stroke: #07131b;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 4px rgba(244,207,104,.65));
+}
+.project06-nile-landmark.source circle { fill: #83e0ff; }
+.project06-nile-landmark.dam circle { fill: #ffb35d; }
+.project06-nile-landmark text {
+  font-family: "Noto Kufi Arabic", Tahoma, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  direction: rtl;
+  fill: #fff9e6;
+  paint-order: stroke fill;
+  stroke: rgba(2,12,18,.96);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.project06-nile-key { pointer-events: none; }
+.project06-nile-key rect {
+  fill: rgba(5,19,29,.90);
+  stroke: rgba(238,205,111,.82);
+  stroke-width: 1.5;
+}
+.project06-nile-key text {
+  font-family: "Noto Kufi Arabic", Tahoma, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  fill: #eef8fc;
+  direction: rtl;
+}
+.project06-nile-key .title { fill: #f1d27b; font-size: 14px; font-weight: 900; }
+.project06-nile-key line {
+  stroke-width: 4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.project06-nile-key .white-sample { stroke: #d8f4ff; }
+.project06-nile-key .blue-sample { stroke: #168cff; }
+.project06-nile-key .main-sample { stroke: #27c4ff; }
+@media (max-width: 900px), (max-height: 560px) {
+  .project06-reference-label { font-size: 11px; }
+  .project06-reference-label.active,
+  .project06-nile-map .project06-river-label { font-size: 12.5px; }
+  .project06-river-label,
+  .project06-nile-landmark text { font-size: 11.5px; }
+}
+
+/* PROJECT06_NILE_ATLAS_BLANK_MODES_V1 */
+.project06-map-display-modes {
+  display:inline-flex !important; align-items:center !important; gap:4px !important;
+  padding:3px !important; border:1px solid rgba(215,173,53,.28) !important;
+  border-radius:10px !important; background:rgba(7,12,18,.72) !important;
+}
+.project06-map-display-modes button {
+  min-width:54px !important; height:31px !important; padding:3px 9px !important;
+  border-radius:7px !important; border:1px solid transparent !important;
+  background:transparent !important; color:#dbe6ee !important; font-weight:800 !important;
+}
+.project06-map-display-modes button.active {
+  color:#171009 !important; border-color:#f1d37c !important;
+  background:linear-gradient(145deg,#f2d67e,#bc821e) !important;
+}
+.map-pro-stage.project06-nile-map.project06-map-mode-blank .map-pro-country {
+  fill:#e8e2c9 !important; fill-opacity:.95 !important; stroke:#76705f !important; stroke-width:1.4 !important;
+}
+.map-pro-stage.project06-nile-map.project06-map-mode-blank .project06-river-line {
+  stroke:#2f95c7 !important; stroke-width:4.3 !important;
+}
+.map-pro-stage.project06-map-mode-blank .project06-reference-label,
+.map-pro-stage.project06-map-mode-blank .project06-river-label,
+.map-pro-stage.project06-map-mode-blank .project06-nile-landmark text,
+.map-pro-stage.project06-map-mode-blank .map-pro-label,
+.map-pro-stage.project06-map-mode-blank .map-pro-feature-label,
+.map-pro-stage.project06-map-mode-blank .project06-nile-key {
+  display:none !important;
+}
+.project06-nile-landmark.lake circle { fill:#70cdeb !important; }

@@ -1,0 +1,11 @@
+/* R20_FIX08_OCR_PAGE_QUESTIONS_V1 */
+[data-r20-page-question-area="true"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+}
+[data-r20-page-question-area="true"] [role="alert"],
+[data-r20-page-question-area="true"] [class*="error"] {
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+}

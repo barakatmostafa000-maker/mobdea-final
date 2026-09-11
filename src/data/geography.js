@@ -1,7 +1,32 @@
 import { COUNTRY_AR_NAMES } from './mapEnrichment.js';
 import { MAP_SYMBOL_GROUPS } from './mapSymbolCatalog.js';
 
+const PROJECT07_MAP_CHALLENGE_SHARED_ENGINE_V1 = true;
 const arabIso = ['DZA', 'BHR', 'COM', 'DJI', 'EGY', 'IRQ', 'JOR', 'KWT', 'LBN', 'LBY', 'MRT', 'MAR', 'OMN', 'PSE', 'QAT', 'SAU', 'SOM', 'SDN', 'SYR', 'TUN', 'ARE', 'YEM'];
+const nileBasinIso = [
+  "BDI",
+  "COD",
+  "EGY",
+  "ERI",
+  "ETH",
+  "KEN",
+  "RWA",
+  "SSD",
+  "SDN",
+  "TZA",
+  "UGA",
+  "Burundi",
+  "Democratic Republic of the Congo",
+  "Egypt",
+  "Eritrea",
+  "Ethiopia",
+  "Kenya",
+  "Rwanda",
+  "South Sudan",
+  "Sudan",
+  "Tanzania",
+  "Uganda"
+];
 
 // Natural Earth 110m omits a few small island states. These compact, real-world
 // coordinate outlines keep the Arab-region map complete without drawing an
@@ -67,6 +92,10 @@ export const GEOGRAPHY_REGIONS = Object.freeze({
     title: 'إفريقيا', subtitle: 'الدول والأنهار والتضاريس والثروات', bounds: [-19, -36, 53, 38],
     countryFilter: (feature) => feature.properties.continent === 'Africa',
   },
+  nile: {
+    title: 'حوض نهر النيل', subtitle: 'المنابع والروافد والمجرى الرئيسي والدول المطلة على الحوض', bounds: [20, -5, 43, 34],
+    countryFilter: (feature) => nileBasinIso.includes(feature.properties.iso_a3),
+  },
   asia: {
     title: 'آسيا', subtitle: 'دول آسيا والتضاريس والأنهار والموارد', bounds: [25, -12, 180, 82],
     countryFilter: (feature) => feature.properties.continent === 'Asia',
@@ -88,7 +117,7 @@ export const GEOGRAPHY_REGIONS = Object.freeze({
     countryFilter: (feature) => feature.properties.continent === 'Oceania',
   },
   world: {
-    title: 'العالم', subtitle: 'قارات ودول العالم', bounds: [-180, -60, 180, 85],
+    title: 'العالم', subtitle: 'قارات ودول العالم', bounds: [-180, -85, 180, 85],
     countryFilter: (feature) => !['Antarctica', 'Seven seas (open ocean)'].includes(feature.properties.continent),
   },
 });
@@ -132,6 +161,12 @@ export const GEOGRAPHY_FEATURES = Object.freeze({
     water: [['نهر النيل', 31, 15], ['نهر الكونغو', 22, -2], ['نهر النيجر', 4, 10], ['بحيرة فيكتوريا', 33, -1], ['المحيط الهندي', 50, -10], ['نهر الزمبيزي', 28, -17]],
     minerals: [['ذهب جنوب إفريقيا', 27, -27], ['نحاس زامبيا', 28, -13], ['بترول نيجيريا', 6, 5], ['ماس الكونغو', 23, -5], ['فوسفات المغرب', -7, 32]],
     capitals: [['القاهرة', 31.2, 30], ['أديس أبابا', 38.7, 9], ['أبوجا', 7.5, 9.1], ['بريتوريا', 28.2, -25.7], ['نيروبي', 36.8, -1.3], ['الجزائر', 3.06, 36.75]],
+  },
+  nile: {
+    terrain: [['هضبة البحيرات الاستوائية', 31.5, -1.5], ['هضبة إثيوبيا', 38.5, 10.5], ['وادي النيل', 31.8, 23.0], ['دلتا النيل', 31.1, 31.0]],
+    water: [['بحيرة فيكتوريا', 33.0, -1.0], ['نهر كاجيرا', 31.4, -1.4], ['سد أوين', 33.19, 0.44], ['نهر فيكتوريا', 32.6, 1.5], ['بحيرة كيوجا', 33.0, 1.5], ['بحيرة ألبرت', 30.9, 1.7], ['بحيرة إدوارد', 29.6, -0.33], ['بحر الجبل', 31.5, 6.0], ['بحر الغزال', 29.4, 8.6], ['بحر العرب', 28.2, 9.5], ['نهر السوباط', 32.7, 9.0], ['النيل الأبيض', 31.8, 10.8], ['خزان جبل الأولياء', 32.49, 15.23], ['بحيرة تانا', 37.3, 12.0], ['النيل الأزرق', 35.5, 12.0], ['خزان سنار', 33.62, 13.55], ['ملتقى النيلين بالخرطوم', 32.56, 15.5], ['نهر عطبرة', 34.7, 17.0], ['بحيرة ناصر', 32.8, 23.2], ['النيل الرئيسي', 31.4, 27.5], ['دلتا النيل', 31.1, 31.0]],
+    capitals: [['القاهرة', 31.2357, 30.0444], ['الخرطوم', 32.5599, 15.5007], ['جوبا', 31.5825, 4.8594], ['كمبالا', 32.5825, 0.3476], ['أديس أبابا', 38.7578, 8.9806]],
+    minerals: [],
   },
   asia: {
     terrain: [['جبال الهيمالايا', 86, 28], ['هضبة التبت', 88, 32], ['هضبة الدكن', 77, 17], ['جبال زاجروس', 47, 32], ['صحراء جوبي', 104, 43], ['سهول سيبيريا الغربية', 72, 58]],
@@ -179,7 +214,7 @@ export const GRADE_MAP_RECOMMENDATIONS = Object.freeze({
   'الصف الرابع الابتدائي': { defaultRegion: 'egypt', recommended: ['egypt'] },
   'الصف الخامس الابتدائي': { defaultRegion: 'egypt', recommended: ['egypt'] },
   'الصف السادس الابتدائي': { defaultRegion: 'arab', recommended: ['arab'] },
-  'الصف الأول الإعدادي': { defaultRegion: 'africa', recommended: ['africa'] },
+  'الصف الأول الإعدادي': { defaultRegion: 'africa', recommended: ['africa', 'nile'] },
   'الصف الثاني الإعدادي': { defaultRegion: 'asia', recommended: ['asia', 'europe'] },
   'الصف الثالث الإعدادي': { defaultRegion: 'northAmerica', recommended: ['northAmerica', 'southAmerica', 'australia'] },
   'الصف الأول الثانوي': { defaultRegion: 'world', recommended: ['world', 'egypt', 'arab', 'africa', 'asia', 'europe'] },
@@ -271,7 +306,7 @@ export function getRegionLayerItems(geo, regionKey, layerKey) {
     plateaus: { source: 'terrain', match: /(هضبة|هضاب)/u },
     plains: { source: 'terrain', match: /(سهل|سهول|دلتا|حوض|منخفض|وادي)/u },
     deserts: { source: 'terrain', match: /(صحراء|صحارى)/u },
-    rivers: { source: 'water', match: /(نهر)/u },
+rivers: { source: 'water', match: /(نهر|قناة|مضيق|النيل|دجلة|الفرات|الكونغو|النيجر|الزمبيزي|الأورانج|بحر الجبل|بحر العرب|بحر الغزال)/u },
     seas: { source: 'water', match: /(بحر|خليج|بحيرة|قناة|مضيق)/u },
     oceans: { source: 'water', match: /(محيط)/u },
     cities: { source: 'capitals', match: /.*/u },
@@ -284,14 +319,18 @@ export function getRegionLayerItems(geo, regionKey, layerKey) {
     const latitude = (minY + maxY) / 2;
     const lines = layerKey === 'latitude'
       ? [
-          ['خط الاستواء', longitude, Math.max(minY, Math.min(maxY, 0))],
-          ['مدار السرطان', longitude, Math.max(minY, Math.min(maxY, 23.5))],
-          ['مدار الجدي', longitude, Math.max(minY, Math.min(maxY, -23.5))],
+          ['خط الاستواء 0°', longitude, 0],
+          ['مدار السرطان 23.5°ش', longitude, 23.5],
+          ['مدار الجدي 23.5°ج', longitude, -23.5],
+          ['الدائرة القطبية الشمالية 66.5°ش', longitude, 66.5],
+          ['الدائرة القطبية الجنوبية 66.5°ج', longitude, -66.5],
         ]
       : [
-          ['خط جرينتش', Math.max(minX, Math.min(maxX, 0)), latitude],
-          ['خط طول 30° شرقًا', Math.max(minX, Math.min(maxX, 30)), latitude],
-          ['خط طول 60° شرقًا', Math.max(minX, Math.min(maxX, 60)), latitude],
+          ['خط جرينتش 0°', 0, latitude],
+          ['خط طول 30° شرقًا', 30, latitude],
+          ['خط طول 60° شرقًا', 60, latitude],
+          ['خط طول 30° غربًا', -30, latitude],
+          ['خط طول 60° غربًا', -60, latitude],
         ];
     return lines
       .filter((item) => item[1] >= minX && item[1] <= maxX && item[2] >= minY && item[2] <= maxY)

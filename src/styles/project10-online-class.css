@@ -1,0 +1,83 @@
+/* PROJECT10_ONLINE_CLASS_V1 */
+
+.project10-online-class-entry {
+  position: fixed !important;
+  inset-inline-start: 10px !important;
+  top: max(66px, calc(env(safe-area-inset-top) + 56px)) !important;
+  z-index: 1450 !important;
+  min-width: 48px !important;
+  min-height: 46px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  padding: 7px 11px !important;
+  border: 1px solid rgba(241, 211, 124, .78) !important;
+  border-radius: 13px !important;
+  background: linear-gradient(145deg, rgba(28,20,10,.97), rgba(7,13,21,.97)) !important;
+  color: #f4d474 !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.42) !important;
+  backdrop-filter: blur(10px) !important;
+  touch-action: manipulation !important;
+}
+
+.project10-online-class-entry:hover,
+.project10-online-class-entry:focus-visible {
+  color: #fff3c4 !important;
+  border-color: #ffe499 !important;
+}
+
+.project10-online-class-entry .project10-live-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #dfb84f !important;
+  box-shadow: 0 0 0 4px rgba(223,184,79,.10), 0 0 10px rgba(223,184,79,.48) !important;
+}
+
+.project10-online-class-entry .project10-entry-copy {
+  display: grid !important;
+  text-align: start !important;
+  line-height: 1.1 !important;
+}
+
+.project10-online-class-entry strong {
+  font-size: .75rem !important;
+}
+
+.project10-online-class-entry small {
+  font-size: .61rem !important;
+  opacity: .76 !important;
+}
+
+.classmode-online-entry {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 40px !important;
+  border-color: rgba(215,173,53,.52) !important;
+}
+
+.classmode-online-entry svg {
+  flex: 0 0 auto !important;
+  color: #efcb69 !important;
+}
+
+@media (max-width: 900px), (max-height: 620px) {
+  .project10-online-class-entry {
+    top: max(60px, calc(env(safe-area-inset-top) + 50px)) !important;
+    inset-inline-start: 6px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    padding: 6px 8px !important;
+  }
+
+  .project10-online-class-entry .project10-entry-copy {
+    display: none !important;
+  }
+
+  .classmode-online-entry span {
+    display: none !important;
+  }
+}

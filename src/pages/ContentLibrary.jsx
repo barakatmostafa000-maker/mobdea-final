@@ -14,7 +14,7 @@ import {
   FolderOpen,
   Image as ImageIcon,
   Map as MapIcon,
-  Mic2,
+  Link2,
   PencilLine,
   Plus,
   Save,
@@ -42,6 +42,8 @@ import { contextualizeOcrQuestions } from "../services/ocrQuestionParser";
 import { useAssetUrl } from "../hooks/useAssetUrl";
 import { useAssetSource } from "../hooks/useAssetSource";
 import OcrQuestionReview from "../components/library/OcrQuestionReview";
+import Project13LinkHub from '../components/links/Project13LinkHub';
+import Project14YouTubeGradeFeed from '../components/library/Project14YouTubeGradeFeed';
 import {
   LIBRARY_KINDS,
   getAllLibraryGrades,
@@ -57,6 +59,7 @@ import {
   librarySummary,
 } from "../services/libraryModel";
 
+const PROJECT13_LESSON_LINKS_IMAGES_ONLY_V1 = true;
 const defaultGrade = "الصف السادس الابتدائي";
 const defaultSequence = ["preview", "board", "practice"];
 const flowLabels = {
@@ -104,6 +107,7 @@ function createLessonForm(grade = defaultGrade) {
     thumbnailFileName: "",
     recordingAssetId: "",
     recordingFileName: "",
+    lessonLink: '',
     mapState: null,
   };
 }
@@ -142,7 +146,7 @@ function mergeOcrReviewQuestions(
       sourceFileName: item.sourceFileName || "",
       grade: item.grade || "",
       lesson: item.lesson || "",
-      approved: false,
+      approved: Boolean(String(item.answer || "").trim()),
     });
   }
   return [...byFingerprint.values()].slice(0, 240);
@@ -162,6 +166,18 @@ function normalizeTags(value) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+function normalizeExternalLessonLink(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text);
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
 
 function regenerateLessonQuestions(snapshot, lesson, currentBank = []) {
   if (!lesson?.id) return currentBank;
@@ -406,6 +422,16 @@ function StudentLessonViewer({
               </button>
             ))}
           </div>
+          {lesson?.lessonLink && (
+            <a
+              className="secondary-btn project13-student-lesson-link"
+              href={lesson.lessonLink}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Link2 size={15} /> رابط الدرس <ExternalLink size={12} />
+            </a>
+          )}
           <button
             className="secondary-btn"
             type="button"
@@ -1027,6 +1053,11 @@ ${extracted}`
     }
     const pageStart = Math.max(1, Number(form.pageStart || 1));
     const pageEnd = Math.max(pageStart, Number(form.pageEnd || pageStart));
+    const lessonLink = normalizeExternalLessonLink(form.lessonLink);
+    if (String(form.lessonLink || '').trim() && !lessonLink) {
+      setNotice('رابط الدرس يجب أن يبدأ بـ http(s)://');
+      return;
+    }
     setBusy(true);
     const now = new Date().toISOString();
     const lessonId =
@@ -1071,8 +1102,9 @@ ${extracted}`
       sequence: form.sequence.length ? form.sequence : [...defaultSequence],
       thumbnailAssetId: form.thumbnailAssetId || "",
       thumbnailFileName: form.thumbnailFileName || "",
-      recordingAssetId: form.recordingAssetId || "",
-      recordingFileName: form.recordingFileName || "",
+      recordingAssetId: form.recordingAssetId || "",      recordingFileName: form.recordingFileName || '',
+      lessonLink,
+      studentImagesOnly: true,
       mapState: form.mapState || existing?.mapState || null,
       permanent: true,
       createdAt: existing?.createdAt || now,
@@ -1337,6 +1369,9 @@ ${extracted}`
           )}
         </div>
       </div>
+
+      {auth?.role === 'student' && <Project13LinkHub settings={data.settings} compact title="روابط المُبدع"/>}
+      {auth?.role === 'student' && <Project14YouTubeGradeFeed settings={data.settings} grade={studentRecord?.grade || selectedGrade}/>}
 
       <div className="library-summary-strip">
         <article>
@@ -1973,42 +2008,11 @@ ${extracted}`
               </div>
             </section>
 
-            <section className="library-editor-section library-special-assets">
-              <div>
-                <ImageIcon size={20} />
-                <span>
-                  <strong>صورة الدرس المصغرة</strong>
-                  <small>
-                    {form.thumbnailFileName || "اختيارية وتظهر في المكتبة."}
-                  </small>
-                </span>
-                <button
-                  className="secondary-btn"
-                  type="button"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                >
-                  <Upload size={15} />{" "}
-                  {form.thumbnailAssetId ? "استبدال" : "رفع"}
-                </button>
-              </div>
-              <div>
-                <Mic2 size={20} />
-                <span>
-                  <strong>تسجيل الدرس</strong>
-                  <small>
-                    {form.recordingFileName || "صوت أو فيديو محفوظ مع الدرس."}
-                  </small>
-                </span>
-                <button
-                  className="secondary-btn"
-                  type="button"
-                  onClick={() => recordingInputRef.current?.click()}
-                >
-                  <Upload size={15} />{" "}
-                  {form.recordingAssetId ? "استبدال" : "رفع"}
-                </button>
-              </div>
-            </section>
+                      <section className="library-editor-section library-special-assets">
+            <div><ImageIcon size={20}/><span><strong>صورة الدرس المصغرة</strong><small>{form.thumbnailFileName || 'اختيارية وتظهر في المكتبة.'}</small></span><button className="secondary-btn" type="button" onClick={() => thumbnailInputRef.current?.click()}><Upload size={15}/> {form.thumbnailAssetId ? 'استبدال' : 'رفع'}</button></div>
+            <label className="project13-lesson-link-field"><span><Link2 size={18}/> <strong>رابط الدرس للطلاب</strong></span><input value={form.lessonLink || ''} onChange={(event) => setForm({ ...form, lessonLink: event.target.value })} placeholder="https://... رابط الفيديو أو صفحة الدرس"/></label>
+            <div><ImageIcon size={20}/><span><strong>صور الدرس للطلاب</strong><small>أضف صورًا من قسم الوسائط بالأعلى؛ الصور هي التي تظهر للطلاب بدل تسجيلات الفيديو.</small></span></div>
+          </section>
 
             {notice && <div className="settings-notice">{notice}</div>}
             <footer>

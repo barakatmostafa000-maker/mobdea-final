@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, X } from 'lucide-react';
+import { AlertTriangle, Camera, ExternalLink, FileText, X } from 'lucide-react';
 import { questionBank } from '../data/questionBank';
 import { buildAssessmentSummary, calculateQuestionOutcome, isAutoGradable, resolveExamQuestions } from '../services/assessment';
 import { queueLowGradeNotification } from '../services/notifications';
 import { todayISO } from '../utils/time';
+import { useAssetUrl } from '../hooks/useAssetUrl';
+import { resolveExamSource, upsertExamResult, wrongQuestionResults } from '../services/project13ExamAnalytics';
 
+const PROJECT13_EXAM_SCANNER_ANALYTICS_V1 = true;
 const STATUS_CONFIG = {
   correct: { label: 'صحيح', factor: 1 },
   partial: { label: 'جزئي', factor: 0.5 },
@@ -61,6 +64,8 @@ export default function GradeScanner({ data, updateData }) {
   const exam = data.exams.find((item) => item.id === examId);
   const questions = useMemo(() => resolveExamQuestions(exam, [questionBank, data.customQuestionBank || []]), [exam, data.customQuestionBank]);
   const autoGradableCount = questions.filter(isAutoGradable).length;
+  const examSource = useMemo(() => resolveExamSource(data, exam, student), [data.contentLibrary, exam, student]);
+  const examSourceUrl = useAssetUrl(examSource.assetId, examSource.url);
 
   useEffect(() => {
     if (!scannerOpen) return;
@@ -158,6 +163,7 @@ export default function GradeScanner({ data, updateData }) {
   const total = detail.reduce((sum, item) => sum + item.maxScore, 0);
   const pct = total ? Math.round((score / total) * 100) : 0;
   const summary = buildAssessmentSummary([{ pct }]);
+  const liveErrors = wrongQuestionResults({ questionResults: detail });
 
   const save = () => {
     if (!student || !exam) return;
@@ -172,27 +178,40 @@ export default function GradeScanner({ data, updateData }) {
       total,
       date: todayISO(),
       questionResults: detail,
-      pct
+      pct,
+      sourceExamResourceId: examSource.resourceId,
+      sourceExamAssetId: examSource.assetId,
+      sourceExamFileName: examSource.fileName,
+      sourceExamUrl: examSource.url,
+      errorQuestionIds: liveErrors.map((item) => item.questionId),
+      errorCount: liveErrors.length,
+      analysisVersion: 13,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const gradeRow = {
+      id: result.id,
+      studentId: student.id,
+      studentName: student.name,
+      studentCode: student.code,
+      examId: exam.id,
+      exam: exam.title,
+      score,
+      total,
+      date: result.date,
+      strength: detail.filter((item) => item.status === 'correct').map((item) => item.topic).slice(0, 3).join('، '),
+      weakness: detail.filter((item) => item.status !== 'correct').map((item) => item.topic).slice(0, 3).join('، '),
+      errorCount: liveErrors.length,
+      sourceExamResourceId: examSource.resourceId,
+      sourceExamAssetId: examSource.assetId,
+      sourceExamFileName: examSource.fileName,
+      analysisVersion: 13,
     };
 
     let next = {
       ...data,
-      detailedResults: [...(data.detailedResults || []), result],
-      grades: [
-        ...data.grades,
-        {
-          id: result.id,
-          studentId: student.id,
-          studentName: student.name,
-          studentCode: student.code,
-          exam: exam.title,
-          score,
-          total,
-          date: result.date,
-          strength: detail.filter((item) => item.status === 'correct').map((item) => item.topic).slice(0, 3).join('، '),
-          weakness: detail.filter((item) => item.status !== 'correct').map((item) => item.topic).slice(0, 3).join('، ')
-        }
-      ]
+      detailedResults: upsertExamResult(data.detailedResults || [], result),
+      grades: upsertExamResult(data.grades || [], gradeRow),
     };
 
     next = queueLowGradeNotification(next, student, exam.title, result);
@@ -244,6 +263,7 @@ export default function GradeScanner({ data, updateData }) {
         <select value={examId} onChange={(event) => setExamId(event.target.value)}>
           {data.exams.filter((item) => !student || item.grade === student.grade).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
         </select>
+        {examSource.fileName && <div className="project13-exam-source"><FileText size={15}/><span>{examSource.fileName}</span>{examSourceUrl && <a className="text-btn" href={examSourceUrl} target="_blank" rel="noopener noreferrer">فتح الملف <ExternalLink size={12}/></a>}</div>}
       </div>
 
       <div className="panel" style={{ marginBottom: 13 }}>
@@ -255,6 +275,13 @@ export default function GradeScanner({ data, updateData }) {
           <div className="stat-card"><div><span>عدد الأسئلة</span><strong>{questions.length}</strong><small>في الامتحان الحالي</small></div></div>
           <div className="stat-card"><div><span>المصحح يدويًا</span><strong>{questions.length - autoGradableCount}</strong><small>أسئلة تحتاج مراجعة</small></div></div>
           <div className="stat-card"><div><span>درجة النجاح</span><strong>60%</strong><small>معيار المتابعة</small></div></div>
+        </div>
+      </div>
+
+      <div className="project13-live-errors">
+        <header><span><AlertTriangle size={16}/> الأخطاء الحالية</span><b>{liveErrors.length} سؤال</b></header>
+        <div className="project13-live-error-list">
+          {liveErrors.length ? liveErrors.map((item) => <span key={`${item.questionId}-${item.questionNumber}`}>س{item.questionNumber} — {item.topic || item.lesson || 'مراجعة'}</span>) : <span>لا توجد أخطاء حتى الآن.</span>}
         </div>
       </div>
 

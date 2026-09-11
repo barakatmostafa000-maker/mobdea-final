@@ -1,0 +1,457 @@
+/* PROJECT09_DASHBOARD_RESPONSIVE_V1 */
+
+html, body, #root {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.app-shell-v103:not(.lesson-mode-shell),
+.app-shell-v103:not(.lesson-mode-shell) > .app-content,
+.app-shell-v103:not(.lesson-mode-shell) > .app-content > .screen-stage,
+.dashboard-v103,
+.dashboard-v103 > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.app-shell-v103:not(.lesson-mode-shell) > .app-content {
+  width: 100% !important;
+  overflow-x: clip !important;
+  padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+}
+
+@media (min-width: 1181px) and (pointer: fine) and (orientation: landscape) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    grid-template-columns: minmax(0, 1fr) clamp(228px, 19vw, 288px) !important;
+  }
+
+  .app-shell-v103.sidebar-collapsed:not(.lesson-mode-shell) {
+    grid-template-columns: minmax(0, 1fr) 82px !important;
+  }
+
+  .app-shell-v103.sidebar-collapsed .brand-panel > div,
+  .app-shell-v103.sidebar-collapsed .sidebar-role-card span,
+  .app-shell-v103.sidebar-collapsed .sidebar-search-button span,
+  .app-shell-v103.sidebar-collapsed .sidebar-search-button kbd,
+  .app-shell-v103.sidebar-collapsed .session-mini-card > span:not(.session-mini-icon),
+  .app-shell-v103.sidebar-collapsed .session-mini-card > svg,
+  .app-shell-v103.sidebar-collapsed .nav-copy,
+  .app-shell-v103.sidebar-collapsed .nav-arrow,
+  .app-shell-v103.sidebar-collapsed .sidebar-footer span,
+  .app-shell-v103.sidebar-collapsed .sidebar-footer b {
+    display: none !important;
+  }
+
+  .app-shell-v103.sidebar-collapsed .sidebar-nav button,
+  .app-shell-v103.sidebar-collapsed .sidebar-search-button,
+  .app-shell-v103.sidebar-collapsed .session-mini-card {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    place-items: center !important;
+    padding-inline: 6px !important;
+  }
+}
+
+@media (max-width: 1180px), (orientation: portrait), (pointer: coarse) and (max-width: 1366px) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    display: block !important;
+    grid-template-columns: none !important;
+    min-height: 100dvh !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    display: flex !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 130 !important;
+    width: 100% !important;
+    min-height: calc(56px + env(safe-area-inset-top)) !important;
+    padding-top: env(safe-area-inset-top) !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar {
+    position: fixed !important;
+    z-index: 170 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    width: min(88vw, 340px) !important;
+    max-width: 340px !important;
+    height: 100dvh !important;
+    transform: translateX(105%) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    box-shadow: -24px 0 60px rgba(0, 0, 0, .72) !important;
+    transition: transform .22s ease, visibility 0s linear .22s !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar.open,
+  .app-shell-v103:not(.lesson-mode-shell) > .sidebar.is-open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transition: transform .22s ease, visibility 0s !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    width: 100% !important;
+    padding: clamp(7px, 1.5vw, 14px) !important;
+  }
+
+  .app-shell-v103 .app-shell-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 160 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+  }
+
+  .app-shell-v103 .sidebar-nav {
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+.dashboard-v103 {
+  width: min(100%, 1680px) !important;
+  margin-inline: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  grid-template-rows: auto auto auto auto !important;
+  gap: clamp(8px, 1.2vw, 14px) !important;
+  container-type: inline-size;
+  container-name: mobdea-dashboard;
+}
+
+.dashboard-v103 .dashboard-desktop-topbar {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1fr) auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.dashboard-v103 .dashboard-search-wrap {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 760px !important;
+  position: relative !important;
+}
+
+.dashboard-v103 .dashboard-search-wrap input {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.dashboard-v103 .dashboard-search-results {
+  inset-inline: 0 !important;
+  width: 100% !important;
+  max-width: 760px !important;
+  max-height: min(62dvh, 520px) !important;
+  overflow-y: auto !important;
+  z-index: 90 !important;
+}
+
+.dashboard-v103 .dashboard-account-strip,
+.dashboard-v103 .dashboard-account,
+.dashboard-v103 .dashboard-account > span {
+  min-width: 0 !important;
+}
+
+.dashboard-v103 .dashboard-reference-hero {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: clamp(290px, 39vh, 450px) !important;
+  height: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(290px, 1.08fr) minmax(240px, .82fr) minmax(225px, .72fr) !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+
+.dashboard-v103 .dashboard-reference-copy {
+  padding: clamp(18px, 2.3vw, 38px) !important;
+  align-self: center !important;
+}
+
+.dashboard-v103 .dashboard-reference-copy h2 {
+  font-size: clamp(3rem, 6.2vw, 6.3rem) !important;
+  line-height: .92 !important;
+  max-width: 100% !important;
+}
+
+.dashboard-v103 .dashboard-reference-copy h3 {
+  font-size: clamp(1.1rem, 2vw, 2rem) !important;
+}
+
+.dashboard-v103 .dashboard-reference-copy p {
+  max-width: 52ch !important;
+}
+
+.dashboard-v103 .dashboard-reference-cta {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.dashboard-v103 .dashboard-reference-cta button {
+  min-height: 44px !important;
+}
+
+.dashboard-v103 .dashboard-reference-portrait {
+  min-height: 250px !important;
+  overflow: hidden !important;
+}
+
+.dashboard-v103 .dashboard-reference-portrait > img {
+  max-width: 100% !important;
+  object-position: center top !important;
+}
+
+.dashboard-v103 .dashboard-today-panel,
+.dashboard-v103 .dashboard-today-list {
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.dashboard-v103 .dashboard-today-list button,
+.dashboard-v103 .dashboard-full-schedule {
+  min-width: 0 !important;
+  min-height: 44px !important;
+}
+
+.dashboard-v103 .dashboard-feature-grid {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)) !important;
+  gap: clamp(7px, 1vw, 11px) !important;
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+.dashboard-v103 .dashboard-feature-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 148px !important;
+  height: auto !important;
+  padding: clamp(10px, 1.2vw, 15px) !important;
+  overflow: hidden !important;
+}
+
+.dashboard-v103 .dashboard-feature-card strong,
+.dashboard-v103 .dashboard-feature-card small {
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.dashboard-v103 .dashboard-feature-link {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.dashboard-v103 .dashboard-reference-bottom {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.25fr) repeat(2, minmax(220px, 1fr)) !important;
+  gap: clamp(8px, 1vw, 12px) !important;
+}
+
+.dashboard-v103 .dashboard-current-class-card,
+.dashboard-v103 .dashboard-lower-panel,
+.dashboard-v103 .dashboard-announcement-list,
+.dashboard-v103 .dashboard-announcement-list button {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.dashboard-v103 .dashboard-current-class-card {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+}
+
+.dashboard-v103 .dashboard-current-class-card > div,
+.dashboard-v103 .dashboard-announcement-list button > span {
+  min-width: 0 !important;
+}
+
+.dashboard-v103 .dashboard-current-class-card h3,
+.dashboard-v103 .dashboard-current-class-card p,
+.dashboard-v103 .dashboard-announcement-list strong,
+.dashboard-v103 .dashboard-announcement-list small {
+  overflow-wrap: anywhere !important;
+}
+
+.dashboard-v103 button,
+.dashboard-v103 a {
+  touch-action: manipulation;
+}
+
+@media (max-width: 1180px), (pointer: coarse) and (max-width: 1366px) {
+  .dashboard-v103 .dashboard-reference-hero {
+    grid-template-columns: minmax(0, 1.05fr) minmax(250px, .78fr) !important;
+    min-height: 0 !important;
+  }
+
+  .dashboard-v103 .dashboard-today-panel {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: minmax(155px, .55fr) minmax(0, 1.55fr) auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-v103 .dashboard-today-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)) !important;
+    gap: 5px !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-v103 .dashboard-current-class-card {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-v103 {
+    gap: 8px !important;
+  }
+
+  .dashboard-v103 .dashboard-desktop-topbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-v103 .dashboard-account-strip {
+    display: none !important;
+  }
+
+  .dashboard-v103 .dashboard-search-wrap,
+  .dashboard-v103 .dashboard-search-results {
+    max-width: none !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+    min-height: 0 !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy {
+    padding: 18px 16px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy h2 {
+    font-size: clamp(3.2rem, 20vw, 5.2rem) !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy p {
+    font-size: .9rem !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-portrait {
+    min-height: 190px !important;
+    max-height: 240px !important;
+  }
+
+  .dashboard-v103 .dashboard-today-panel {
+    grid-column: auto !important;
+    display: block !important;
+    padding: 12px !important;
+  }
+
+  .dashboard-v103 .dashboard-today-list {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-v103 .dashboard-full-schedule {
+    width: 100% !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card {
+    min-height: 138px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-bottom {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-v103 .dashboard-current-class-card {
+    grid-column: auto !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-v103 .dashboard-current-art {
+    display: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    padding-inline: 6px !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card {
+    min-height: 126px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-cta {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-cta button,
+  .dashboard-v103 .dashboard-current-class-card > button {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  .dashboard-v103 .dashboard-current-class-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .dashboard-v103 {
+    height: auto !important;
+    min-height: 0 !important;
+    grid-template-rows: auto !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-hero {
+    min-height: 250px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-bottom {
+    display: grid !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card small {
+    display: block !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-link {
+    display: inline-flex !important;
+  }
+}

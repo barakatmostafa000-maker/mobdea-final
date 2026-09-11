@@ -4,9 +4,11 @@ import { normalizeOcrText, structureOcrQuestions } from "./ocrQuestionParser";
 import { selectQuestionPageWindow } from "./ocrQuestionDiscovery";
 import { releaseNativeAsset, stageBlobForNative } from "./nativeAssetBridge";
 
-const NativePdfOcr = registerPlugin("MobdeaPdfOcr");
+const NativePdfOcr = registerPlugin("R20PageOcr");
 export const OCR_MAX_PAGES = 80;
 export const OCR_BATCH_PAGES = 4;
+export const PROJECT08_OCR_EXAM_IMPORT_V1 = true;
+const OCR_RENDER_WIDTHS = [1600, 1280, 960];
 export const OCR_AUTO_SCAN_PAGES = 30;
 
 export { normalizeOcrText, structureOcrQuestions } from "./ocrQuestionParser";
@@ -66,14 +68,26 @@ async function recognizePdfRange({
         stage: String(event?.stage || "recognizing"),
       });
     });
-    return await NativePdfOcr.recognizePdfPages({
-      assetPath,
-      taskId,
-      startPage: firstPage,
-      endPage: lastPage,
-      language: "ara+eng",
-      maxWidth: 1600,
-    });
+    let lastError;
+    for (const maxWidth of OCR_RENDER_WIDTHS) {
+      try {
+        return await NativePdfOcr.recognizePdfPages({
+          assetPath,
+          taskId,
+          startPage: firstPage,
+          endPage: lastPage,
+          language: "ara+eng",
+          maxWidth,
+        });
+      } catch (error) {
+        lastError = error;
+        const message = String(error?.message || error || "").toLowerCase();
+        const retryable = /bitmap|memory|read bitmap|decode|raster|pix/i.test(message);
+        if (!retryable || maxWidth === OCR_RENDER_WIDTHS[OCR_RENDER_WIDTHS.length - 1]) throw error;
+        onProgress?.({ stage: "retrying-bitmap", page: firstPage, totalPages: lastPage - firstPage + 1, maxWidth });
+      }
+    }
+    throw lastError || new Error("تعذر قراءة صفحة OCR.");
   } finally {
     signal?.removeEventListener("abort", cancel);
     await listener?.remove?.().catch?.(() => {});

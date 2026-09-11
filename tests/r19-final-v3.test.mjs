@@ -161,11 +161,11 @@ test("R19 final release identity is consistent everywhere", () => {
   assert.equal(Number(pkg.mobdea?.versionCode), 117);
   assert.match(gradle, /versionCode\s+117/);
   assert.match(gradle, /versionName\s+"10\.14\.0"/);
-  assert.match(version, /APP_VERSION = '10\.14\.0'/);
+  assert.match(version, /APP_VERSION\s*=\s*[\"']10\.14\.0[\"']/);
   assert.match(version, /APP_VERSION_CODE = 117/);
   const syncVersion = read("scripts/sync-version.mjs");
-  assert.match(version, /RELEASE_TAG = 'R19'/);
-  assert.match(syncVersion, /RELEASE_TAG = 'R19'/);
-  assert.doesNotMatch(syncVersion, /RELEASE_TAG = 'R18'/);
+  assert.match(version, /RELEASE_TAG\s*=\s*[\"']R19[\"']/);
+  assert.match(syncVersion, /RELEASE_TAG\s*=\s*[\"']R19[\"']/);
+  assert.doesNotMatch(syncVersion, /RELEASE_TAG\s*=\s*[\"']R18[\"']/);
   assert.match(release, /releaseTag:\s*RELEASE_TAG/);
 });

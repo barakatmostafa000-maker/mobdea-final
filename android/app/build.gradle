@@ -14,8 +14,8 @@ android {
         applicationId "com.mobdea.education"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 117
-        versionName "10.14.0"
+        versionCode 118
+        versionName "10.14.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -55,15 +55,6 @@ android {
         checkReleaseBuilds true
         warningsAsErrors false
     }
-
-    sourceSets {
-        main {
-            assets.srcDirs += [
-                file('../../node_modules/@tesseract.js-data/ara/4.0.0_best_int'),
-                file('../../node_modules/@tesseract.js-data/eng/4.0.0_best_int')
-            ]
-        }
-    }
 }
 
 repositories {
@@ -79,6 +70,7 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
+    implementation "com.google.android.gms:play-services-code-scanner:16.1.0"
     implementation "com.rmtheis:tess-two:9.1.0"
     implementation "com.google.mlkit:digital-ink-recognition:19.0.0"
     testImplementation "junit:junit:$junitVersion"

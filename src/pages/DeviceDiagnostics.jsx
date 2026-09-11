@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Camera, Cloud, Database, Mic2, RefreshCw, Smartphone, Wifi } from 'lucide-react';
 import { cloudConfigured, testCloudConnection } from '../services/cloudSync';
-import { speakArabic } from '../services/voice';
+import { diagnoseArabicVoice, speakArabic } from '../services/voice';
 
 const statusLabel = (value) => value === true ? 'جاهز' : value === false ? 'غير متاح' : 'لم يُختبر';
 
@@ -30,8 +30,10 @@ export default function DeviceDiagnostics({ data }) {
     } catch { result.storage = false; }
 
     try {
-      const voices = speechSynthesis.getVoices();
-      result.arabicVoice = voices.some((voice) => voice.lang?.toLowerCase().startsWith('ar'));
+      const voice = await diagnoseArabicVoice(data.settings);
+      result.speech = voice.native ? voice.nativeReady : voice.browserSpeech;
+      result.arabicVoice = voice.native ? voice.nativeArabicAvailable : voice.browserArabicVoices > 0;
+      result.voiceDetails = voice;
     } catch { result.arabicVoice = false; }
 
     try {

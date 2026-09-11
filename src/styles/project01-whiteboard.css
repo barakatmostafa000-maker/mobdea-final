@@ -1,0 +1,54 @@
+/* PROJECT01_WHITEBOARD_ENGINE_V1 — Class Mode whiteboard/PDF/image only. */
+@font-face { font-family:'Noto Naskh Arabic'; src:url('/fonts/NotoNaskhArabic-Variable.ttf') format('truetype'); font-style:normal; font-weight:100 900; font-display:swap; }
+@font-face { font-family:'Noto Kufi Arabic'; src:url('/fonts/NotoKufiArabic-Variable.ttf') format('truetype'); font-style:normal; font-weight:100 900; font-display:swap; }
+@font-face { font-family:'Aref Ruqaa'; src:url('/fonts/ArefRuqaa-Regular.ttf') format('truetype'); font-style:normal; font-weight:400; font-display:swap; }
+@font-face { font-family:'Amiri'; src:url('/fonts/Amiri-Regular.ttf') format('truetype'); font-style:normal; font-weight:400; font-display:swap; }
+@font-face { font-family:'Reem Kufi'; src:url('/fonts/ReemKufi-Variable.ttf') format('truetype'); font-style:normal; font-weight:400 900; font-display:swap; }
+
+.classmode-v103 .classmode-board-panel,
+.classmode-v103 .classmode-board-frame,
+.classmode-v103 .classmode-board-surface,
+.classmode-v103 .classmode-board-stage { position:relative !important; min-width:0 !important; min-height:0 !important; }
+
+.classmode-v103 .classmode-board-surface,
+.classmode-v103 .classmode-board-surface.with-tools { display:grid !important; grid-template-columns:minmax(0,1fr) !important; width:100% !important; height:100% !important; }
+.classmode-v103 .classmode-board-stage { width:100% !important; height:100% !important; overflow:hidden !important; isolation:isolate !important; }
+
+.classmode-v103 .classmode-board-tool-flyout { position:absolute !important; z-index:90 !important; top:8px !important; left:8px !important; width:42px !important; pointer-events:auto !important; }
+.classmode-v103 .classmode-board-tool-toggle { width:42px !important; height:42px !important; min-width:42px !important; min-height:42px !important; padding:0 !important; display:grid !important; place-items:center !important; border:1px solid rgba(215,173,53,.62) !important; border-radius:12px !important; background:rgba(8,10,14,.96) !important; color:#f1d88d !important; box-shadow:0 7px 20px rgba(0,0,0,.38) !important; backdrop-filter:blur(9px) !important; }
+.classmode-v103 .classmode-board-tool-toggle:hover,
+.classmode-v103 .classmode-board-tool-toggle:focus-visible,
+.classmode-v103 .classmode-board-tool-flyout.open .classmode-board-tool-toggle { border-color:#e7bd48 !important; background:#17140c !important; outline:none !important; }
+
+.classmode-v103 .classmode-board-sidebar-left { position:absolute !important; z-index:91 !important; top:48px !important; left:0 !important; width:42px !important; min-width:42px !important; height:auto !important; max-height:calc(100vh - 160px) !important; padding:4px !important; display:flex !important; flex-direction:column !important; gap:4px !important; overflow-x:hidden !important; overflow-y:auto !important; border:1px solid rgba(215,173,53,.48) !important; border-radius:11px !important; background:rgba(8,10,14,.97) !important; box-shadow:0 10px 28px rgba(0,0,0,.46) !important; }
+.classmode-v103 .classmode-board-sidebar-left button { flex:0 0 32px !important; width:32px !important; min-width:32px !important; height:32px !important; min-height:32px !important; padding:0 !important; margin:0 !important; display:grid !important; place-items:center !important; border-radius:8px !important; }
+.classmode-v103 .classmode-board-sidebar-left button svg { width:17px !important; height:17px !important; }
+.classmode-v103 .classmode-board-sidebar-left button span { display:none !important; }
+.classmode-v103 .classmode-left-toolbar-divider { width:26px !important; height:1px !important; min-height:1px !important; margin:2px auto !important; background:rgba(215,173,53,.30) !important; }
+
+.classmode-v103 .classmode-resource-preview { z-index:1 !important; }
+.classmode-v103 .resource-preview-head { position:relative !important; z-index:40 !important; }
+.classmode-v103 .resource-preview-body { position:relative !important; min-width:0 !important; min-height:0 !important; }
+.classmode-v103 .resource-annotation-overlay { pointer-events:none !important; }
+
+.classmode-v103 .class-board-canvas-shell { position:absolute !important; z-index:20 !important; inset:0 !important; width:100% !important; height:100% !important; min-width:0 !important; min-height:0 !important; max-width:none !important; max-height:none !important; margin:0 !important; padding:0 !important; overflow:hidden !important; transform:none !important; aspect-ratio:auto !important; pointer-events:auto !important; user-select:none !important; -webkit-user-select:none !important; overscroll-behavior:contain !important; }
+.classmode-v103 .class-board-canvas-shell.has-resource-head { top:34px !important; right:0 !important; bottom:0 !important; left:0 !important; width:100% !important; height:calc(100% - 34px) !important; background:transparent !important; }
+.classmode-v103 .class-board-canvas,
+.classmode-v103 .class-board-canvas-shell canvas { position:absolute !important; z-index:2 !important; inset:0 !important; display:block !important; width:100% !important; height:100% !important; min-width:100% !important; min-height:100% !important; max-width:none !important; max-height:none !important; margin:0 !important; padding:0 !important; object-fit:fill !important; background:transparent !important; pointer-events:auto !important; touch-action:none !important; user-select:none !important; -webkit-user-select:none !important; -webkit-touch-callout:none !important; }
+.classmode-v103 .classmode-board-identity { z-index:0 !important; pointer-events:none !important; }
+
+.classmode-v103 .classmode-toolbar { position:absolute !important; z-index:80 !important; left:58px !important; bottom:8px !important; width:auto !important; max-width:calc(100% - 74px) !important; min-height:36px !important; max-height:44px !important; margin:0 !important; padding:3px 5px !important; display:flex !important; flex:none !important; overflow-x:auto !important; overflow-y:hidden !important; border:1px solid rgba(215,173,53,.44) !important; border-radius:11px !important; background:rgba(8,10,14,.96) !important; box-shadow:0 8px 22px rgba(0,0,0,.38) !important; backdrop-filter:blur(8px) !important; }
+.classmode-v103 .classmode-toolbar .classmode-tool-group button,
+.classmode-v103 .classmode-toolbar .classmode-tool-group select,
+.classmode-v103 .classmode-toolbar .classmode-tool-group input { min-height:28px !important; height:28px !important; }
+
+@media (max-width:1100px), (max-height:650px) {
+  .classmode-v103 .classmode-board-tool-flyout { top:5px !important; left:5px !important; width:38px !important; }
+  .classmode-v103 .classmode-board-tool-toggle { width:38px !important; height:38px !important; min-width:38px !important; min-height:38px !important; border-radius:10px !important; }
+  .classmode-v103 .classmode-board-sidebar-left { top:43px !important; width:38px !important; min-width:38px !important; max-height:calc(100vh - 125px) !important; padding:3px !important; }
+  .classmode-v103 .classmode-board-sidebar-left button { flex-basis:29px !important; width:29px !important; min-width:29px !important; height:29px !important; min-height:29px !important; }
+  .classmode-v103 .classmode-toolbar { left:49px !important; bottom:5px !important; max-width:calc(100% - 59px) !important; min-height:32px !important; max-height:37px !important; padding:2px 4px !important; }
+  .classmode-v103 .classmode-toolbar .classmode-tool-group button,
+  .classmode-v103 .classmode-toolbar .classmode-tool-group select,
+  .classmode-v103 .classmode-toolbar .classmode-tool-group input { min-height:25px !important; height:25px !important; font-size:.62rem !important; }
+}

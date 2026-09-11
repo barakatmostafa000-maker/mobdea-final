@@ -1,0 +1,240 @@
+/* R20_FIX02_UNIFIED_CLASSMODE_LAYOUT_V1
+   Unified ClassMode chrome for:
+   PDF, whiteboard, images, video, audio, PowerPoint, maps, games.
+   This phase intentionally changes layout/chrome only.
+*/
+
+:root {
+  --r20-class-top-gap: max(6px, env(safe-area-inset-top, 0px));
+  --r20-class-side-gap: 8px;
+  --r20-class-control-size: 38px;
+  --r20-class-control-radius: 12px;
+  --r20-class-control-opacity: .72;
+  --r20-class-bottom-gap: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+.classmode-v103,
+.classmode-page,
+.lesson-mode-shell,
+[data-r20-classmode-root="true"] {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-classmode-stage="true"] {
+  position: absolute !important;
+  inset:
+    calc(var(--r20-class-top-gap) + 48px)
+    0
+    calc(var(--r20-class-bottom-gap) + 54px)
+    0 !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+[data-r20-classmode-content="true"] {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 auto !important;
+}
+
+/* Top bar: back arrow only. */
+[data-r20-control="back"] {
+  position: fixed !important;
+  top: var(--r20-class-top-gap) !important;
+  left: var(--r20-class-side-gap) !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: var(--r20-class-control-size) !important;
+  min-width: var(--r20-class-control-size) !important;
+  height: var(--r20-class-control-size) !important;
+  min-height: var(--r20-class-control-size) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  opacity: .82 !important;
+  z-index: 2200 !important;
+}
+
+[data-r20-control="back"]::before {
+  content: "←";
+  font-size: 22px !important;
+  line-height: 1 !important;
+}
+
+/* Bottom shared controls. */
+[data-r20-control="students"],
+[data-r20-control="save"],
+[data-r20-control="board-tools"],
+[data-r20-control="cards"],
+[data-r20-control="symbols"] {
+  position: fixed !important;
+  bottom: var(--r20-class-bottom-gap) !important;
+  width: var(--r20-class-control-size) !important;
+  min-width: var(--r20-class-control-size) !important;
+  height: var(--r20-class-control-size) !important;
+  min-height: var(--r20-class-control-size) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: var(--r20-class-control-radius) !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  opacity: var(--r20-class-control-opacity) !important;
+  z-index: 2200 !important;
+}
+
+[data-r20-control="students"] {
+  right: var(--r20-class-side-gap) !important;
+}
+
+[data-r20-control="save"] {
+  right: calc(var(--r20-class-side-gap) + 46px) !important;
+  opacity: .62 !important;
+}
+
+[data-r20-control="board-tools"] {
+  left: var(--r20-class-side-gap) !important;
+}
+
+[data-r20-control="cards"] {
+  left: calc(var(--r20-class-side-gap) + 46px) !important;
+}
+
+[data-r20-control="symbols"] {
+  left: calc(var(--r20-class-side-gap) + 92px) !important;
+}
+
+[data-r20-control="students"]::before {
+  content: "👥";
+  font-size: 18px !important;
+}
+
+[data-r20-control="save"]::before {
+  content: "💾";
+  font-size: 17px !important;
+}
+
+[data-r20-control="board-tools"]::before {
+  content: "🖍️";
+  font-size: 18px !important;
+}
+
+[data-r20-control="cards"]::before {
+  content: "🗂️";
+  font-size: 18px !important;
+}
+
+[data-r20-control="symbols"]::before {
+  content: "📍";
+  font-size: 18px !important;
+}
+
+/* Only one student-management button survives. */
+[data-r20-duplicate-control="true"] {
+  display: none !important;
+}
+
+/* Floating Online Lesson control must not cover lesson content. */
+[data-r20-control="online-floating"] {
+  display: none !important;
+}
+
+/* Shared media/content normalization. */
+[data-r20-resource-kind="pdf"],
+[data-r20-resource-kind="whiteboard"],
+[data-r20-resource-kind="image"],
+[data-r20-resource-kind="video"],
+[data-r20-resource-kind="audio"],
+[data-r20-resource-kind="powerpoint"],
+[data-r20-resource-kind="map"],
+[data-r20-resource-kind="game"] {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-resource-kind="video"] video,
+[data-r20-resource-kind="audio"] audio,
+[data-r20-resource-kind="image"] img,
+[data-r20-resource-kind="pdf"] canvas,
+[data-r20-resource-kind="whiteboard"] canvas {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Avoid the old left-shifted / clipped tablet composition. */
+[data-r20-resource-kind="whiteboard"],
+[data-r20-resource-kind="map"],
+[data-r20-resource-kind="game"],
+[data-r20-resource-kind="powerpoint"] {
+  margin-inline: auto !important;
+  translate: none !important;
+  transform-origin: center center !important;
+}
+
+/* Pager must never cover the PDF. */
+[data-r20-pager="true"] {
+  position: fixed !important;
+  bottom: calc(var(--r20-class-bottom-gap) + 2px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) scale(.78) !important;
+  transform-origin: bottom center !important;
+  opacity: .56 !important;
+  z-index: 2150 !important;
+}
+
+/* Generic small tablet modal shell. */
+[data-r20-classmode-root="true"] [role="dialog"],
+[data-r20-classmode-root="true"] dialog,
+[data-r20-classmode-root="true"] .modal,
+[data-r20-classmode-root="true"] .dialog {
+  max-width: min(92vw, 720px) !important;
+  max-height: min(86dvh, 700px) !important;
+  box-sizing: border-box !important;
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  [data-r20-classmode-stage="true"] {
+    inset:
+      calc(var(--r20-class-top-gap) + 44px)
+      0
+      calc(var(--r20-class-bottom-gap) + 48px)
+      0 !important;
+  }
+
+  [data-r20-control="back"],
+  [data-r20-control="students"],
+  [data-r20-control="save"],
+  [data-r20-control="board-tools"],
+  [data-r20-control="cards"],
+  [data-r20-control="symbols"] {
+    --r20-class-control-size: 36px;
+  }
+}

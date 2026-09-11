@@ -4,6 +4,8 @@ export function mirrorCardsForDuplex(cards, columns, mode = 'driver-long-edge') 
   if (mode === 'none' || mode.startsWith('driver-')) return list;
   const rows = [];
   for (let index = 0; index < list.length; index += width) rows.push(list.slice(index, index + width));
+  if (mode === 'flip-long-edge') return rows.flatMap((row) => [...row].reverse());
+  if (mode === 'flip-short-edge') return [...list].reverse();
   if (mode === 'manual-long-edge') return rows.reverse().flat();
   if (mode === 'manual-short-edge') return rows.flatMap((row) => [...row].reverse());
   return list;

@@ -1,0 +1,17 @@
+/* PROJECT04_EDUCATIONAL_CARD_LAYOUT_V1 */
+[data-r19-edu-card]{box-sizing:border-box!important;min-width:0!important;min-height:0!important;container-type:inline-size!important;overflow:hidden!important;padding:var(--r19-card-pad,12px)!important;gap:var(--r19-card-gap,8px)!important;direction:rtl!important;text-align:right!important;line-height:1.5!important}
+[data-r19-edu-card] *{box-sizing:border-box!important;min-width:0}
+[data-r19-edu-card] [data-r19-card-role="title"]{width:100%!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;font-size:var(--r19-card-title-size,21px)!important;line-height:1.28!important;font-weight:900!important;text-wrap:balance!important;overflow-wrap:anywhere!important}
+[data-r19-edu-card] [data-r19-card-role="body"],[data-r19-edu-card] [data-r19-card-role="value"],[data-r19-edu-card] p,[data-r19-edu-card] li{font-size:var(--r19-card-body-size,14px)!important;line-height:1.55!important;overflow-wrap:anywhere!important;word-break:normal!important}
+[data-r19-edu-card] [data-r19-card-role="label"]{font-size:var(--r19-card-label-size,10.5px)!important;line-height:1.25!important;font-weight:800!important;opacity:.78!important;white-space:normal!important;overflow-wrap:anywhere!important}
+[data-r19-edu-card] [data-r19-card-role="media"]{max-width:100%!important;max-height:min(34cqw,126px)!important;object-fit:contain!important}
+[data-r19-edu-card="definition"] [data-r19-definition-helper="true"]{display:none!important}
+[data-r19-edu-card="definition"] [data-r19-card-role="title"]{order:-5!important;text-align:center!important;padding-block:2px calc(var(--r19-card-gap,8px)*.65)!important;border-bottom:1px solid color-mix(in srgb,currentColor 22%,transparent)!important}
+[data-r19-edu-card="definition"] [data-r19-card-role="body"]{width:100%!important;margin:0!important;padding:calc(var(--r19-card-gap,8px)*.7) 0 0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;text-align:right!important}
+[data-r19-edu-card="country"] [data-r19-card-role="title"],[data-r19-edu-card="event"] [data-r19-card-role="title"]{text-align:center!important;margin-bottom:calc(var(--r19-card-gap,8px)*.5)!important}
+[data-r19-edu-card="country"] [data-r19-card-role="value"],[data-r19-edu-card="event"] [data-r19-card-role="value"]{font-weight:700!important}
+[data-r19-edu-card] [class*="content" i],[data-r19-edu-card] [class*="details" i],[data-r19-edu-card] [class*="body" i],[data-r19-edu-card] [class*="copy" i]{min-width:0!important;min-height:0!important;max-width:100%!important}
+[data-r19-edu-card][data-r19-card-overflow="true"]{overflow:auto!important;overscroll-behavior:contain!important;scrollbar-width:thin!important}
+@container(max-width:270px){[data-r19-edu-card]{padding:max(6px,calc(var(--r19-card-pad,12px)*.78))!important;gap:max(3px,calc(var(--r19-card-gap,8px)*.72))!important}[data-r19-edu-card] [data-r19-card-role="media"]{max-height:min(29cqw,88px)!important}}
+@container(max-width:210px){[data-r19-edu-card]{padding:max(5px,calc(var(--r19-card-pad,12px)*.62))!important}[data-r19-edu-card="country"] [data-r19-card-role="media"],[data-r19-edu-card="event"] [data-r19-card-role="media"]{max-height:64px!important}}
+[class*="definition-card" i],[class*="country-card" i],[class*="event-card" i],[class*="flashcard" i]{min-width:0!important;min-height:0!important;box-sizing:border-box!important}

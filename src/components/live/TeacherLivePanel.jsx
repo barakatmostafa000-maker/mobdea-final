@@ -96,6 +96,8 @@ async function compressSnapshot(dataUrl) {
   });
 }
 
+const PROJECT10_ONLINE_CLASS_V1 = true;
+
 export default function TeacherLivePanel({
   cloudSync,
   roomMeta,
@@ -274,7 +276,7 @@ export default function TeacherLivePanel({
       });
     };
     peer.onconnectionstatechange = () => {
-      if (['failed', 'closed'].includes(peer.connectionState)) closePeer(participantId);
+      if (['failed', 'disconnected', 'closed'].includes(peer.connectionState)) closePeer(participantId);
     };
     attachTeacherTracks(peer);
     peersRef.current.set(participantId, peer);
@@ -415,6 +417,7 @@ export default function TeacherLivePanel({
     liveState?.page,
     liveState?.boardRevision,
     liveState?.pointsRevision,
+    liveState?.elapsedSeconds,
   ]);
 
   useEffect(() => () => {

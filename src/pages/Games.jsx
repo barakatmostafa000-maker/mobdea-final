@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { buildShareLink, copyToClipboard } from '../services/share';
 import { questionBank, gradeOptions } from '../data/questionBank';
 import { mergeQuestionBanks } from '../services/assessment';
+import { isQuestionReadyForGame } from '../services/project08QuestionImport';
 import { encourageStudent, playVoiceClip } from '../services/voice';
 import OnlineGameHostPanel from '../components/live/OnlineGameHostPanel';
 import { appendQuestionHistory, selectQuestionRound } from '../services/questionRotation';
+
+const PROJECT08_OCR_EXAM_IMPORT_V1 = true;
 
 const modes = [
   ['speed', '⚡', 'تحدي السرعة', 'أسئلة متتالية مع مؤقت وCombo.'],
@@ -62,7 +65,7 @@ export default function Games({ data, updateData, shareState, navigate }) {
   const [shareNotice, setShareNotice] = useState('');
   const history = data.gameQuestionHistory || [];
 
-  const mergedBank = useMemo(() => mergeQuestionBanks(questionBank, data.customQuestionBank || []), [data.customQuestionBank]);
+  const mergedBank = useMemo(() => mergeQuestionBanks(questionBank, data.customQuestionBank || []).filter(isQuestionReadyForGame), [data.customQuestionBank]);
   const units = useMemo(() => [...new Set(mergedBank.filter((q) => q.gradeKey === gradeKey).map((q) => q.unit))], [mergedBank, gradeKey]);
   const filtered = useMemo(() => mergedBank.filter((q) => q.gradeKey === gradeKey && (unit === 'all' || q.unit === unit)), [mergedBank, gradeKey, unit]);
   const current = round[index];

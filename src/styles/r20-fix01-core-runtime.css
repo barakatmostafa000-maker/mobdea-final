@@ -1,0 +1,194 @@
+/* R20_FIX01_CORE_RUNTIME_V1 */
+
+html, body, #root {
+  max-width: 100%;
+}
+
+.lesson-mode-shell,
+.classmode-page,
+.classmode-v103 {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.classmode-v103 .classmode-main,
+.classmode-v103 .classmode-content,
+.classmode-v103 .classmode-stage,
+.classmode-v103 .classmode-resource-area,
+.classmode-v103 .classmode-media-stage,
+.classmode-v103 .classmode-whiteboard-stage {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.classmode-v103 .classmode-students-list,
+.classmode-v103 .r19-split-source,
+.classmode-v103 .student-list,
+.classmode-v103 [data-r20-scroll="students"] {
+  min-height: 0 !important;
+  max-height: min(68dvh, 610px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  scrollbar-gutter: stable;
+}
+
+.classmode-v103 .classmode-page-nav,
+.classmode-v103 [data-r20-page-nav="true"] {
+  opacity: .62 !important;
+  transform: scale(.82);
+  transform-origin: bottom center;
+}
+
+.classmode-v103 .r20-return-control {
+  position: fixed !important;
+  top: calc(6px + env(safe-area-inset-top, 0px)) !important;
+  left: 8px !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  font-size: 0 !important;
+  opacity: .78 !important;
+  z-index: 1400 !important;
+}
+
+.classmode-v103 .r20-return-control::before {
+  content: "←";
+  font-size: 22px;
+  line-height: 1;
+}
+
+.classmode-v103 .r20-save-control {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  opacity: .64 !important;
+}
+
+.classmode-v103 .r20-save-control::before {
+  content: "💾";
+  font-size: 18px;
+}
+
+.classmode-v103 .r20-student-control {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  opacity: .78 !important;
+}
+
+.classmode-v103 .r20-student-control::before {
+  content: "👥";
+  font-size: 19px;
+}
+
+.classmode-v103 .r20-duplicate-student-control,
+.classmode-v103 .r20-online-floating-control,
+.classmode-v103 .r20-old-random-dialog {
+  display: none !important;
+}
+
+.classmode-v103 .r20-board-tools-control,
+.classmode-v103 .r20-cards-control {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  border-radius: 12px !important;
+}
+
+.classmode-v103 .r20-board-tools-control::before {
+  content: "🖍️";
+  font-size: 19px;
+}
+
+.classmode-v103 .r20-cards-control::before {
+  content: "🗂️";
+  font-size: 19px;
+}
+
+.classmode-v103 .whiteboard-shell,
+.classmode-v103 .whiteboard-stage,
+.classmode-v103 .board-stage,
+.classmode-v103 .classmode-board {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-inline: auto !important;
+}
+
+.classmode-v103 .game-shell,
+.classmode-v103 .classmode-game,
+.classmode-v103 .map-game-layout,
+.map-challenge-pro > .map-game-layout {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.classmode-v103 .game-shell,
+.classmode-v103 .classmode-game,
+.map-challenge-pro {
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.classmode-v103 dialog,
+.classmode-v103 [role="dialog"],
+.modal,
+.dialog {
+  max-height: min(88dvh, 720px) !important;
+  max-width: min(94vw, 760px) !important;
+}
+
+.classmode-v103 dialog .modal-body,
+.classmode-v103 [role="dialog"] .modal-body,
+.modal .modal-body,
+.dialog .dialog-body {
+  min-height: 0 !important;
+  max-height: 74dvh !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.dashboard-v103,
+.dashboard-v103 .dashboard-reference-hero,
+.dashboard-v103 .dashboard-reference-copy,
+.dashboard-v103 .dashboard-feature-grid {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.dashboard-v103 .dashboard-reference-copy {
+  overflow: visible !important;
+}
+
+.dashboard-v103 .dashboard-reference-copy p,
+.dashboard-v103 .dashboard-reference-copy h1,
+.dashboard-v103 .dashboard-reference-copy h2 {
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+
+@media (orientation: landscape) and (max-width: 1400px) {
+  .classmode-v103 .classmode-students-list,
+  .classmode-v103 .r19-split-source {
+    max-height: calc(100dvh - 160px) !important;
+  }
+}

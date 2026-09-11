@@ -76,6 +76,9 @@ export const seedData = {
     voiceRate: 0.92,
     voiceGender: 'auto',
     welcomeVoice: true,
+    // PROJECT_FINAL_SOCIAL_DEFAULTS_V1
+    socialLinks: { youtube: 'https://youtube.com/@mostafabarakat21?si=FczgywNrmc9FTBsl', facebook: 'https://www.facebook.com/share/1AyBatYgJv/', tiktok: 'https://www.tiktok.com/@mostafabarakat210?_r=1&_t=ZS-996NuPuPOy1' },
+    youtubeAutoSync: { enabled: true, channelUrl: 'https://youtube.com/@mostafabarakat21?si=FczgywNrmc9FTBsl', fallbackByTitle: true, gradePlaylists: {}, refreshMinutes: 3 },
     cloudSync: { endpoint: 'https://mobdea-platform-api.barakatmostafa000.workers.dev', workspaceId: 'school_online', token: '', revision: '', lastPushAt: '', lastPullAt: '', autoSync: true, autoSyncIntervalMinutes: 2, lastAutoSyncAt: '', localChangedAt: '', autoSyncError: '', autoBackup: false, autoBackupIntervalHours: 24, lastAutoBackupAt: '', autoBackupError: '' },
     update: { manifestUrl: '', autoCheck: true, trustedSha256: '' },
     voiceClips: [],

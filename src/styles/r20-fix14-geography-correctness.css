@@ -1,0 +1,15 @@
+/* R20_FIX14_GEOGRAPHY_CORRECTNESS_V1
+   Visibility repair only. No geometry is generated or moved.
+*/
+
+[data-r20-geography-required-country] {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+[data-r20-geography-kind="arab-world"]
+  [data-r20-geography-required-country],
+[data-r20-geography-kind="nile-basin"]
+  [data-r20-geography-required-country] {
+  pointer-events: auto;
+}

@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPInputStream;
@@ -33,10 +34,31 @@ import java.util.zip.GZIPInputStream;
 @CapacitorPlugin(name = "MobdeaPdfOcr")
 public class MobdeaPdfOcrPlugin extends Plugin {
     private static final String TAG = "MobdeaPdfOcr";
+    private static final String PROJECT08_OCR_EXAM_IMPORT_V1 = "PROJECT08_OCR_EXAM_IMPORT_V1";
     private static final long MAX_PDF_BYTES = 500L * 1024L * 1024L;
     private static final int MAX_PAGE_RANGE = 20;
     private static final int MAX_RENDER_WIDTH = 1600;
     private static final int MAX_RENDER_HEIGHT = 2500;
+    private static final String OCR_MODEL_PACK_VERSION = "tess304-r19-cube-v1";
+    private static final String[] TESS304_MODEL_FILES = new String[] {
+        "ara.traineddata",
+        "ara.cube.bigrams",
+        "ara.cube.fold",
+        "ara.cube.lm",
+        "ara.cube.nn",
+        "ara.cube.params",
+        "ara.cube.size",
+        "ara.cube.word-freq",
+        "eng.traineddata",
+        "eng.cube.bigrams",
+        "eng.cube.fold",
+        "eng.cube.lm",
+        "eng.cube.nn",
+        "eng.cube.params",
+        "eng.cube.size",
+        "eng.cube.word-freq",
+        "eng.tesseract_cube.nn"
+    };
     private static final String ARA_MODEL_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/ara.traineddata";
     private static final String ENG_MODEL_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata";
     private final ConcurrentHashMap<String, AtomicBoolean> cancellations = new ConcurrentHashMap<>();
@@ -95,8 +117,7 @@ public class MobdeaPdfOcrPlugin extends Plugin {
                 throw new IllegalStateException("Unable to create OCR model directory.");
             }
 
-            modelDownloaded |= ensureModel(tessdata, "ara.traineddata", ARA_MODEL_URL, call, cancelled);
-            if (language.contains("eng")) modelDownloaded |= ensureModel(tessdata, "eng.traineddata", ENG_MODEL_URL, call, cancelled);
+            modelDownloaded |= installCompatibleModelPack(dataRoot, tessdata, cancelled);
             checkCancelled(cancelled);
 
             descriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY);
@@ -138,8 +159,13 @@ public class MobdeaPdfOcrPlugin extends Plugin {
                     source = null;
 
                     sendProgress(call, "recognizing", pageNumber, totalPages, firstPage);
-                    tess.setImage(processed);
-                    String text = tess.getUTF8Text();
+                    Bitmap tessInput = prepareBitmapForTesseract(tess, processed);
+                    String text;
+                    try {
+                        text = tess.getUTF8Text();
+                    } finally {
+                        if (tessInput != null && tessInput != processed && !tessInput.isRecycled()) tessInput.recycle();
+                    }
                     if (text == null) text = "";
                     text = text.trim();
                     if (!text.isEmpty()) {
@@ -211,6 +237,67 @@ public class MobdeaPdfOcrPlugin extends Plugin {
         else call.reject(message, exception);
     }
 
+    private boolean installCompatibleModelPack(File dataRoot, File tessdata, AtomicBoolean cancelled) throws Exception {
+        File marker = new File(dataRoot, "." + OCR_MODEL_PACK_VERSION);
+        boolean complete = marker.exists();
+        for (String fileName : TESS304_MODEL_FILES) {
+            File target = new File(tessdata, fileName);
+            if (!target.exists() || target.length() <= 0L) {
+                complete = false;
+                break;
+            }
+        }
+        if (complete) return false;
+
+        for (String fileName : TESS304_MODEL_FILES) {
+            checkCancelled(cancelled);
+            copyPinnedModelAsset(tessdata, fileName, cancelled);
+        }
+
+        File temporaryMarker = new File(dataRoot, "." + OCR_MODEL_PACK_VERSION + ".tmp");
+        try (FileOutputStream output = new FileOutputStream(temporaryMarker, false)) {
+            output.write(OCR_MODEL_PACK_VERSION.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+        }
+        if (marker.exists() && !marker.delete()) {
+            throw new IllegalStateException("Unable to replace OCR model-pack marker.");
+        }
+        if (!temporaryMarker.renameTo(marker)) {
+            throw new IllegalStateException("Unable to activate OCR model pack.");
+        }
+        return true;
+    }
+
+    private void copyPinnedModelAsset(File tessdata, String fileName, AtomicBoolean cancelled) throws Exception {
+        File target = new File(tessdata, fileName);
+        File temporary = new File(tessdata, fileName + ".pack");
+        if (temporary.exists() && !temporary.delete()) {
+            throw new IllegalStateException("Unable to reset OCR model temporary file.");
+        }
+        try (InputStream input = new BufferedInputStream(getContext().getAssets().open("tess304/" + fileName));
+             BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(temporary))) {
+            byte[] buffer = new byte[32 * 1024];
+            int read;
+            while ((read = input.read(buffer)) >= 0) {
+                checkCancelled(cancelled);
+                output.write(buffer, 0, read);
+            }
+            output.flush();
+        }
+        if (temporary.length() <= 0L) {
+            temporary.delete();
+            throw new IllegalStateException("Bundled OCR model file is empty: " + fileName);
+        }
+        if (target.exists() && !target.delete()) {
+            temporary.delete();
+            throw new IllegalStateException("Unable to replace stale OCR model: " + fileName);
+        }
+        if (!temporary.renameTo(target)) {
+            temporary.delete();
+            throw new IllegalStateException("Unable to install OCR model: " + fileName);
+        }
+    }
+
     private boolean ensureModel(File tessdata, String fileName, String sourceUrl, PluginCall call, AtomicBoolean cancelled) throws Exception {
         File target = new File(tessdata, fileName);
         if (target.exists() && target.length() > 100_000L) return false;
@@ -271,7 +358,7 @@ public class MobdeaPdfOcrPlugin extends Plugin {
     }
 
     private Bitmap preprocess(Bitmap source) {
-        Bitmap output = Bitmap.createBitmap(source.getWidth(), source.getHeight(), Bitmap.Config.RGB_565);
+        Bitmap output = Bitmap.createBitmap(source.getWidth(), source.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(output);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         ColorMatrix matrix = new ColorMatrix();
@@ -286,6 +373,47 @@ public class MobdeaPdfOcrPlugin extends Plugin {
         paint.setColorFilter(new ColorMatrixColorFilter(matrix));
         canvas.drawColor(Color.WHITE);
         canvas.drawBitmap(source, 0, 0, paint);
+        return output;
+    }
+
+    private Bitmap prepareBitmapForTesseract(TessBaseAPI tess, Bitmap source) {
+        if (source == null || source.isRecycled() || source.getWidth() < 2 || source.getHeight() < 2) {
+            throw new IllegalArgumentException("OCR bitmap is empty.");
+        }
+
+        RuntimeException firstError = null;
+        Bitmap first = copySoftwareArgb(source, 1.0f);
+        try {
+            tess.setImage(first);
+            return first;
+        } catch (RuntimeException error) {
+            firstError = error;
+            Log.w(TAG, "Tesseract rejected full-size bitmap; retrying smaller software ARGB bitmap.", error);
+            if (first != null && first != source && !first.isRecycled()) first.recycle();
+        }
+
+        Bitmap fallback = copySoftwareArgb(source, 0.72f);
+        try {
+            tess.setImage(fallback);
+            return fallback;
+        } catch (RuntimeException secondError) {
+            if (fallback != null && fallback != source && !fallback.isRecycled()) fallback.recycle();
+            String firstMessage = firstError == null ? "" : String.valueOf(firstError.getMessage());
+            throw new IllegalStateException("Failed to read bitmap after safe ARGB retry. " + firstMessage, secondError);
+        }
+    }
+
+    private Bitmap copySoftwareArgb(Bitmap source, float scale) {
+        float safeScale = Math.max(0.5f, Math.min(1.0f, scale));
+        int width = Math.max(2, Math.round(source.getWidth() * safeScale));
+        int height = Math.max(2, Math.round(source.getHeight() * safeScale));
+        Bitmap output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+        canvas.drawColor(Color.WHITE);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
+        android.graphics.Rect sourceRect = new android.graphics.Rect(0, 0, source.getWidth(), source.getHeight());
+        android.graphics.Rect targetRect = new android.graphics.Rect(0, 0, width, height);
+        canvas.drawBitmap(source, sourceRect, targetRect, paint);
         return output;
     }
 

@@ -3,7 +3,7 @@ import {
   Home, Users, CalendarDays, ClipboardCheck, GraduationCap, WalletCards,
   Gamepad2, MessageCircle, BarChart3, Settings, Menu, X, Presentation,
   IdCard, ScanLine, ListChecks, Eye, Stethoscope, ChevronLeft, Sparkles,
-  ShieldCheck, Bell, BrainCircuit, MapPinned, BookOpen, DownloadCloud, LogOut, PenTool, Search, Trophy
+  ShieldCheck, Bell, BrainCircuit, MapPinned, BookOpen, DownloadCloud, LogOut, PenTool, Search, Trophy, Radio
 } from 'lucide-react';
 import { identity } from '../config/identity';
 import { release } from '../config/release';
@@ -13,6 +13,7 @@ import GlobalSearch from './GlobalSearch';
 const baseItems = [
   ['dashboard', 'الرئيسية', Home, 'اليوم والحصة الحالية'],
   ['classMode', 'وضع الحصة', Presentation, 'الشرح والتفاعل والحضور'],
+  ['onlineClass', 'الحصة الأونلاين', Radio, 'رابط مباشر وصوت وميكروفون'],
   ['whiteboard', 'السبورة', PenTool, 'الرسم والكتابة والشرح'],
   ['students', 'الطلاب', Users, 'البيانات والمجموعات'],
   ['studentCards', 'كروت الطلاب', IdCard, 'QR والطباعة'],
@@ -70,12 +71,17 @@ export default function AppShell({ active, onChange, children, settings, data, a
   const select = (id) => {
     onChange(id);
     setOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      const content = document.querySelector('.app-shell-v103:not(.lesson-mode-shell) > .app-content');
+      if (content?.scrollTo) content.scrollTo({ top: 0, behavior: 'auto' });
+      else window.scrollTo({ top: 0, behavior: 'auto' });
+    });
   };
 
   const roleLabel = ROLE_LABELS[auth?.role] || 'المستخدم';
 
-  if (active === 'classMode' || active === 'whiteboard') {
+  // PROJECT10_ONLINE_CLASS_V1
+  if (active === 'classMode' || active === 'onlineClass' || active === 'whiteboard') {
     return <div className="app-shell lesson-mode-shell">{children}</div>;
   }
 

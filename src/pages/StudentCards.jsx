@@ -1,33 +1,57 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CheckSquare, Eye, Printer, Search, ShieldCheck, Square, BadgeCheck, IdCard, School, CalendarDays, UserRound, WalletCards, UsersRound, Sparkles, ArrowLeftRight } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import { identity } from '../config/identity';
-import { buildDuplexPagePairs, currentAcademicYear, mirrorCardsForDuplex, nativeDuplexMode } from '../utils/printLayout';
-import { printCurrentView } from '../services/nativePlatform';
+import { useEffect, useMemo, useState } from "react";
+import {
+  CheckSquare,
+  Eye,
+  Printer,
+  Search,
+  ShieldCheck,
+  Square,
+  BadgeCheck,
+  IdCard,
+  School,
+  CalendarDays,
+  UserRound,
+  WalletCards,
+  UsersRound,
+  Sparkles,
+  ArrowLeftRight,
+} from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { identity } from "../config/identity";
+import {
+  buildDuplexPagePairs,
+  currentAcademicYear,
+  mirrorCardsForDuplex,
+  nativeDuplexMode,
+} from "../utils/printLayout";
+import { printCurrentView } from "../services/nativePlatform";
 
+
+const PROJECT05_DUPLEX_STUDENT_CARDS_V1 = true;
 const CARD_PRESETS = {
-  4: { cols: 2, rows: 2, label: '2 × 2' },
-  6: { cols: 3, rows: 2, label: '3 × 2' },
-  9: { cols: 3, rows: 3, label: '3 × 3 — مقاس عملي' },
-  8: { cols: 2, rows: 4, label: '2 × 4' },
-  12: { cols: 3, rows: 4, label: '3 × 4' },
-  16: { cols: 4, rows: 4, label: '4 × 4' },
-  24: { cols: 4, rows: 6, label: '4 × 6' },
-  30: { cols: 5, rows: 6, label: '5 × 6' },
-  36: { cols: 6, rows: 6, label: '6 × 6' },
-  48: { cols: 6, rows: 8, label: '6 × 8' },
-  60: { cols: 6, rows: 10, label: '6 × 10' },
-  72: { cols: 8, rows: 9, label: '8 × 9' }
+  4: { cols: 2, rows: 2, label: "2 × 2" },
+  6: { cols: 3, rows: 2, label: "3 × 2" },
+  9: { cols: 3, rows: 3, label: "3 × 3 — مقاس عملي" },
+  8: { cols: 2, rows: 4, label: "2 × 4" },
+  12: { cols: 3, rows: 4, label: "3 × 4" },
+  16: { cols: 4, rows: 4, label: "4 × 4" },
+  24: { cols: 4, rows: 6, label: "4 × 6" },
+  30: { cols: 5, rows: 6, label: "5 × 6" },
+  36: { cols: 6, rows: 6, label: "6 × 6" },
+  48: { cols: 6, rows: 8, label: "6 × 8" },
+  60: { cols: 6, rows: 10, label: "6 × 10" },
+  72: { cols: 8, rows: 9, label: "8 × 9" },
 };
 
 function chunk(items, size) {
   const result = [];
-  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  for (let index = 0; index < items.length; index += size)
+    result.push(items.slice(index, index + size));
   return result;
 }
 
 function MiniBarcode({ value }) {
-  const seed = String(value || '000000');
+  const seed = String(value || "000000");
   const bars = Array.from({ length: 28 }, (_, index) => {
     const char = seed.charCodeAt(index % seed.length) || 48;
     return ((char + index * 17) % 5) + 1;
@@ -40,7 +64,17 @@ function MiniBarcode({ value }) {
         const x = 5 + index * 4;
         const h = 24 + ((bar * 3) % 12);
         const y = 8 + (12 - (h - 24));
-        return <rect key={index} x={x} y={y} width={bar} height={h} fill="#111" rx="0.5" />;
+        return (
+          <rect
+            key={index}
+            x={x}
+            y={y}
+            width={bar}
+            height={h}
+            fill="#111"
+            rx="0.5"
+          />
+        );
       })}
       <rect x="5" y="8" width="1.5" height="28" fill="#111" />
       <rect x="113.5" y="8" width="1.5" height="28" fill="#111" />
@@ -50,7 +84,7 @@ function MiniBarcode({ value }) {
 
 function CardField({ label, value, icon, wide = false }) {
   return (
-    <div className={`card-field-row ${wide ? 'wide' : ''}`}>
+    <div className={`card-field-row ${wide ? "wide" : ""}`}>
       <div className="card-field-icon">{icon}</div>
       <div className="card-field-copy">
         <span>{label}</span>
@@ -61,69 +95,74 @@ function CardField({ label, value, icon, wide = false }) {
 }
 
 function FrontCard({ student }) {
-  const year =
-    student.year || student.schoolYear || currentAcademicYear();
+  const year = student.year || student.schoolYear || currentAcademicYear();
 
-  const code = String(student.code || '');
+  const code = String(student.code || "");
 
   const qrValue = JSON.stringify({
-    type: 'mobdea-student',
+    type: "mobdea-student",
     code,
-    name: student.name || '',
-    grade: student.grade || '',
-    group: student.group || '',
+    name: student.name || "",
+    grade: student.grade || "",
+    group: student.group || "",
   });
 
   return (
     <article
       className="student-card-face front-card student-card-template-card student-card-template-front"
+      data-student-id={student?.id ?? ''}
+      data-student-code={student?.code ?? ''}
       dir="rtl"
     >
       <img
         className="student-card-template-image"
         src={`${import.meta.env.BASE_URL}identity/card-templates/student-card-front.png`}
-        alt={`وجه كارت ${student.name || 'الطالب'}`}
+        alt={`وجه كارت ${student.name || "الطالب"}`}
         draggable="false"
       />
 
       <div className="student-card-template-value student-card-template-name">
-        {student.name || '—'}
+        {student.name || "—"}
       </div>
 
       <div
         className="student-card-template-value student-card-template-code"
         dir="ltr"
       >
-        {code || '—'}
+        {code || "—"}
       </div>
 
       <div className="student-card-template-value student-card-template-grade">
-        {student.grade || '—'}
+        {student.grade || "—"}
       </div>
 
       <div className="student-card-template-value student-card-template-group">
-        {student.group || '—'}
+        {student.group || "—"}
       </div>
 
       <div
         className="student-card-template-value student-card-template-year"
         dir="ltr"
       >
-        {year || '—'}
+        {year || "—"}
       </div>
 
       <div className="student-card-template-id">
         <MiniBarcode value={code} />
-        <strong>{code || '—'}</strong>
+        <strong>{code || "—"}</strong>
         <QRCodeSVG value={qrValue} size={96} includeMargin />
       </div>
     </article>
   );
 }
 
-function BackCard() {
+function BackCard({ student }) {
   return (
-    <article className="student-card-face back-card student-card-template-card student-card-template-back">
+    <article
+      className="student-card-face back-card student-card-template-card student-card-template-back"
+      data-student-id={student?.id ?? ''}
+      data-student-code={student?.code ?? ''}
+    >
       <img
         className="student-card-template-image"
         src={`${import.meta.env.BASE_URL}identity/card-templates/student-card-back.png`}
@@ -134,18 +173,41 @@ function BackCard() {
   );
 }
 
-function PrintSheet({ students, side, columns, rows, duplexMode = 'none' }) {
+function PrintSheet({ students, side, columns, rows, duplexMode = "none" }) {
   const slots = columns * rows;
-  const filler = Array.from({ length: Math.max(0, slots - students.length) }, () => null);
+  const filler = Array.from(
+    { length: Math.max(0, slots - students.length) },
+    () => null,
+  );
   const rawCards = [...students, ...filler].slice(0, slots);
-  const cards = side === 'back' ? mirrorCardsForDuplex(rawCards, columns, duplexMode) : rawCards;
+  const cards =
+    side === "back"
+      ? mirrorCardsForDuplex(rawCards, columns, duplexMode)
+      : rawCards;
 
   return (
-    <section className={`print-sheet ${side === 'back' && duplexMode !== 'none' ? 'duplex-mirrored' : ''}`} data-side={side}>
-      <div className="print-sheet-grid" style={{ '--print-columns': columns, '--print-rows': rows }}>
+    <section
+      className={`print-sheet ${side === "back" && duplexMode !== "none" ? "duplex-mirrored" : ""}`}
+      data-side={side}
+     data-columns={columns} data-rows={rows} data-duplex-mode={duplexMode}>
+      <div
+        className="print-sheet-grid"
+        style={{ "--print-columns": columns, "--print-rows": rows }}
+      >
         {cards.map((student, index) => (
-          <div key={student ? student.id : `empty-${index}`} className={`print-slot ${student ? 'has-card' : 'empty-slot'}`}>
-            {student ? (side === 'back' ? <BackCard /> : <FrontCard student={student} />) : <div className="empty-card-slot" />}
+          <div
+            key={student ? student.id : `empty-${index}`}
+            className={`print-slot ${student ? "has-card" : "empty-slot"}`}
+           data-slot-index={index} data-student-id={student?.id ?? ''}>
+            {student ? (
+              side === "back" ? (
+                <BackCard student={student} />
+              ) : (
+                <FrontCard student={student} />
+              )
+            ) : (
+              <div className="empty-card-slot" />
+            )}
           </div>
         ))}
       </div>
@@ -153,20 +215,43 @@ function PrintSheet({ students, side, columns, rows, duplexMode = 'none' }) {
   );
 }
 
-function PrintRun({ title, students, side, columns, rows, duplexMode = 'none' }) {
+function PrintRun({
+  title,
+  students,
+  side,
+  columns,
+  rows,
+  duplexMode = "none",
+}) {
   const pages = chunk(students, columns * rows);
 
   return (
     <section className="print-run">
       <div className="print-run-header">
         <h2>{title}</h2>
-        <p>{side === 'both' ? 'يتم طباعة الوجه الأمامي ثم الخلفي في صفحات منفصلة' : `طباعة ${side === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}`}</p>
+        <p>
+          {side === "both"
+            ? "يتم طباعة الوجه الأمامي ثم الخلفي في صفحات منفصلة"
+            : `طباعة ${side === "front" ? "الوجه الأمامي" : "الوجه الخلفي"}`}
+        </p>
       </div>
       <div className="print-pack">
         {pages.map((pageStudents, index) => (
-          <div className={`print-pack-page ${index === pages.length - 1 ? 'last-page' : ''}`} key={`${side}-${index}`}>
-            <div className="print-pack-label">الصفحة {index + 1} — {side === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}</div>
-            <PrintSheet students={pageStudents} side={side} columns={columns} rows={rows} duplexMode={duplexMode} />
+          <div
+            className={`print-pack-page ${index === pages.length - 1 ? "last-page" : ""}`}
+            key={`${side}-${index}`}
+          >
+            <div className="print-pack-label">
+              الصفحة {index + 1} —{" "}
+              {side === "front" ? "الوجه الأمامي" : "الوجه الخلفي"}
+            </div>
+            <PrintSheet
+              students={pageStudents}
+              side={side}
+              columns={columns}
+              rows={rows}
+              duplexMode={duplexMode}
+            />
           </div>
         ))}
       </div>
@@ -184,13 +269,38 @@ function DuplexPrintRun({ students, columns, rows, duplexMode }) {
       </div>
       <div className="print-pack">
         {pairs.flatMap((pair, pairIndex) => [
-          <div className="print-pack-page duplex-front-page" data-sheet={pair.sheetIndex + 1} data-side="front" key={`pair-${pair.sheetIndex}-front`}>
-            <div className="print-pack-label">الورقة {pair.sheetIndex + 1} — الوجه الأمامي</div>
-            <PrintSheet students={pair.students} side="front" columns={columns} rows={rows}/>
+          <div
+            className="print-pack-page duplex-front-page"
+            data-sheet={pair.sheetIndex + 1}
+            data-side="front"
+            key={`pair-${pair.sheetIndex}-front`}
+          >
+            <div className="print-pack-label">
+              الورقة {pair.sheetIndex + 1} — الوجه الأمامي
+            </div>
+            <PrintSheet
+              students={pair.students}
+              side="front"
+              columns={columns}
+              rows={rows}
+            />
           </div>,
-          <div className={`print-pack-page duplex-back-page ${pairIndex === pairs.length - 1 ? 'last-page' : ''}`} data-sheet={pair.sheetIndex + 1} data-side="back" key={`pair-${pair.sheetIndex}-back`}>
-            <div className="print-pack-label">الورقة {pair.sheetIndex + 1} — الظهر المطابق</div>
-            <PrintSheet students={pair.students} side="back" columns={columns} rows={rows} duplexMode={duplexMode}/>
+          <div
+            className={`print-pack-page duplex-back-page ${pairIndex === pairs.length - 1 ? "last-page" : ""}`}
+            data-sheet={pair.sheetIndex + 1}
+            data-side="back"
+            key={`pair-${pair.sheetIndex}-back`}
+          >
+            <div className="print-pack-label">
+              الورقة {pair.sheetIndex + 1} — الظهر المطابق
+            </div>
+            <PrintSheet
+              students={pair.students}
+              side="back"
+              columns={columns}
+              rows={rows}
+              duplexMode={duplexMode}
+            />
           </div>,
         ])}
       </div>
@@ -199,32 +309,50 @@ function DuplexPrintRun({ students, columns, rows, duplexMode }) {
 }
 
 export default function StudentCards({ data, auth }) {
-  const isOwnCardOnly = auth?.role === 'student';
+  const isOwnCardOnly = auth?.role === "student";
   const rosterStudents = useMemo(
-    () => (isOwnCardOnly ? data.students.filter((student) => String(student.id) === String(auth.studentId)) : data.students),
-    [data.students, isOwnCardOnly, auth?.studentId]
+    () =>
+      isOwnCardOnly
+        ? data.students.filter(
+            (student) => String(student.id) === String(auth.studentId),
+          )
+        : data.students,
+    [data.students, isOwnCardOnly, auth?.studentId],
   );
-  const [group, setGroup] = useState('all');
-  const [query, setQuery] = useState('');
-  const [side, setSide] = useState('front');
-  const [printMode, setPrintMode] = useState('front');
+  const [group, setGroup] = useState("all");
+  const [query, setQuery] = useState("");
+  const [side, setSide] = useState("front");
+  const [printMode, setPrintMode] = useState("front");
   const [cardsPerPage, setCardsPerPage] = useState(9);
-  const [duplexMode, setDuplexMode] = useState('driver-long-edge');
-  const [selectedStudentId, setSelectedStudentId] = useState(rosterStudents[0]?.id || null);
-  const [selectedIds, setSelectedIds] = useState(isOwnCardOnly && rosterStudents[0] ? [rosterStudents[0].id] : []);
-  const [printNotice, setPrintNotice] = useState('');
+  const [duplexMode, setDuplexMode] = useState("driver-long-edge");
+  const [selectedStudentId, setSelectedStudentId] = useState(
+    rosterStudents[0]?.id || null,
+  );
+  const [selectedIds, setSelectedIds] = useState(
+    isOwnCardOnly && rosterStudents[0] ? [rosterStudents[0].id] : [],
+  );
+  const [printNotice, setPrintNotice] = useState("");
   const [printing, setPrinting] = useState(false);
 
-  const groups = [...new Set(rosterStudents.map((student) => student.group).filter(Boolean))];
+  const groups = [
+    ...new Set(rosterStudents.map((student) => student.group).filter(Boolean)),
+  ];
   const filteredStudents = useMemo(() => {
     const search = query.trim().toLowerCase();
     return rosterStudents.filter((student) => {
-      const haystack = `${student.name} ${student.code} ${student.grade} ${student.group}`.toLowerCase();
-      return (group === 'all' || student.group === group) && (!search || haystack.includes(search));
+      const haystack =
+        `${student.name} ${student.code} ${student.grade} ${student.group}`.toLowerCase();
+      return (
+        (group === "all" || student.group === group) &&
+        (!search || haystack.includes(search))
+      );
     });
   }, [rosterStudents, group, query]);
 
-  const visibleIds = useMemo(() => filteredStudents.map((student) => student.id), [filteredStudents]);
+  const visibleIds = useMemo(
+    () => filteredStudents.map((student) => student.id),
+    [filteredStudents],
+  );
 
   useEffect(() => {
     if (!filteredStudents.length) {
@@ -232,118 +360,160 @@ export default function StudentCards({ data, auth }) {
       return;
     }
     if (!filteredStudents.some((student) => student.id === selectedStudentId)) {
-      setSelectedStudentId(filteredStudents[0]?.id || rosterStudents[0]?.id || null);
+      setSelectedStudentId(
+        filteredStudents[0]?.id || rosterStudents[0]?.id || null,
+      );
     }
   }, [filteredStudents, selectedStudentId, rosterStudents]);
 
-  const selectedVisibleStudents = useMemo(() => {
-    const selectedSet = new Set(selectedIds);
-    const pick = filteredStudents.filter((student) => selectedSet.has(student.id));
-    return pick.length ? pick : filteredStudents;
-  }, [filteredStudents, selectedIds]);
+  const selectedPrintStudents = useMemo(() => {
+    const selectedSet = new Set(selectedIds.map((id) => String(id)));
+    return rosterStudents.filter((student) =>
+      selectedSet.has(String(student.id)),
+    );
+  }, [rosterStudents, selectedIds]);
 
-  const activeStudent = filteredStudents.find((student) => student.id === selectedStudentId) || filteredStudents[0] || rosterStudents[0];
+  const activeStudent =
+    filteredStudents.find((student) => student.id === selectedStudentId) ||
+    filteredStudents[0] ||
+    rosterStudents[0];
   const preset = CARD_PRESETS[cardsPerPage] || CARD_PRESETS[24];
-  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+  const selectedIdSet = useMemo(
+    () => new Set(selectedIds.map((id) => String(id))),
+    [selectedIds],
+  );
+  const allVisibleSelected =
+    visibleIds.length > 0 &&
+    visibleIds.every((id) => selectedIdSet.has(String(id)));
 
   const toggleStudent = (studentId) => {
-    setSelectedIds((current) => (current.includes(studentId) ? current.filter((item) => item !== studentId) : [...current, studentId]));
+    setSelectedIds((current) => {
+      const exists = current.some((item) => String(item) === String(studentId));
+      return exists
+        ? current.filter((item) => String(item) !== String(studentId))
+        : [...current, studentId];
+    });
   };
 
-  const selectAllVisible = () => setSelectedIds(visibleIds);
+  const selectAllVisible = () =>
+    setSelectedIds((current) => {
+      const next = [...current];
+      for (const id of visibleIds) {
+        if (!next.some((item) => String(item) === String(id))) next.push(id);
+      }
+      return next;
+    });
   const clearSelection = () => setSelectedIds([]);
 
   const waitForPrintableAssets = async () => {
     if (document.fonts?.ready) await document.fonts.ready.catch(() => null);
-    const images = [...document.querySelectorAll('.print-only img')];
-    await Promise.all(images.map((image) => {
-      if (image.complete && image.naturalWidth > 0) return Promise.resolve();
-      return new Promise((resolve) => {
-        const done = () => resolve();
-        image.addEventListener('load', done, { once: true });
-        image.addEventListener('error', done, { once: true });
-        window.setTimeout(done, 5000);
-      });
-    }));
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const images = [...document.querySelectorAll(".print-only img")];
+    await Promise.all(
+      images.map((image) => {
+        if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+        return new Promise((resolve) => {
+          const done = () => resolve();
+          image.addEventListener("load", done, { once: true });
+          image.addEventListener("error", done, { once: true });
+          window.setTimeout(done, 5000);
+        });
+      }),
+    );
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
   };
 
-  const waitForPrintDialogToClose = () => new Promise((resolve) => {
-    let dialogOpened = false;
-    let settled = false;
-    let fallbackTimer = null;
+  const waitForPrintDialogToClose = () =>
+    new Promise((resolve) => {
+      let dialogOpened = false;
+      let settled = false;
+      let fallbackTimer = null;
 
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('blur', markOpened);
-      window.removeEventListener('focus', handleReturn);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.clearTimeout(fallbackTimer);
-      resolve();
-    };
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("blur", markOpened);
+        window.removeEventListener("focus", handleReturn);
+        document.removeEventListener("visibilitychange", handleVisibility);
+        window.clearTimeout(fallbackTimer);
+        resolve();
+      };
 
-    const markOpened = () => {
-      dialogOpened = true;
-    };
+      const markOpened = () => {
+        dialogOpened = true;
+      };
 
-    const handleReturn = () => {
-      if (dialogOpened) window.setTimeout(finish, 450);
-    };
+      const handleReturn = () => {
+        if (dialogOpened) window.setTimeout(finish, 450);
+      };
 
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') dialogOpened = true;
-      if (dialogOpened && document.visibilityState === 'visible') {
-        window.setTimeout(finish, 450);
-      }
-    };
+      const handleVisibility = () => {
+        if (document.visibilityState === "hidden") dialogOpened = true;
+        if (dialogOpened && document.visibilityState === "visible") {
+          window.setTimeout(finish, 450);
+        }
+      };
 
-    window.addEventListener('blur', markOpened);
-    window.addEventListener('focus', handleReturn);
-    document.addEventListener('visibilitychange', handleVisibility);
+      window.addEventListener("blur", markOpened);
+      window.addEventListener("focus", handleReturn);
+      document.addEventListener("visibilitychange", handleVisibility);
 
-    // Some Android print services do not emit blur/visibility events. Keep the
-    // printable DOM alive long enough for their asynchronous snapshot instead
-    // of removing it after two seconds and producing a blank PDF.
-    fallbackTimer = window.setTimeout(finish, 30000);
-  });
+      // Some Android print services do not emit blur/visibility events. Keep the
+      // printable DOM alive long enough for their asynchronous snapshot instead
+      // of removing it after two seconds and producing a blank PDF.
+      fallbackTimer = window.setTimeout(finish, 60000);
+    });
 
   const startPrinting = async (requestedMode = printMode) => {
-    if (!selectedVisibleStudents.length) {
-      setPrintNotice('حدد طالبًا واحدًا على الأقل قبل الطباعة.');
+    if (!selectedPrintStudents.length) {
+      setPrintNotice("حدد طالبًا واحدًا على الأقل قبل الطباعة.");
       return;
     }
 
-    const normalizedMode = ['front', 'back', 'both'].includes(requestedMode) ? requestedMode : printMode;
+    const normalizedMode = ["front", "back", "both"].includes(requestedMode)
+      ? requestedMode
+      : printMode;
     if (normalizedMode !== printMode) {
       setPrintMode(normalizedMode);
       // React must commit the requested front/back sheets before Android takes
       // its print snapshot. Two animation frames are more reliable than a
       // fixed timeout on slower tablets.
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      );
     }
 
     setPrinting(true);
-    setPrintNotice(normalizedMode === 'both' ? 'جارٍ تجهيز الوجه الأمامي والخلفي للطباعة…' : 'جارٍ تجهيز الكروت والصور والخطوط…');
-    document.body.classList.add('mobdea-printing-cards');
+    setPrintNotice(
+      normalizedMode === "both"
+        ? "جارٍ تجهيز الوجه الأمامي والخلفي للطباعة…"
+        : "جارٍ تجهيز الكروت والصور والخطوط…",
+    );
+    document.body.classList.add("mobdea-printing-cards");
     try {
       await waitForPrintableAssets();
       // Force layout, then keep one extra paint window before the native
       // WebView print adapter captures the document.
       void document.body.offsetHeight;
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      );
       await new Promise((resolve) => window.setTimeout(resolve, 250));
-      await printCurrentView('بطاقات طلاب المبدع', {
-        duplexMode: normalizedMode === 'both' ? nativeDuplexMode(duplexMode) : 'none',
+      await printCurrentView("بطاقات طلاب المبدع", {
+        duplexMode:
+          normalizedMode === "both" ? nativeDuplexMode(duplexMode) : "none",
       });
-      setPrintNotice(normalizedMode === 'both'
-        ? 'معاينة الطباعة مفتوحة: كل صفحة وجه يليها الظهر المطابق لنفس الورقة. فعّل الطباعة على الوجهين من الطابعة إذا كانت تدعمها.'
-        : 'معاينة الطباعة مفتوحة. اختر الحفظ بصيغة PDF أو الطابعة.');
+      setPrintNotice(
+        normalizedMode === "both"
+          ? "معاينة الطباعة مفتوحة: كل صفحة وجه يليها الظهر المطابق لنفس الورقة. فعّل الطباعة على الوجهين من الطابعة إذا كانت تدعمها."
+          : "معاينة الطباعة مفتوحة. اختر الحفظ بصيغة PDF أو الطابعة.",
+      );
       await waitForPrintDialogToClose();
     } catch (error) {
-      setPrintNotice(error?.message || 'تعذر تشغيل الطباعة على هذا الجهاز.');
+      setPrintNotice(error?.message || "تعذر تشغيل الطباعة على هذا الجهاز.");
     } finally {
-      document.body.classList.remove('mobdea-printing-cards');
+      document.body.classList.remove("mobdea-printing-cards");
       setPrinting(false);
     }
   };
@@ -354,48 +524,102 @@ export default function StudentCards({ data, auth }) {
         <div>
           <span className="eyebrow">تصميم وطباعة كارت الطالب</span>
           <h2>كروت الطلاب</h2>
-          <p>التصميم ثابت كما هو، مع معاينة الوجه الأمامي والخلفي وطباعة عدد كبير من الطلاب في الصفحة الواحدة.</p>
+          <p>
+            التصميم ثابت كما هو، مع معاينة الوجه الأمامي والخلفي وطباعة عدد كبير
+            من الطلاب في الصفحة الواحدة.
+          </p>
         </div>
-        <button className="primary-btn icon-button" onClick={() => void startPrinting('both')} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ التجهيز…' : 'طباعة الكروت (الوجهين)'}</button>
+        <button
+          className="primary-btn icon-button"
+          onClick={() => void startPrinting("both")}
+          disabled={printing}
+          type="button"
+        >
+          <Printer size={18} />{" "}
+          {printing ? "جارٍ التجهيز…" : "طباعة الكروت (الوجهين)"}
+        </button>
       </div>
 
-      {printNotice && <div className="settings-notice card-print-notice no-print">{printNotice}</div>}
+      {printNotice && (
+        <div className="settings-notice card-print-notice no-print">
+          {printNotice}
+        </div>
+      )}
 
       <div className="student-card-toolbar no-print panel">
         <label>
           <span>اختيار الطالب</span>
-          <select value={activeStudent?.id || ''} onChange={(event) => setSelectedStudentId(Number(event.target.value))}>
-            {filteredStudents.map((student) => <option key={student.id} value={student.id}>{student.code} — {student.name}</option>)}
+          <select
+            value={activeStudent?.id || ""}
+            onChange={(event) =>
+              setSelectedStudentId(Number(event.target.value))
+            }
+          >
+            {filteredStudents.map((student) => (
+              <option key={student.id} value={student.id}>
+                {student.code} — {student.name}
+              </option>
+            ))}
           </select>
         </label>
 
         <label>
           <span>المجموعة</span>
-        {!isOwnCardOnly && (
-        <select value={group} onChange={(event) => setGroup(event.target.value)}>
-            <option value="all">كل المجموعات</option>
-            {groups.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-        )}
+          {!isOwnCardOnly && (
+            <select
+              value={group}
+              onChange={(event) => setGroup(event.target.value)}
+            >
+              <option value="all">كل المجموعات</option>
+              {groups.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
 
         {!isOwnCardOnly && (
-        <label className="card-search">
-          <Search size={17} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث بالاسم أو الكود أو الصف" />
-        </label>
+          <label className="card-search">
+            <Search size={17} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="ابحث بالاسم أو الكود أو الصف"
+            />
+          </label>
         )}
 
         <label>
           <span>عدد الكروت في الصفحة</span>
-          <select value={cardsPerPage} onChange={(event) => setCardsPerPage(Number(event.target.value))}>
-            {Object.entries(CARD_PRESETS).map(([count, presetInfo]) => <option key={count} value={count}>{count} كارت ({presetInfo.label})</option>)}
+          <select
+            value={cardsPerPage}
+            onChange={(event) => setCardsPerPage(Number(event.target.value))}
+          >
+            {Object.entries(CARD_PRESETS).map(([count, presetInfo]) => (
+              <option key={count} value={count}>
+                {count} كارت ({presetInfo.label})
+              </option>
+            ))}
           </select>
         </label>
 
         <div className="side-toggle-group">
-          <button type="button" className={side === 'front' ? 'active' : ''} onClick={() => setSide('front')}><Eye size={16} /> معاينة الوجه الأمامي</button>
-          <button type="button" className={side === 'back' ? 'active' : ''} onClick={() => setSide('back')}><Eye size={16} /> معاينة الوجه الخلفي</button>
+          <button
+            type="button"
+            className={side === "front" ? "active" : ""}
+            onClick={() => setSide("front")}
+          >
+            <Eye size={16} /> معاينة الوجه الأمامي
+          </button>
+          <button
+            type="button"
+            className={side === "back" ? "active" : ""}
+            onClick={() => setSide("back")}
+          >
+            <Eye size={16} /> معاينة الوجه الخلفي
+          </button>
         </div>
       </div>
 
@@ -403,20 +627,37 @@ export default function StudentCards({ data, auth }) {
         <div className="card-preview-stage panel">
           <div className="preview-head">
             <div>
-              <span className="eyebrow">{side === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}</span>
-              <h3>{activeStudent ? activeStudent.name : 'لا يوجد طالب محدد'}</h3>
+              <span className="eyebrow">
+                {side === "front" ? "الوجه الأمامي" : "الوجه الخلفي"}
+              </span>
+              <h3>
+                {activeStudent ? activeStudent.name : "لا يوجد طالب محدد"}
+              </h3>
               <p>التصميم ثابت والبيانات فقط هي التي تتغير.</p>
             </div>
             <div className="preview-mini-stats">
-              <span><strong>{filteredStudents.length}</strong> طالب</span>
-              <span><strong>{selectedVisibleStudents.length}</strong> محدد</span>
-              <span><strong>{Math.ceil(selectedVisibleStudents.length / cardsPerPage)}</strong> صفحة</span>
+              <span>
+                <strong>{filteredStudents.length}</strong> طالب
+              </span>
+              <span>
+                <strong>{selectedPrintStudents.length}</strong> محدد
+              </span>
+              <span>
+                <strong>
+                  {Math.ceil(selectedPrintStudents.length / cardsPerPage)}
+                </strong>{" "}
+                صفحة
+              </span>
             </div>
           </div>
 
           {activeStudent ? (
             <div className="large-card-preview">
-              {side === 'back' ? <BackCard /> : <FrontCard student={activeStudent} />}
+              {side === "back" ? (
+                <BackCard />
+              ) : (
+                <FrontCard student={activeStudent} />
+              )}
             </div>
           ) : (
             <div className="empty-state">لا توجد كروت مطابقة للبحث.</div>
@@ -426,72 +667,158 @@ export default function StudentCards({ data, auth }) {
         <aside className="card-print-info panel">
           <div className="print-note">
             <ShieldCheck size={18} />
-            <span>المعاينة هنا تعرض الوجه المختار فقط، والطباعة تدعم طباعة مجموعة كبيرة من الطلاب في الصفحة الواحدة.</span>
+            <span>
+              المعاينة هنا تعرض الوجه المختار فقط، والطباعة تدعم طباعة مجموعة
+              كبيرة من الطلاب في الصفحة الواحدة.
+            </span>
           </div>
 
           <div className="print-summary-list">
-            <div><span>إجمالي الطلاب</span><strong>{rosterStudents.length}</strong></div>
-            <div><span>الطلاب بعد الفلترة</span><strong>{filteredStudents.length}</strong></div>
-            <div><span>الطلاب المحددون</span><strong>{selectedVisibleStudents.length}</strong></div>
-            <div><span>تنسيق الصفحة</span><strong>{preset.label} — {cardsPerPage} كارت</strong></div>
+            <div>
+              <span>إجمالي الطلاب</span>
+              <strong>{rosterStudents.length}</strong>
+            </div>
+            <div>
+              <span>الطلاب بعد الفلترة</span>
+              <strong>{filteredStudents.length}</strong>
+            </div>
+            <div>
+              <span>الطلاب المحددون</span>
+              <strong>{selectedPrintStudents.length}</strong>
+            </div>
+            <div>
+              <span>تنسيق الصفحة</span>
+              <strong>
+                {preset.label} — {cardsPerPage} كارت
+              </strong>
+            </div>
           </div>
 
           {!isOwnCardOnly && (
-          <div className="selection-actions">
-            <button className="secondary-btn" onClick={selectAllVisible} disabled={!visibleIds.length || allVisibleSelected} type="button"><CheckSquare size={16} /> تحديد الكل</button>
-            <button className="secondary-btn" onClick={clearSelection} type="button"><Square size={16} /> إلغاء التحديد</button>
-          </div>
+            <div className="selection-actions">
+              <button
+                className="secondary-btn"
+                onClick={selectAllVisible}
+                disabled={!visibleIds.length || allVisibleSelected}
+                type="button"
+              >
+                <CheckSquare size={16} /> تحديد الكل
+              </button>
+              <button
+                className="secondary-btn"
+                onClick={clearSelection}
+                type="button"
+              >
+                <Square size={16} /> إلغاء التحديد
+              </button>
+            </div>
           )}
 
           <div className="print-mode-group">
             <span>نوع الطباعة</span>
             <div className="side-toggle-group compact">
-              <button type="button" className={printMode === 'front' ? 'active' : ''} onClick={() => setPrintMode('front')}>الوجه الأمامي</button>
-              <button type="button" className={printMode === 'back' ? 'active' : ''} onClick={() => setPrintMode('back')}>الوجه الخلفي</button>
-              <button type="button" className={printMode === 'both' ? 'active' : ''} onClick={() => setPrintMode('both')}>الوجهين</button>
+              <button
+                type="button"
+                className={printMode === "front" ? "active" : ""}
+                onClick={() => setPrintMode("front")}
+              >
+                الوجه الأمامي
+              </button>
+              <button
+                type="button"
+                className={printMode === "back" ? "active" : ""}
+                onClick={() => setPrintMode("back")}
+              >
+                الوجه الخلفي
+              </button>
+              <button
+                type="button"
+                className={printMode === "both" ? "active" : ""}
+                onClick={() => setPrintMode("both")}
+              >
+                الوجهين
+              </button>
             </div>
           </div>
 
           <label className="duplex-mode-control">
             <span>محاذاة ظهر الكارت عند الطباعة على الوجهين</span>
-            <select value={duplexMode} onChange={(event) => setDuplexMode(event.target.value)}>
-              <option value="driver-long-edge">Duplex تلقائي — الحافة الطويلة</option>
-              <option value="driver-short-edge">Duplex تلقائي — الحافة القصيرة</option>
-              <option value="manual-long-edge">طباعة يدوية — قلب الحافة الطويلة</option>
-              <option value="manual-short-edge">طباعة يدوية — قلب الحافة القصيرة</option>
+            <select
+              value={duplexMode}
+              onChange={(event) => setDuplexMode(event.target.value)}
+            >
+              <option value="driver-long-edge">
+                Duplex تلقائي — الحافة الطويلة
+              </option>
+              <option value="driver-short-edge">
+                Duplex تلقائي — الحافة القصيرة
+              </option>
+              <option value="manual-long-edge">
+                طباعة يدوية — قلب الحافة الطويلة
+              </option>
+              <option value="manual-short-edge">
+                طباعة يدوية — قلب الحافة القصيرة
+              </option>
               <option value="none">بدون قلب أو عكس</option>
             </select>
-            <small>التلقائي يترك مواضع الوجه والظهر متطابقة ويجعل تعريف الطابعة ينفذ القلب. اليدوي يعكس صفوف أو أعمدة الظهر قبل إعادة إدخال الورق.</small>
+            <small>
+              التلقائي يترك مواضع الوجه والظهر متطابقة ويجعل تعريف الطابعة ينفذ
+              القلب. اليدوي يعكس صفوف أو أعمدة الظهر قبل إعادة إدخال الورق.
+            </small>
           </label>
 
           {!isOwnCardOnly && (
-          <div className="card-student-select-list">
-            {filteredStudents.map((student) => (
-              <label key={student.id} className={`card-student-select-row ${selectedIds.includes(student.id) ? 'selected' : ''}`}>
-                <input type="checkbox" checked={selectedIds.includes(student.id)} onChange={() => toggleStudent(student.id)} />
-                <span className="student-code">{student.code}</span>
-                <div>
-                  <strong>{student.name}</strong>
-                  <small>{student.grade} — {student.group}</small>
-                </div>
-              </label>
-            ))}
-          </div>
+            <div className="card-student-select-list">
+              {filteredStudents.map((student) => (
+                <label
+                  key={student.id}
+                  className={`card-student-select-row ${selectedIdSet.has(String(student.id)) ? "selected" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIdSet.has(String(student.id))}
+                    onChange={() => toggleStudent(student.id)}
+                  />
+                  <span className="student-code">{student.code}</span>
+                  <div>
+                    <strong>{student.name}</strong>
+                    <small>
+                      {student.grade} — {student.group}
+                    </small>
+                  </div>
+                </label>
+              ))}
+            </div>
           )}
 
           <div className="card-print-actions">
-            <button className="primary-btn icon-button" onClick={() => void startPrinting(printMode)} disabled={printing} type="button"><Printer size={18} /> {printing ? 'جارٍ تجهيز الطباعة…' : `طباعة ${printMode === 'both' ? 'الوجهين' : (printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي')}`}</button>
+            <button
+              className="primary-btn icon-button"
+              onClick={() => void startPrinting(printMode)}
+              disabled={printing}
+              type="button"
+            >
+              <Printer size={18} />{" "}
+              {printing
+                ? "جارٍ تجهيز الطباعة…"
+                : `طباعة ${printMode === "both" ? "الوجهين" : printMode === "front" ? "الوجه الأمامي" : "الوجه الخلفي"}`}
+            </button>
           </div>
         </aside>
       </div>
 
       <div className="print-pack no-print">
-        {printMode === 'both' ? (
-          <DuplexPrintRun students={selectedVisibleStudents} columns={preset.cols} rows={preset.rows} duplexMode={duplexMode}/>
+        {printMode === "both" ? (
+          <DuplexPrintRun
+            students={selectedPrintStudents}
+            columns={preset.cols}
+            rows={preset.rows}
+            duplexMode={duplexMode}
+          />
         ) : (
           <PrintRun
-            title={printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}
-            students={selectedVisibleStudents}
+            title={printMode === "front" ? "الوجه الأمامي" : "الوجه الخلفي"}
+            students={selectedPrintStudents}
             side={printMode}
             columns={preset.cols}
             rows={preset.rows}
@@ -501,12 +828,17 @@ export default function StudentCards({ data, auth }) {
       </div>
 
       <div className="print-only">
-        {printMode === 'both' ? (
-          <DuplexPrintRun students={selectedVisibleStudents} columns={preset.cols} rows={preset.rows} duplexMode={duplexMode}/>
+        {printMode === "both" ? (
+          <DuplexPrintRun
+            students={selectedPrintStudents}
+            columns={preset.cols}
+            rows={preset.rows}
+            duplexMode={duplexMode}
+          />
         ) : (
           <PrintRun
-            title={printMode === 'front' ? 'الوجه الأمامي' : 'الوجه الخلفي'}
-            students={selectedVisibleStudents}
+            title={printMode === "front" ? "الوجه الأمامي" : "الوجه الخلفي"}
+            students={selectedPrintStudents}
             side={printMode}
             columns={preset.cols}
             rows={preset.rows}

@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 const DEFAULT_LANGUAGE = 'ar-EG';
 const NativeTextToSpeech = registerPlugin('MobdeaTextToSpeech');
+export const PROJECT12_TABLET_VOICE_V1 = true;
 
 let cachedVoices = [];
 let voicesLoadingPromise = null;
@@ -184,15 +185,14 @@ export async function playVoiceClip(settings = {}, phraseType = '') {
 async function speakWithAndroid(text, settings, style) {
   if (!Capacitor.isNativePlatform()) return false;
   try {
-    await NativeTextToSpeech.speak({
+    const result = await NativeTextToSpeech.speak({
       text,
-      language:
-        settings.voiceLanguage || settings.language || DEFAULT_LANGUAGE,
+      language: settings.voiceLanguage || settings.language || DEFAULT_LANGUAGE,
       rate: getRate(settings, style),
       pitch: getPitch(settings, style),
       volume: getVolume(settings),
     });
-    return true;
+    return result?.ok === true && result?.started === true;
   } catch (error) {
     console.warn('Native Arabic speech failed:', error);
     return false;
@@ -234,7 +234,7 @@ async function speakWithBrowser(text, settings, style) {
         finish(false);
       };
       const timeout = window.setTimeout(
-        () => finish(true),
+        () => finish(false),
         Math.max(5000, text.length * 180),
       );
       window.setTimeout(() => {
@@ -259,6 +259,24 @@ export async function speakArabic(
   const nativeSpoken = await speakWithAndroid(message, settings, style);
   if (nativeSpoken) return true;
   return speakWithBrowser(message, settings, style);
+}
+
+export async function diagnoseArabicVoice() {
+  const result = { native: Capacitor.isNativePlatform(), nativeReady: false, nativeArabicAvailable: false, nativeArabicVoices: 0, browserSpeech: hasSpeechSupport(), browserArabicVoices: 0 };
+  if (result.native) {
+    try {
+      const native = await NativeTextToSpeech.diagnose();
+      result.nativeReady = native?.ready === true;
+      result.nativeArabicAvailable = native?.arabicAvailable === true;
+      result.nativeArabicVoices = Number(native?.arabicVoices || 0);
+    } catch (error) { result.nativeError = error?.message || String(error); }
+  }
+  if (hasSpeechSupport()) {
+    const voices = await waitForVoices();
+    result.browserArabicVoices = voices.filter((voice) => /^ar[-_]/i.test(String(voice.lang || ''))).length;
+  }
+  result.ok = result.native ? result.nativeReady && result.nativeArabicAvailable : result.browserSpeech && result.browserArabicVoices > 0;
+  return result;
 }
 
 export function buildEncouragementPhrase(type, studentName = '') {

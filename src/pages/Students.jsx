@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { ContactRound, KeyRound, Trash2 } from 'lucide-react';
 import { normalizeEgyptPhone, pickPhoneFromContacts } from '../services/contacts';
 import { createCredentialSecret, hasCredentialSecret, normalizePin } from '../utils/security';
+
+const PROJECT12_DEFAULT_STUDENT_PIN_V1 = '123456';
 import { cloudConfigured, pushCloudData } from '../services/cloudSync';
 
 function pruneStudentFromData(data, studentId) {
@@ -74,14 +76,19 @@ export default function Students({ data, updateData }) {
       const guardianUsedAsStudentPhone = data.students.find((student) => student.id !== studentId && guardianPhone && guardianPhone === normalizeEgyptPhone(student.studentPhone || ''));
       if (guardianUsedAsStudentPhone) throw new Error(`رقم ولي الأمر مستخدم كهاتف طالب لدى ${guardianUsedAsStudentPhone.name}.`);
       const nextStudent = { ...form, id: studentId, code, name: form.name.trim(), guardianPhone, studentPhone, updatedAt: new Date().toISOString() };
-      const studentPin = normalizePin(form.studentPin);
+      const studentPin = exists ? normalizePin(form.studentPin) : PROJECT12_DEFAULT_STUDENT_PIN_V1;
       const guardianPin = normalizePin(form.guardianPin);
       if (studentPin && (studentPin.length < 6 || studentPin.length > 10)) throw new Error('PIN الطالب يجب أن يتكون من 6 إلى 10 أرقام.');
       if (guardianPin && (guardianPin.length < 6 || guardianPin.length > 10)) throw new Error('PIN ولي الأمر يجب أن يتكون من 6 إلى 10 أرقام.');
       if (guardianPin && !guardianPhone) throw new Error('أدخل رقم ولي الأمر قبل تفعيل حسابه.');
       delete nextStudent.studentPin;
       delete nextStudent.guardianPin;
-      if (studentPin) Object.assign(nextStudent, await createCredentialSecret(studentPin, 'student'));
+      if (studentPin) {
+        Object.assign(nextStudent, await createCredentialSecret(studentPin, 'student'));
+        nextStudent.studentPinMustChange = studentPin === PROJECT12_DEFAULT_STUDENT_PIN_V1;
+        nextStudent.studentPinDefaultVersion = 1;
+        if (studentPin === PROJECT12_DEFAULT_STUDENT_PIN_V1) nextStudent.studentPinChangedByStudentAt = '';
+      }
       if (guardianPin) Object.assign(nextStudent, await createCredentialSecret(guardianPin, 'guardian'));
       const nextStudents = exists
         ? data.students.map((student) => student.id === studentId ? nextStudent : student)
@@ -129,6 +136,18 @@ export default function Students({ data, updateData }) {
     if (form?.id === student.id) setForm(null);
   };
 
+  const resetStudentPin = async (student) => {
+    if (!window.confirm(`إعادة PIN الطالب ${student.name} إلى 123456؟`)) return;
+    const secret = await createCredentialSecret(PROJECT12_DEFAULT_STUDENT_PIN_V1, 'student');
+    await updateData({
+      ...data,
+      students: data.students.map((item) => String(item.id) === String(student.id)
+        ? { ...item, ...secret, studentPinMustChange: true, studentPinDefaultVersion: 1, studentPinChangedByStudentAt: '', updatedAt: new Date().toISOString() }
+        : item),
+    });
+    setNotice(`تمت إعادة PIN ${student.name} إلى 123456، وسيُطلب منه تغييره بعد الدخول.`);
+  };
+
   const editStudent = (student) => setForm({ ...student, studentPin: '', guardianPin: '' });
 
   return (
@@ -155,6 +174,7 @@ export default function Students({ data, updateData }) {
                   <td><small>{hasCredentialSecret(student, 'student') ? 'طالب ✓' : 'طالب غير مفعّل'} • {hasCredentialSecret(student, 'guardian') ? 'ولي أمر ✓' : 'ولي أمر غير مفعّل'}</small></td>
                   <td style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button className="text-btn" onClick={() => editStudent(student)}>تعديل</button>
+                    <button className="text-btn" onClick={() => void resetStudentPin(student)}><KeyRound size={15}/> PIN 123456</button>
                     <button className="text-btn danger-text" onClick={() => remove(student)}><Trash2 size={16} /> حذف</button>
                   </td>
                 </tr>

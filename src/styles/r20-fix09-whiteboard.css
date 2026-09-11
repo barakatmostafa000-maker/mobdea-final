@@ -1,0 +1,161 @@
+/* R20_FIX09_WHITEBOARD_RENDERING_LAYOUT_V1 */
+
+[data-r20-whiteboard-root="true"] {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) auto !important;
+  justify-items: stretch !important;
+  align-items: stretch !important;
+  transform: none !important;
+  translate: none !important;
+  margin-inline: auto !important;
+  padding-inline: 0 !important;
+}
+
+[data-r20-whiteboard-canvas-host="true"] {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin-inline: auto !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  transform: none !important;
+  translate: none !important;
+  left: auto !important;
+  right: auto !important;
+  inset-inline: auto !important;
+}
+
+[data-r20-whiteboard-canvas="true"] {
+  display: block !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: auto !important;
+  transform: none !important;
+  translate: none !important;
+  left: auto !important;
+  right: auto !important;
+  box-sizing: border-box !important;
+  touch-action: none !important;
+}
+
+[data-r20-whiteboard-bottom-control] {
+  position: fixed !important;
+  bottom: max(
+    52px,
+    calc(env(safe-area-inset-bottom, 0px) + 46px)
+  ) !important;
+  z-index: 2250 !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  opacity: .74 !important;
+  backdrop-filter: blur(5px) !important;
+  box-shadow: 0 5px 15px rgb(0 0 0 / 14%) !important;
+}
+
+[data-r20-whiteboard-bottom-control="tools"] {
+  left: calc(50% - 24px) !important;
+  transform: translateX(-50%) !important;
+}
+
+[data-r20-whiteboard-bottom-control="cards"] {
+  left: calc(50% + 24px) !important;
+  transform: translateX(-50%) !important;
+}
+
+[data-r20-whiteboard-bottom-control="tools"]::before {
+  content: "✎" !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+}
+
+[data-r20-whiteboard-bottom-control="cards"]::before {
+  content: "▣" !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  font-size: 19px !important;
+  line-height: 1 !important;
+}
+
+[data-r20-whiteboard-black-cover="neutralized"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+[data-r20-whiteboard-style-control="true"] {
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 42px !important;
+  padding: 4px 7px !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-whiteboard-tool="pen"] {
+  --r20-whiteboard-tool-signature: pen;
+}
+
+[data-r20-whiteboard-tool="pencil"] {
+  --r20-whiteboard-tool-signature: pencil;
+}
+
+[data-r20-whiteboard-tool="brush"] {
+  --r20-whiteboard-tool-signature: brush;
+}
+
+[data-r20-whiteboard-tool="marker"] {
+  --r20-whiteboard-tool-signature: marker;
+}
+
+[data-r20-whiteboard-tool="eraser"] {
+  --r20-whiteboard-tool-signature: eraser;
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  [data-r20-whiteboard-bottom-control] {
+    bottom: max(
+      44px,
+      calc(env(safe-area-inset-bottom, 0px) + 38px)
+    ) !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    opacity: .66 !important;
+  }
+
+  [data-r20-whiteboard-bottom-control="tools"] {
+    left: calc(50% - 21px) !important;
+  }
+
+  [data-r20-whiteboard-bottom-control="cards"] {
+    left: calc(50% + 21px) !important;
+  }
+}

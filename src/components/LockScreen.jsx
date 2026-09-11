@@ -13,7 +13,8 @@ import {
   defaultAuthState, normalizeDigits, resolveGuardianByPhone, resolveStudentByCode,
   resolveStudentFromQrPayload, ROLE_LABELS,
 } from '../utils/auth';
-import { loginStudentFromCloud, mergeStudentLoginSnapshot } from '../services/studentPortalCloud';
+import { bootstrapTeacherCloud, loginStudentCloud } from '../services/project12StudentCloud';
+import { pushCloudData } from '../services/cloudSync';
 
 const roles = [
   { key: 'teacher', title: 'المعلم', hint: 'كلمة مرور موحدة', icon: GraduationCap, pinPrefix: 'teacher' },
@@ -29,6 +30,8 @@ function cleanQrPayload(payload) {
   if (payload == null) return null;
   return String(payload).trim();
 }
+
+const PROJECT12_STUDENT_CLOUD_LOGIN_V1 = true;
 
 export default function LockScreen({ data, onUnlock, updateData }) {
   const [role, setRole] = useState('teacher');
@@ -160,37 +163,119 @@ export default function LockScreen({ data, onUnlock, updateData }) {
           const upgraded = await createStaffPasswordSecret(normalized, prefix);
           await updateData({ ...data, settings: { ...data.settings, ...upgraded, [`${prefix}Pin`]: '' } });
         }
-        onUnlock(defaultAuthState(role), { remember });
+        let loginData = data;
+        if (!String(data.settings?.cloudSync?.token || '').trim() && data.settings?.cloudSync?.endpoint && data.settings?.cloudSync?.workspaceId) {
+          try {
+            const cloud = await bootstrapTeacherCloud(data.settings, normalized);
+            loginData = await updateData({
+              ...data,
+              settings: {
+                ...data.settings,
+                cloudSync: {
+                  ...(data.settings.cloudSync || {}),
+                  ...cloud,
+                  autoSync: true,
+                  bootstrapVersion: 12,
+                  bootstrapAt: new Date().toISOString(),
+                },
+              },
+            });
+            try {
+              const pushed = await pushCloudData(loginData);
+              if (pushed?.revision) {
+                loginData = await updateData({
+                  ...loginData,
+                  settings: {
+                    ...loginData.settings,
+                    cloudSync: {
+                      ...loginData.settings.cloudSync,
+                      revision: pushed.revision,
+                      lastPushAt: new Date().toISOString(),
+                    },
+                  },
+                });
+              }
+            } catch (pushError) {
+              console.warn('Initial Project12 cloud push failed:', pushError);
+            }
+          } catch (cloudError) {
+            console.warn('Project12 automatic cloud bootstrap failed:', cloudError);
+          }
+        }
+        onUnlock(defaultAuthState(role), { remember, bootstrappedData: loginData });
         return;
       }
 
       if (role === 'student') {
-        const scope = `student:${normalizeDigits(identifier) || 'unknown'}`;
-        assertLoginAllowed(scope);
-        const localStudent = resolveStudentByCode(data, identifier) || resolveStudentFromQrPayload(data, identifier);
-        if (localStudent && hasCredentialSecret(localStudent, 'student')) {
-          const localOk = await verifyCredentialSecret(pin, localStudent, 'student');
-          if (localOk) {
-            clearLoginFailures(scope);
-            onUnlock(defaultAuthState('student', localStudent), { remember });
-            return;
-          }
-        }
 
-        try {
-          const payload = await loginStudentFromCloud(data.settings, identifier, pin);
-          const merged = await mergeStudentLoginSnapshot(data, payload, pin);
-          await updateData(merged, { skipCloudDirty: true });
-          const cloudStudent = payload.student || merged.students.find((item) => String(item.code) === String(identifier));
-          clearLoginFailures(scope);
-          onUnlock(defaultAuthState('student', cloudStudent), { remember });
-          return;
-        } catch (cloudError) {
-          if (localStudent && !hasCredentialSecret(localStudent, 'student')) {
-            throw new Error('حساب الطالب غير مفعّل. اطلب من المعلم إنشاء PIN للطالب ثم مزامنة البيانات.');
-          }
-          failLogin(scope, cloudError?.message || 'كود الطالب أو PIN غير صحيح.');
-        }
+      const scope = `student:${normalizeDigits(identifier) || 'unknown'}`;
+
+      assertLoginAllowed(scope);
+
+
+      if (data.settings?.cloudSync?.endpoint && data.settings?.cloudSync?.workspaceId) {
+
+      try {
+
+      const remote = await loginStudentCloud(data.settings, identifier, pin);
+
+      clearLoginFailures(scope);
+
+      onUnlock({
+
+      ...defaultAuthState('student', remote.student),
+
+      cloudPortal: true,
+
+      studentSessionToken: remote.studentToken,
+
+      mustChangePin: Boolean(remote.mustChangePin),
+
+      }, { remember, portalData: remote.data });
+
+      return;
+
+      } catch (cloudError) {
+
+      if ([401, 403, 429].includes(Number(cloudError?.status || 0))) {
+
+      failLogin(scope, cloudError.message || 'كود الطالب أو PIN غير صحيح.');
+
+      }
+
+      console.warn('Cloud student login unavailable, trying local:', cloudError);
+
+      }
+
+      }
+
+
+      const student = resolveStudentByCode(data, identifier) || resolveStudentFromQrPayload(data, identifier);
+
+      if (!student) failLogin(scope, 'كود الطالب أو PIN غير صحيح.');
+
+      const noSecret = !hasCredentialSecret(student, 'student');
+
+      const defaultPin = normalizePin(pin) === '123456'
+
+      && (student.studentPinMustChange === true || (noSecret && !student.studentPinChangedByStudentAt));
+
+      const storedPin = noSecret ? false : await verifyCredentialSecret(pin, student, 'student');
+
+      if (!defaultPin && !storedPin) failLogin(scope, 'كود الطالب أو PIN غير صحيح.');
+
+      clearLoginFailures(scope);
+
+      onUnlock({
+
+      ...defaultAuthState('student', student),
+
+      mustChangePin: Boolean(defaultPin || student.studentPinMustChange),
+
+      }, { remember });
+
+      return;
+
       }
 
       if (role === 'guardian') {

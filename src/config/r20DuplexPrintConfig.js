@@ -1,0 +1,11 @@
+export const R20_DUPLEX_PRINT_CONFIG_MARKER = "R20_FIX23_DUPLEX_PRINT_CONFIG_V1";
+export const R20_DUPLEX_EXISTING_SOURCE_COUNT = 8;
+export const R20_DUPLEX_HAS_PRINT = true;
+export const R20_DUPLEX_HAS_STUDENT_CARDS = true;
+export const R20_DUPLEX_DEFAULT_FLIP_EDGE = "long-edge";
+export const R20_DUPLEX_A4_WIDTH_MM = 210;
+export const R20_DUPLEX_A4_HEIGHT_MM = 297;
+export const R20_DUPLEX_CARD_WIDTH_MM = 85.6;
+export const R20_DUPLEX_CARD_HEIGHT_MM = 54;
+export const R20_DUPLEX_COLUMNS = 2;
+export const R20_DUPLEX_ROWS = 5;

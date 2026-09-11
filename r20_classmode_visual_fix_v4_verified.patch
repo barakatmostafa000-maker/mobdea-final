@@ -1,0 +1,476 @@
+diff --git a/src/pages/ClassMode.jsx b/src/pages/ClassMode.jsx
+--- a/src/pages/ClassMode.jsx
++++ b/src/pages/ClassMode.jsx
+@@ -91,7 +91,6 @@
+ import { rankStudentsByPoints } from "../services/studentRanking";
+ import TeacherLivePanel from "../components/live/TeacherLivePanel";
+ import OnlineGameHostPanel from "../components/live/OnlineGameHostPanel";
+-import Project03StudentPanels from '../components/classmode/Project03StudentPanels';
+ import Project11ClassSyncBridge from '../components/classmode/Project11ClassSyncBridge';
+ import Project12PageQuestionDock from '../components/classmode/Project12PageQuestionDock';
+ import { buildPageAwareQuestionSets, pickPageQuestionScope } from '../services/project12PageQuestions';
+@@ -3840,7 +3839,5 @@
+   const [notes, setNotes] = useState("");
+   const [fullscreen, setFullscreen] = useState(false);
+   const [stageFocus, setStageFocus] = useState(false);
+-  const [managementOpen, setManagementOpen] = useState(
+-    () => Number(globalThis.innerWidth || 1024) >= 961,
+-  );
++  const [managementOpen, setManagementOpen] = useState(false);
+   const [contentMode, setContentMode] = useState("pdf");
+@@ -6074,8 +6071,31 @@
+     >
+-      <div className="project12-classmode-dock">
+-        <button type="button" className="secondary-btn" onClick={() => setManagementOpen((value) => !value)} title="إدارة"><Users size={16}/><span>إدارة</span></button>
+-        <button type="button" className="secondary-btn" onClick={saveBoard} title="حفظ"><Save size={16}/><span>حفظ</span></button>
+-        <button type="button" className="secondary-btn" onClick={toggleFullscreen} title="ملء العرض"><Maximize2 size={16}/><span>ملء العرض</span></button>
+-        <button type="button" className="secondary-btn" onClick={() => switchContentMode('board')} title="عودة للحصة"><Presentation size={16}/><span>عودة للحصة</span></button>
++      <div className="project12-classmode-dock classmode-user-bottom-dock">
++        <button
++          type="button"
++          className={managementOpen ? "secondary-btn active" : "secondary-btn"}
++          onClick={() => setManagementOpen((value) => !value)}
++          title={managementOpen ? "إغلاق إدارة الطلاب" : "إدارة الطلاب"}
++          aria-label={managementOpen ? "إغلاق إدارة الطلاب" : "إدارة الطلاب"}
++        >
++          <Users size={22} />
++        </button>
++        <button
++          type="button"
++          className="secondary-btn"
++          onClick={saveBoard}
++          title="حفظ"
++          aria-label="حفظ"
++        >
++          <Save size={22} />
++        </button>
+       </div>
++      <button
++        type="button"
++        className="classmode-user-fullscreen"
++        onClick={toggleFullscreen}
++        title="ملء الشاشة"
++        aria-label="ملء الشاشة"
++      >
++        <ArrowUpRight size={25} />
++      </button>
+       <Project12PageQuestionDock
+@@ -6295,5 +6315,5 @@
+                 <button
+-                  className="icon-action"
++                  className="icon-action classmode-legacy-fullscreen-action"
+                   onClick={toggleFullscreen}
+                   type="button"
+                 >
+@@ -7491,7 +7511,19 @@
+                   <span className="eyebrow">الطلاب والنقاط</span>
+                   <h3>الترتيب الحالي</h3>
+                 </div>
+-                <Trophy size={20} />
++                <div className="classmode-students-heading-actions">
++                  <button
++                    type="button"
++                    className="classmode-random-student-btn"
++                    onClick={randomStudent}
++                    title="اختيار طالب عشوائي"
++                    aria-label="اختيار طالب عشوائي"
++                  >
++                    <Dices size={18} />
++                    <span>اختيار عشوائي</span>
++                  </button>
++                  <Trophy size={20} />
++                </div>
+               </div>
+               <div
+                 className="classmode-student-sort"
+@@ -7518,4 +7550,12 @@
+               </div>
+-              <div className="classmode-students-list">
++              <div
++                className="classmode-students-list"
++                style={{
++                  "--student-rows": Math.max(
++                    1,
++                    Math.ceil(displayedStudents.length / 2),
++                  ),
++                }}
++              >
+                 {displayedStudents.map((student) => {
+                   const status = attendanceMap[student.id];
+@@ -8298,21 +8338,5 @@
+       <ClassModeViewport.Overlays>
+-        {/* PROJECT03_STUDENT_PANELS_RENDER */}
+-<Project03StudentPanels
+-students={students}
+-attendanceMap={attendanceMap}
+-        points={points}
+-        studentProgress={studentProgress}
+-        selectedStudent={selectedStudent}
+-onSelectedStudent={setSelectedStudent}
+-onMark={mark}
+-onAdjustPoints={adjustPoints}
+-phrases={phrases}
+-correctivePhrases={correctivePhrases}
+-voiceSettings={data.settings}
+-groupLabel={`${current?.group || ''} ${current?.title || ''}`}
+-        onSpoken={setLastPraise}
+-        onNotice={setShareNotice}
+-      />
++        {/* Project03 legacy student overlay disabled: the integrated management panel is the single student UI. */}
+ 
+       <Project11ClassSyncBridge
+         data={data}
+diff --git a/src/main.jsx b/src/main.jsx
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -93,4 +93,5 @@
+ import './services/r20PortalLoginBridge.js';
+ import './services/r20PortalScopeGuard.js';
+ import './styles/r20-audit-phase01-08.css';
++import './styles/r20-classmode-user-final-v4.css';
+ installViewportMetrics();
+diff --git a/src/styles/r20-classmode-user-final-v4.css b/src/styles/r20-classmode-user-final-v4.css
+new file mode 100644
+--- /dev/null
++++ b/src/styles/r20-classmode-user-final-v4.css
+@@ -0,0 +1,340 @@
++/* R20 class mode — user requested final layout v4
++   Verified against the real ClassModeViewport hierarchy on r20-classmode-live.
++*/
++
++.classmode-viewport.classmode-final-layout {
++  position: fixed !important;
++  inset: 0 !important;
++  z-index: 8000 !important;
++  width: 100dvw !important;
++  height: 100dvh !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  max-width: none !important;
++  margin: 0 !important;
++  padding: 0 !important;
++  overflow: hidden !important;
++  background: #070b12 !important;
++}
++
++.classmode-final-layout > .classmode-viewport-skin.classmode-v103 {
++  position: relative !important;
++  display: block !important;
++  width: 100% !important;
++  height: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  overflow: hidden !important;
++  background: #070b12 !important;
++}
++
++/* Top strip = content-mode icons only. */
++.classmode-final-layout .classmode-viewport-header {
++  position: absolute !important;
++  inset: 0 0 auto 0 !important;
++  z-index: 100 !important;
++  height: 56px !important;
++  min-height: 56px !important;
++}
++
++.classmode-final-layout .classmode-top-header {
++  height: 56px !important;
++  min-height: 56px !important;
++  padding: 4px 8px !important;
++  display: flex !important;
++  align-items: center !important;
++  justify-content: center !important;
++  background: #070b12 !important;
++  border-bottom: 1px solid rgba(215,173,53,.26) !important;
++}
++
++.classmode-final-layout .classmode-header-brand,
++.classmode-final-layout .classmode-header-meta {
++  display: none !important;
++}
++
++.classmode-final-layout .classmode-header-tabs {
++  display: flex !important;
++  align-items: center !important;
++  justify-content: center !important;
++  gap: 5px !important;
++  max-width: calc(100dvw - 132px) !important;
++  padding: 4px !important;
++  overflow-x: auto !important;
++  scrollbar-width: none !important;
++}
++
++.classmode-final-layout .classmode-header-tabs::-webkit-scrollbar {
++  display: none !important;
++}
++
++.classmode-final-layout .classmode-header-tabs > button {
++  width: 54px !important;
++  min-width: 54px !important;
++  height: 42px !important;
++  min-height: 42px !important;
++  padding: 0 !important;
++  display: grid !important;
++  place-items: center !important;
++  border-radius: 10px !important;
++}
++
++.classmode-final-layout .classmode-header-tabs > button span {
++  display: none !important;
++}
++
++/* Teaching stage occupies all remaining space. */
++.classmode-final-layout .classmode-viewport-body {
++  position: absolute !important;
++  inset: 56px 0 0 0 !important;
++  width: auto !important;
++  height: auto !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  margin: 0 !important;
++  padding: 0 !important;
++  display: block !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-viewport-stage {
++  position: absolute !important;
++  inset: 0 !important;
++  width: auto !important;
++  height: auto !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-board-panel {
++  width: 100% !important;
++  height: 100% !important;
++  max-width: none !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  display: flex !important;
++  flex-direction: column !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-board-frame {
++  flex: 1 1 auto !important;
++  width: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  margin: 0 !important;
++  padding: 0 !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-board-surface,
++.classmode-final-layout .classmode-board-stage,
++.classmode-final-layout .classmode-resource-preview,
++.classmode-final-layout .resource-preview-body,
++.classmode-final-layout .classmode-map-embed {
++  width: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  max-width: 100% !important;
++}
++
++/* Remove duplicate legacy class-mode controls. */
++.classmode-final-layout .classmode-management-toggle,
++.classmode-final-layout .classmode-fullscreen-exit,
++.classmode-final-layout .classmode-stage-focus-toggle,
++.classmode-final-layout .classmode-legacy-fullscreen-action,
++.classmode-final-layout .classmode-viewport-footer {
++  display: none !important;
++}
++
++/* Bottom-right: ONLY students + save, icon-only. */
++.classmode-final-layout .project12-classmode-dock.classmode-user-bottom-dock {
++  position: fixed !important;
++  right: 12px !important;
++  bottom: 10px !important;
++  left: auto !important;
++  top: auto !important;
++  z-index: 8600 !important;
++  width: auto !important;
++  min-width: 0 !important;
++  height: auto !important;
++  padding: 5px !important;
++  display: flex !important;
++  flex-direction: row !important;
++  align-items: center !important;
++  gap: 6px !important;
++  border: 1px solid rgba(222,181,78,.52) !important;
++  border-radius: 15px !important;
++  background: rgba(5,8,14,.92) !important;
++  box-shadow: 0 12px 30px rgba(0,0,0,.34) !important;
++}
++
++.classmode-final-layout .classmode-user-bottom-dock > button {
++  width: 48px !important;
++  height: 48px !important;
++  min-width: 48px !important;
++  min-height: 48px !important;
++  padding: 0 !important;
++  display: grid !important;
++  place-items: center !important;
++  border: 1px solid rgba(225,185,84,.56) !important;
++  border-radius: 12px !important;
++  background: #0c1018 !important;
++  color: #efc970 !important;
++}
++
++.classmode-final-layout .classmode-user-bottom-dock > button.active {
++  border-color: rgba(239,201,112,.95) !important;
++  background: rgba(215,173,53,.18) !important;
++}
++
++/* One fullscreen arrow only, upper-right. */
++.classmode-final-layout .classmode-user-fullscreen {
++  position: fixed !important;
++  top: 66px !important;
++  right: 12px !important;
++  z-index: 8600 !important;
++  width: 44px !important;
++  height: 44px !important;
++  min-width: 44px !important;
++  min-height: 44px !important;
++  padding: 0 !important;
++  display: grid !important;
++  place-items: center !important;
++  border: 1px solid rgba(229,190,92,.72) !important;
++  border-radius: 12px !important;
++  background: rgba(7,10,16,.90) !important;
++  color: #efc76e !important;
++  box-shadow: 0 10px 26px rgba(0,0,0,.28) !important;
++}
++
++/* Management closed by default; when open show ONLY the integrated student panel. */
++.classmode-final-layout .classmode-viewport-students {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-viewport-students {
++  position: absolute !important;
++  inset: 6px 8px 66px 8px !important;
++  z-index: 8400 !important;
++  display: block !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  overflow: hidden !important;
++  padding: 0 !important;
++  border: 1px solid rgba(215,173,53,.34) !important;
++  border-radius: 18px !important;
++  background: rgba(3,6,11,.97) !important;
++  box-shadow: 0 18px 55px rgba(0,0,0,.48) !important;
++}
++
++.classmode-final-layout.management-open .classmode-viewport-students > .classmode-side-column {
++  width: 100% !important;
++  height: 100% !important;
++  max-width: none !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  padding: 8px !important;
++  display: block !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout.management-open .classmode-viewport-students > .classmode-side-column > * {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-viewport-students .classmode-students-panel {
++  width: 100% !important;
++  height: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  margin: 0 !important;
++  padding: 9px !important;
++  display: grid !important;
++  grid-template-rows: auto auto minmax(0,1fr) auto !important;
++  gap: 7px !important;
++  overflow: hidden !important;
++  border-radius: 14px !important;
++}
++
++.classmode-final-layout .classmode-students-panel .panel-heading.compact {
++  min-height: 46px !important;
++  margin: 0 !important;
++}
++
++.classmode-final-layout .classmode-students-heading-actions {
++  display: flex !important;
++  align-items: center !important;
++  gap: 8px !important;
++}
++
++.classmode-final-layout .classmode-random-student-btn {
++  min-height: 38px !important;
++  padding: 0 12px !important;
++  display: inline-flex !important;
++  align-items: center !important;
++  justify-content: center !important;
++  gap: 7px !important;
++  border: 1px solid rgba(227,187,86,.56) !important;
++  border-radius: 10px !important;
++  background: rgba(212,164,40,.12) !important;
++  color: #efc86f !important;
++  font-weight: 800 !important;
++}
++
++.classmode-final-layout .classmode-student-sort {
++  min-height: 36px !important;
++  margin: 0 !important;
++}
++
++/* Exactly two balanced columns: 10=>5+5, 12=>6+6, 14=>7+7. */
++.classmode-final-layout .classmode-students-list {
++  min-width: 0 !important;
++  min-height: 0 !important;
++  height: 100% !important;
++  display: grid !important;
++  grid-template-rows: repeat(var(--student-rows),minmax(0,1fr)) !important;
++  grid-auto-flow: column !important;
++  grid-auto-columns: minmax(0,1fr) !important;
++  gap: 6px 8px !important;
++  overflow: hidden !important;
++  padding: 0 !important;
++}
++
++.classmode-final-layout .classmode-student-row {
++  min-width: 0 !important;
++  min-height: 0 !important;
++  height: 100% !important;
++  margin: 0 !important;
++  padding: 4px 6px !important;
++  overflow: hidden !important;
++  border-radius: 10px !important;
++}
++
++.classmode-final-layout .classmode-student-row-main {
++  min-width: 0 !important;
++  min-height: 0 !important;
++  height: 100% !important;
++  padding: 3px 5px !important;
++}
++
++.classmode-final-layout .classmode-student-row-actions {
++  gap: 3px !important;
++}
++
++.classmode-final-layout .classmode-student-row-actions button {
++  min-width: 28px !important;
++  min-height: 28px !important;
++  padding: 0 !important;
++}
++
++.classmode-final-layout .classmode-student-commandbar {
++  min-height: 44px !important;
++  margin: 0 !important;
++  padding: 4px 6px !important;
++}
++
++.classmode-final-layout .classmode-selected-student {
++  display: none !important;
++}

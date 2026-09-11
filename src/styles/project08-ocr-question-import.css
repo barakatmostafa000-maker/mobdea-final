@@ -1,0 +1,156 @@
+/* PROJECT08_OCR_EXAM_IMPORT_V1 */
+
+.project08-ocr-import-panel {
+  margin-block: 12px !important;
+  display: grid !important;
+  gap: 10px !important;
+}
+.project08-ocr-import-panel > header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+}
+.project08-ocr-import-panel .eyebrow {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+.project08-ocr-source {
+  min-width: min(310px, 38%) !important;
+  display: grid !important;
+  gap: 2px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(215,173,53,.28) !important;
+  background: rgba(215,173,53,.06) !important;
+}
+.project08-ocr-source strong,
+.project08-ocr-source small {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.project08-ocr-controls {
+  display: grid !important;
+  grid-template-columns: 110px 110px minmax(140px,1fr) minmax(140px,1fr) auto auto !important;
+  gap: 7px !important;
+  align-items: end !important;
+}
+.project08-ocr-controls label,
+.project08-import-list article label {
+  display: grid !important;
+  gap: 4px !important;
+}
+.project08-ocr-controls label span {
+  font-size: .72rem !important;
+  color: #aeb8c8 !important;
+}
+.project08-ocr-controls input,
+.project08-import-list textarea,
+.project08-import-list input,
+.project08-import-list select {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.project08-ocr-status {
+  padding: 8px 10px !important;
+  border-radius: 9px !important;
+  background: rgba(62,151,206,.10) !important;
+  border: 1px solid rgba(91,184,235,.25) !important;
+}
+.project08-import-summary {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+}
+.project08-import-summary span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 5px 8px !important;
+  border-radius: 999px !important;
+  background: rgba(66,181,113,.10) !important;
+  border: 1px solid rgba(66,181,113,.24) !important;
+}
+.project08-import-summary span.warn {
+  background: rgba(240,159,56,.10) !important;
+  border-color: rgba(240,159,56,.30) !important;
+}
+.project08-import-list {
+  max-height: 520px !important;
+  overflow-y: auto !important;
+  display: grid !important;
+  gap: 8px !important;
+  padding-inline-end: 3px !important;
+}
+.project08-import-list article {
+  display: grid !important;
+  gap: 7px !important;
+  padding: 9px !important;
+  border-radius: 11px !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  background: rgba(255,255,255,.025) !important;
+}
+.project08-import-list article.needs-answer,
+.ocr-review-panel article.needs-answer {
+  border-color: rgba(241,163,61,.46) !important;
+  background: rgba(241,163,61,.055) !important;
+}
+.project08-import-list article.duplicate {
+  opacity: .62 !important;
+  border-style: dashed !important;
+}
+.project08-import-list article > header,
+.project08-import-list article > footer {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.answer-required-badge,
+.duplicate-badge,
+.ready-badge {
+  padding: 3px 7px !important;
+  border-radius: 999px !important;
+  font-size: .67rem !important;
+}
+.answer-required-badge {
+  color: #ffd39b !important;
+  background: rgba(226,129,34,.15) !important;
+}
+.duplicate-badge {
+  color: #ffc1bb !important;
+  background: rgba(206,73,58,.13) !important;
+}
+.ready-badge {
+  color: #a7f0c7 !important;
+  background: rgba(54,171,104,.13) !important;
+}
+.project08-import-list em,
+.ocr-answer-required {
+  color: #f0a44e !important;
+  font-style: normal !important;
+  font-size: .7rem !important;
+}
+.project08-approve {
+  display: inline-flex !important;
+  grid-auto-flow: column !important;
+  justify-content: start !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+.project08-import-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 7px !important;
+}
+@media (max-width: 980px) {
+  .project08-ocr-controls { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .project08-ocr-source { min-width: 0 !important; width: 100% !important; }
+  .project08-ocr-import-panel > header { flex-direction: column !important; }
+}
+@media (max-width: 620px) {
+  .project08-ocr-controls { grid-template-columns: 1fr !important; }
+  .project08-import-list { max-height: none !important; }
+}

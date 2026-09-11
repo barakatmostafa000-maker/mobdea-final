@@ -1,0 +1,154 @@
+/* R20_FIX10_EDUCATIONAL_CARDS_V1
+   Term/definition cards only.
+   Country cards remain untouched for Phase 12.
+*/
+
+[data-r20-educational-card="true"] {
+  --r20-card-font-scale: 1;
+  width: min(92vw, 560px) !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 210px !important;
+  max-height: min(68dvh, 560px) !important;
+  margin-inline: auto !important;
+  padding: clamp(14px, 2.2vw, 22px) !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) auto !important;
+  align-items: stretch !important;
+  border-radius: 24px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  transform: none !important;
+  translate: none !important;
+  container-type: inline-size !important;
+}
+
+[data-r20-educational-card-body="true"] {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-educational-card-content="true"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: stretch !important;
+  gap: clamp(10px, 2cqw, 18px) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-educational-card-term="true"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 0 clamp(8px, 1.4cqw, 12px) !important;
+  text-align: center !important;
+  font-size:
+    calc(
+      clamp(19px, 5.1cqw, 32px)
+      * var(--r20-card-font-scale)
+    ) !important;
+  line-height: 1.28 !important;
+  font-weight: 800 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  border-bottom:
+    1px solid
+    color-mix(in srgb, currentColor 18%, transparent) !important;
+}
+
+[data-r20-educational-card-definition="true"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: start !important;
+  font-size:
+    calc(
+      clamp(15px, 3.65cqw, 23px)
+      * var(--r20-card-font-scale)
+    ) !important;
+  line-height: 1.58 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  text-overflow: clip !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+[data-r20-card-text-class="long"]
+  [data-r20-educational-card-content="true"],
+[data-r20-card-text-class="xlong"]
+  [data-r20-educational-card-content="true"],
+[data-r20-card-text-class="xxlong"]
+  [data-r20-educational-card-content="true"] {
+  justify-content: flex-start !important;
+}
+
+[data-r20-card-text-class="xlong"],
+[data-r20-card-text-class="xxlong"] {
+  padding: clamp(11px, 1.8vw, 17px) !important;
+}
+
+[data-r20-card-text-class="xxlong"]
+  [data-r20-educational-card-term="true"] {
+  line-height: 1.2 !important;
+}
+
+[data-r20-card-text-class="xxlong"]
+  [data-r20-educational-card-definition="true"] {
+  line-height: 1.42 !important;
+}
+
+[data-r20-legacy-card-strip="true"] {
+  display: contents !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+[data-r20-educational-cards-trigger="true"] {
+  z-index: 2260 !important;
+}
+
+[data-card-type="country"],
+[data-country-card],
+.country-card,
+[class*="country-card"] {
+  --r20-phase10-country-card-untouched: 1;
+}
+
+@media (max-width: 699px) {
+  [data-r20-educational-card="true"] {
+    width: min(94vw, 520px) !important;
+    max-height: 72dvh !important;
+    min-height: 190px !important;
+    border-radius: 20px !important;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  [data-r20-educational-card="true"] {
+    width: min(76vw, 620px) !important;
+    max-height: 72dvh !important;
+  }
+}

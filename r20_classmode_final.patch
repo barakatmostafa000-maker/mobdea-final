@@ -1,0 +1,451 @@
+diff --git a/src/main.jsx b/src/main.jsx
+index df34bb5..b8c2e2f 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -94,6 +94,7 @@ import './services/r20CriticalViewGuard.js';
+ import './services/r20PortalLoginBridge.js';
+ import './services/r20PortalScopeGuard.js';
+ import './styles/r20-audit-phase01-08.css';
++import './styles/r20-classmode-user-final.css';
+ installViewportMetrics();
+ 
+ const rootElement = document.getElementById("root");
+diff --git a/src/pages/ClassMode.jsx b/src/pages/ClassMode.jsx
+index 674cebe..74e8c81 100644
+--- a/src/pages/ClassMode.jsx
++++ b/src/pages/ClassMode.jsx
+@@ -3842,9 +3842,7 @@
+   const [notes, setNotes] = useState("");
+   const [fullscreen, setFullscreen] = useState(false);
+   const [stageFocus, setStageFocus] = useState(false);
+-  const [managementOpen, setManagementOpen] = useState(
+-    () => Number(globalThis.innerWidth || 1024) >= 961,
+-  );
++  const [managementOpen, setManagementOpen] = useState(false);
+   const [contentMode, setContentMode] = useState("pdf");
+   const [clockTime, setClockTime] = useState(() =>
+     new Date().toLocaleTimeString("ar-EG", {
+@@ -6072,12 +6070,35 @@
+       className={`page classmode-scene classmode-final-layout ${fullscreen ? "fullscreen presentation-fullscreen stage-focus-mode" : ""} ${!fullscreen && stageFocus ? "stage-focus-mode" : ""} ${managementOpen ? "management-open" : "management-closed"}`}
+       sceneRef={sceneRef}
+     >
+-      <div className="project12-classmode-dock">
+-        <button type="button" className="secondary-btn" onClick={() => setManagementOpen((value) => !value)} title="إدارة"><Users size={16}/><span>إدارة</span></button>
+-        <button type="button" className="secondary-btn" onClick={saveBoard} title="حفظ"><Save size={16}/><span>حفظ</span></button>
+-        <button type="button" className="secondary-btn" onClick={toggleFullscreen} title="ملء العرض"><Maximize2 size={16}/><span>ملء العرض</span></button>
+-        <button type="button" className="secondary-btn" onClick={() => switchContentMode('board')} title="عودة للحصة"><Presentation size={16}/><span>عودة للحصة</span></button>
++      <div className="project12-classmode-dock classmode-user-bottom-dock">
++        <button
++          type="button"
++          className={`secondary-btn classmode-user-students ${managementOpen ? "active" : ""}`}
++          onClick={() => setManagementOpen((value) => !value)}
++          title={managementOpen ? "إغلاق إدارة الطلاب" : "إدارة الطلاب"}
++          aria-label={managementOpen ? "إغلاق إدارة الطلاب" : "إدارة الطلاب"}
++        >
++          <Users size={20} />
++        </button>
++        <button
++          type="button"
++          className="secondary-btn classmode-user-save"
++          onClick={saveLessonState}
++          title="حفظ الحصة"
++          aria-label="حفظ الحصة"
++        >
++          <Save size={20} />
++        </button>
+       </div>
++      <button
++        type="button"
++        className="classmode-user-fullscreen"
++        onClick={toggleFullscreen}
++        title={fullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
++        aria-label={fullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
++      >
++        <ArrowUpRight size={24} />
++      </button>
+       <Project12PageQuestionDock
+         visible={contentMode === 'pdf' && Boolean(selectedResource)}
+         page={classPage || selectedResource?.pageStart || 1}
+@@ -7494,7 +7515,28 @@
+                   <span className="eyebrow">الطلاب والنقاط</span>
+                   <h3>الترتيب الحالي</h3>
+                 </div>
+-                <Trophy size={20} />
++                <div className="classmode-students-heading-actions">
++                  <button
++                    type="button"
++                    className="classmode-random-student-btn"
++                    onClick={randomStudent}
++                    title="اختيار طالب عشوائي"
++                    aria-label="اختيار طالب عشوائي"
++                  >
++                    <Dices size={18} />
++                    <span>اختيار عشوائي</span>
++                  </button>
++                  <button
++                    type="button"
++                    className="icon-action"
++                    onClick={() => setManagementOpen(false)}
++                    title="إغلاق إدارة الطلاب"
++                    aria-label="إغلاق إدارة الطلاب"
++                  >
++                    <X size={18} />
++                  </button>
++                  <Trophy size={20} />
++                </div>
+               </div>
+               <div
+                 className="classmode-student-sort"
+@@ -7516,7 +7558,15 @@
+                   الأكثر تحسنًا
+                 </button>
+               </div>
+-              <div className="classmode-students-list">
++              <div
++                className="classmode-students-list"
++                style={{
++                  "--student-rows": Math.max(
++                    1,
++                    Math.min(7, Math.ceil(displayedStudents.length / 2)),
++                  ),
++                }}
++              >
+                 {displayedStudents.map((student) => {
+                   const status = attendanceMap[student.id];
+                   const score = points[student.id] || 0;
+diff --git a/src/styles/r20-classmode-user-final.css b/src/styles/r20-classmode-user-final.css
+new file mode 100644
+index 0000000..5bc8076
+--- /dev/null
++++ b/src/styles/r20-classmode-user-final.css
+@@ -0,0 +1,330 @@
++/* R20 class mode user-final layout — 2026-09-11 */
++
++.classmode-viewport.classmode-final-layout {
++  position: fixed !important;
++  inset: 0 !important;
++  z-index: 8000 !important;
++  width: 100dvw !important;
++  height: 100dvh !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  max-width: none !important;
++  margin: 0 !important;
++  padding: 0 !important;
++  overflow: hidden !important;
++  background: #070b12 !important;
++}
++
++.classmode-viewport.classmode-final-layout > .classmode-viewport-skin {
++  width: 100% !important;
++  height: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  display: grid !important;
++  grid-template-rows: auto minmax(0, 1fr) !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-top-header {
++  min-height: 56px !important;
++  height: 56px !important;
++  padding: 4px 8px !important;
++}
++
++.classmode-final-layout .classmode-header-tabs {
++  gap: 4px !important;
++  overflow-x: auto !important;
++  scrollbar-width: none !important;
++}
++
++.classmode-final-layout .classmode-header-tabs::-webkit-scrollbar {
++  display: none !important;
++}
++
++.classmode-final-layout .classmode-header-tabs > button {
++  min-width: 48px !important;
++  min-height: 42px !important;
++  padding: 4px 8px !important;
++}
++
++.classmode-final-layout .classmode-viewport-body {
++  position: relative !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  width: 100% !important;
++  height: 100% !important;
++  display: block !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-viewport-stage {
++  position: relative !important;
++  width: 100% !important;
++  height: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-board-panel {
++  width: 100% !important;
++  height: 100% !important;
++  max-width: none !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  display: flex !important;
++  flex-direction: column !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-board-frame {
++  flex: 1 1 auto !important;
++  width: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  margin: 0 !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout .classmode-board-surface,
++.classmode-final-layout .classmode-board-stage,
++.classmode-final-layout .classmode-resource-preview,
++.classmode-final-layout .resource-preview-body,
++.classmode-final-layout .classmode-map-embed {
++  width: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  max-width: 100% !important;
++}
++
++.classmode-final-layout .project12-classmode-dock.classmode-user-bottom-dock {
++  position: fixed !important;
++  right: 12px !important;
++  bottom: 10px !important;
++  left: auto !important;
++  top: auto !important;
++  z-index: 8500 !important;
++  display: flex !important;
++  flex-direction: row !important;
++  align-items: center !important;
++  gap: 6px !important;
++  width: auto !important;
++  min-width: 0 !important;
++  padding: 5px !important;
++  border: 1px solid rgba(222, 181, 78, .5) !important;
++  border-radius: 15px !important;
++  background: rgba(5, 8, 14, .92) !important;
++  box-shadow: 0 12px 30px rgba(0, 0, 0, .32) !important;
++}
++
++.classmode-final-layout .classmode-user-bottom-dock > button {
++  width: 48px !important;
++  height: 48px !important;
++  min-width: 48px !important;
++  min-height: 48px !important;
++  padding: 0 !important;
++  display: grid !important;
++  place-items: center !important;
++  border: 1px solid rgba(225, 185, 84, .56) !important;
++  border-radius: 12px !important;
++  background: #0c1018 !important;
++  color: #efc970 !important;
++}
++
++.classmode-final-layout .classmode-user-bottom-dock > button.active {
++  background: rgba(215, 173, 53, .18) !important;
++  border-color: rgba(239, 201, 112, .9) !important;
++}
++
++.classmode-final-layout .classmode-user-fullscreen {
++  position: fixed !important;
++  top: 66px !important;
++  right: 12px !important;
++  z-index: 8500 !important;
++  width: 44px !important;
++  height: 44px !important;
++  min-width: 44px !important;
++  min-height: 44px !important;
++  padding: 0 !important;
++  display: grid !important;
++  place-items: center !important;
++  border: 1px solid rgba(229, 190, 92, .72) !important;
++  border-radius: 12px !important;
++  background: rgba(7, 10, 16, .90) !important;
++  color: #efc76e !important;
++  box-shadow: 0 10px 26px rgba(0, 0, 0, .28) !important;
++}
++
++.classmode-final-layout .classmode-management-toggle,
++.classmode-final-layout .classmode-fullscreen-exit,
++.classmode-final-layout .classmode-stage-focus-toggle,
++.classmode-final-layout .classmode-viewport-footer {
++  display: none !important;
++}
++
++.classmode-final-layout .classmode-viewport-students {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-viewport-students {
++  position: fixed !important;
++  inset: 64px 10px 72px 10px !important;
++  z-index: 8400 !important;
++  display: block !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  overflow: hidden !important;
++  padding: 0 !important;
++  border-radius: 18px !important;
++  background: rgba(3, 6, 11, .96) !important;
++  border: 1px solid rgba(215, 173, 53, .36) !important;
++  box-shadow: 0 18px 55px rgba(0, 0, 0, .48) !important;
++}
++
++.classmode-final-layout.management-open .classmode-viewport-students > .classmode-side-column {
++  width: 100% !important;
++  height: 100% !important;
++  max-width: none !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  padding: 8px !important;
++  display: grid !important;
++  grid-template-rows: auto minmax(0, 1fr) !important;
++  gap: 7px !important;
++  overflow: hidden !important;
++}
++
++.classmode-final-layout.management-open .classmode-viewport-students > .classmode-side-column > * {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-management-actions-panel {
++  display: block !important;
++  margin: 0 !important;
++  padding: 6px !important;
++  min-height: 0 !important;
++}
++
++.classmode-final-layout.management-open .classmode-management-actions-panel .panel-heading {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-management-actions-grid {
++  display: flex !important;
++  align-items: center !important;
++  gap: 5px !important;
++  overflow-x: auto !important;
++  scrollbar-width: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-management-actions-grid::-webkit-scrollbar {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-management-actions-grid > button {
++  min-width: 40px !important;
++  min-height: 36px !important;
++  padding: 4px 8px !important;
++}
++
++.classmode-final-layout.management-open .classmode-management-actions-grid > button span {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-students-panel {
++  display: grid !important;
++  grid-template-rows: auto auto minmax(0, 1fr) auto !important;
++  gap: 7px !important;
++  width: 100% !important;
++  height: 100% !important;
++  min-width: 0 !important;
++  min-height: 0 !important;
++  margin: 0 !important;
++  padding: 9px !important;
++  overflow: hidden !important;
++  border-radius: 14px !important;
++}
++
++.classmode-final-layout .classmode-students-panel .panel-heading.compact {
++  min-height: 46px !important;
++  margin: 0 !important;
++}
++
++.classmode-final-layout .classmode-students-heading-actions {
++  display: flex !important;
++  align-items: center !important;
++  gap: 8px !important;
++}
++
++.classmode-final-layout .classmode-random-student-btn {
++  min-height: 38px !important;
++  padding: 0 12px !important;
++  display: inline-flex !important;
++  align-items: center !important;
++  justify-content: center !important;
++  gap: 7px !important;
++  border: 1px solid rgba(227, 187, 86, .56) !important;
++  border-radius: 10px !important;
++  background: rgba(212, 164, 40, .12) !important;
++  color: #efc86f !important;
++  font-weight: 800 !important;
++}
++
++.classmode-final-layout .classmode-student-sort {
++  margin: 0 !important;
++  min-height: 36px !important;
++}
++
++.classmode-final-layout .classmode-students-list {
++  min-width: 0 !important;
++  min-height: 0 !important;
++  height: 100% !important;
++  display: grid !important;
++  grid-template-rows: repeat(var(--student-rows, 7), minmax(0, 1fr)) !important;
++  grid-auto-flow: column !important;
++  grid-auto-columns: minmax(0, 1fr) !important;
++  gap: 6px 8px !important;
++  overflow: hidden !important;
++  padding: 0 !important;
++}
++
++.classmode-final-layout .classmode-student-row {
++  min-width: 0 !important;
++  min-height: 0 !important;
++  height: 100% !important;
++  margin: 0 !important;
++  padding: 4px 6px !important;
++  overflow: hidden !important;
++  border-radius: 10px !important;
++}
++
++.classmode-final-layout .classmode-student-row-main {
++  min-width: 0 !important;
++  min-height: 0 !important;
++  height: 100% !important;
++  padding: 3px 5px !important;
++}
++
++.classmode-final-layout .classmode-student-row-actions {
++  gap: 3px !important;
++}
++
++.classmode-final-layout .classmode-student-row-actions button {
++  min-width: 28px !important;
++  min-height: 28px !important;
++  padding: 0 !important;
++}
++
++.classmode-final-layout .classmode-student-commandbar {
++  min-height: 44px !important;
++  margin: 0 !important;
++  padding: 4px 6px !important;
++}
++
++.classmode-final-layout .classmode-selected-student {
++  display: none !important;
++}
++
++.classmode-final-layout.management-open .classmode-user-bottom-dock {
++  z-index: 8600 !important;
++}

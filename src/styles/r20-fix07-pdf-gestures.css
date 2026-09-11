@@ -1,0 +1,115 @@
+/* R20_FIX07_PDF_PINCH_PAN_BOARD_OVERLAY_V1 */
+
+[data-r20-pdf-viewport="true"] {
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  overscroll-behavior: contain !important;
+  touch-action: pan-y !important;
+  background: transparent !important;
+  isolation: isolate !important;
+}
+
+[data-r20-pdf-viewport="true"][data-r20-pdf-zoomed="true"],
+[data-r20-pdf-viewport="true"][data-r20-pdf-pinching="true"] {
+  touch-action: none !important;
+}
+
+[data-r20-pdf-content="true"] {
+  --r20-pdf-scale: 1;
+  --r20-pdf-pan-x: 0px;
+  --r20-pdf-pan-y: 0px;
+
+  transform:
+    translate3d(
+      var(--r20-pdf-pan-x),
+      var(--r20-pdf-pan-y),
+      0
+    )
+    scale(var(--r20-pdf-scale)) !important;
+  transform-origin: center center !important;
+  will-change: transform !important;
+  backface-visibility: hidden !important;
+  -webkit-font-smoothing: antialiased !important;
+  max-width: 100% !important;
+  margin-inline: auto !important;
+}
+
+[data-r20-pdf-viewport="true"] canvas,
+[data-r20-pdf-viewport="true"] img,
+[data-r20-pdf-viewport="true"] .react-pdf__Page,
+[data-r20-pdf-viewport="true"] [data-page-number] {
+  max-width: 100% !important;
+  height: auto !important;
+  backface-visibility: hidden !important;
+}
+
+[data-r20-pdf-page-visible="true"] {
+  visibility: visible !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+[data-r20-pdf-board-mode="true"] {
+  background: transparent !important;
+  isolation: isolate !important;
+}
+
+[data-r20-pdf-board-mode="true"]::before,
+[data-r20-pdf-board-mode="true"]::after {
+  pointer-events: none !important;
+}
+
+[data-r20-pdf-board-overlay="true"] {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 30 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  mix-blend-mode: normal !important;
+}
+
+[data-r20-pdf-board-mode="true"]
+  [data-r20-pdf-page-visible="true"] {
+  position: relative !important;
+  z-index: 1 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+[data-r20-pdf-pager="true"] {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: max(
+    5px,
+    env(safe-area-inset-bottom, 0px)
+  ) !important;
+  transform: translateX(-50%) scale(.74) !important;
+  transform-origin: bottom center !important;
+  opacity: .5 !important;
+  z-index: 2100 !important;
+  backdrop-filter: blur(4px) !important;
+  max-width: min(72vw, 340px) !important;
+  min-height: 0 !important;
+  padding: 2px 6px !important;
+  border-radius: 12px !important;
+}
+
+[data-r20-pdf-pager="true"] button {
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 2px 5px !important;
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  [data-r20-pdf-pager="true"] {
+    transform: translateX(-50%) scale(.68) !important;
+    opacity: .46 !important;
+  }
+}

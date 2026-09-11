@@ -1,0 +1,442 @@
+/* R20_FIX21_REPORTS_WHATSAPP_V1 */
+
+.r20-report-ready-panel {
+  position:
+    fixed !important;
+
+  inset-inline-end:
+    max(
+      10px,
+      env(
+        safe-area-inset-right,
+        0px
+      )
+    ) !important;
+
+  bottom:
+    max(
+      10px,
+      env(
+        safe-area-inset-bottom,
+        0px
+      )
+    ) !important;
+
+  z-index:
+    3900 !important;
+
+  width:
+    min(
+      440px,
+      calc(
+        100vw -
+        20px
+      )
+    ) !important;
+
+  display:
+    flex !important;
+
+  align-items:
+    center !important;
+
+  justify-content:
+    space-between !important;
+
+  gap:
+    10px !important;
+
+  padding:
+    10px
+    12px !important;
+
+  border-radius:
+    16px !important;
+
+  box-sizing:
+    border-box !important;
+
+  background:
+    color-mix(
+      in srgb,
+      Canvas 94%,
+      transparent
+    ) !important;
+
+  box-shadow:
+    0 8px 28px
+    rgb(
+      0 0 0 / 18%
+    ) !important;
+
+  backdrop-filter:
+    blur(
+      10px
+    ) !important;
+}
+
+.r20-report-ready-panel > div:first-child {
+  min-width:
+    0 !important;
+
+  display:
+    flex !important;
+
+  flex-direction:
+    column !important;
+
+  gap:
+    2px !important;
+}
+
+.r20-report-ready-panel strong,
+.r20-report-ready-panel small {
+  overflow:
+    hidden !important;
+
+  text-overflow:
+    ellipsis !important;
+
+  white-space:
+    nowrap !important;
+}
+
+.r20-report-ready-panel__actions {
+  flex:
+    0 0 auto !important;
+
+  display:
+    flex !important;
+
+  align-items:
+    center !important;
+
+  gap:
+    5px !important;
+}
+
+.r20-report-ready-panel button {
+  min-height:
+    34px !important;
+
+  padding:
+    5px
+    9px !important;
+
+  border-radius:
+    10px !important;
+
+  font-size:
+    12px !important;
+
+  touch-action:
+    manipulation !important;
+}
+
+.r20-report-ready-panel button[disabled] {
+  opacity:
+    .45 !important;
+
+  cursor:
+    not-allowed !important;
+}
+
+.r20-student-report-dialog {
+  width:
+    min(
+      760px,
+      calc(
+        100vw -
+        24px
+      )
+    ) !important;
+
+  max-height:
+    min(
+      90dvh,
+      900px
+    ) !important;
+
+  padding:
+    0 !important;
+
+  border:
+    0 !important;
+
+  border-radius:
+    20px !important;
+
+  overflow:
+    hidden !important;
+}
+
+.r20-student-report-dialog::backdrop {
+  background:
+    rgb(
+      0 0 0 / 42%
+    ) !important;
+}
+
+.r20-student-report-dialog__shell {
+  position:
+    relative !important;
+
+  max-height:
+    min(
+      90dvh,
+      900px
+    ) !important;
+
+  overflow-y:
+    auto !important;
+
+  overflow-x:
+    hidden !important;
+
+  padding:
+    16px !important;
+
+  box-sizing:
+    border-box !important;
+}
+
+.r20-student-report-dialog__close {
+  position:
+    sticky !important;
+
+  top:
+    0 !important;
+
+  inset-inline-start:
+    100% !important;
+
+  z-index:
+    2 !important;
+
+  width:
+    34px !important;
+
+  height:
+    34px !important;
+
+  border-radius:
+    50% !important;
+}
+
+.r20-student-report {
+  display:
+    grid !important;
+
+  gap:
+    14px !important;
+
+  min-width:
+    0 !important;
+
+  direction:
+    rtl !important;
+}
+
+.r20-student-report header,
+.r20-student-report section,
+.r20-student-report footer {
+  min-width:
+    0 !important;
+
+  padding:
+    14px !important;
+
+  border-radius:
+    16px !important;
+}
+
+.r20-student-report header h2,
+.r20-student-report header p,
+.r20-student-report header span {
+  margin:
+    0 !important;
+}
+
+.r20-student-report__score {
+  display:
+    flex !important;
+
+  align-items:
+    center !important;
+
+  justify-content:
+    space-between !important;
+
+  gap:
+    12px !important;
+}
+
+.r20-student-report__score strong {
+  font-size:
+    clamp(
+      30px,
+      6vw,
+      54px
+    ) !important;
+}
+
+.r20-student-report ul {
+  margin:
+    8px
+    0
+    0 !important;
+
+  padding:
+    0
+    20px
+    0
+    0 !important;
+
+  display:
+    grid !important;
+
+  gap:
+    7px !important;
+}
+
+.r20-student-report li {
+  display:
+    flex !important;
+
+  align-items:
+    start !important;
+
+  justify-content:
+    space-between !important;
+
+  gap:
+    10px !important;
+
+  overflow-wrap:
+    anywhere !important;
+}
+
+.r20-student-report li strong {
+  flex:
+    0 0 auto !important;
+
+  white-space:
+    nowrap !important;
+}
+
+@media (
+  max-width:
+    699px
+) {
+  .r20-report-ready-panel {
+    inset-inline:
+      6px !important;
+
+    bottom:
+      max(
+        6px,
+        env(
+          safe-area-inset-bottom,
+          0px
+        )
+      ) !important;
+
+    width:
+      auto !important;
+
+    padding:
+      8px !important;
+  }
+
+  .r20-report-ready-panel__actions {
+    gap:
+      3px !important;
+  }
+
+  .r20-report-ready-panel button {
+    padding:
+      4px
+      6px !important;
+
+    font-size:
+      11px !important;
+  }
+
+  .r20-student-report__score {
+    align-items:
+      start !important;
+
+    flex-direction:
+      column !important;
+  }
+}
+
+
+.r20-report-portal-card {
+  width:
+    100% !important;
+
+  min-width:
+    0 !important;
+
+  min-height:
+    96px !important;
+
+  display:
+    flex !important;
+
+  align-items:
+    center !important;
+
+  gap:
+    10px !important;
+
+  padding:
+    12px !important;
+
+  border-radius:
+    16px !important;
+
+  text-align:
+    start !important;
+
+  box-sizing:
+    border-box !important;
+
+  touch-action:
+    manipulation !important;
+}
+
+.r20-report-portal-card > span:first-child {
+  flex:
+    0 0 auto !important;
+
+  font-size:
+    28px !important;
+}
+
+.r20-report-portal-card > span:last-child {
+  min-width:
+    0 !important;
+
+  display:
+    flex !important;
+
+  flex-direction:
+    column !important;
+
+  gap:
+    3px !important;
+}
+
+.r20-report-portal-card strong,
+.r20-report-portal-card small {
+  overflow:
+    hidden !important;
+
+  text-overflow:
+    ellipsis !important;
+
+  white-space:
+    nowrap !important;
+}

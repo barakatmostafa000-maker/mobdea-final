@@ -13,6 +13,8 @@ import { deleteAsset, storeAsset } from '../services/assetStore';
 import { normalizeAppData } from '../services/storage';
 import { secureVaultLevel } from '../services/secureVault';
 
+import Project13SocialLinkSettings from '../components/settings/Project13SocialLinkSettings';
+import Project14YouTubeSyncSettings from '../components/settings/Project14YouTubeSyncSettings';
 const clipTypes = [
   ['welcome', 'الترحيب'],
   ['excellent', 'ممتاز'],
@@ -208,6 +210,8 @@ export default function Settings({ data, updateData, resetAppData }) {
   return <section className="page">
     <div className="page-heading"><div><span className="eyebrow">الحماية والتحكم</span><h2>إعدادات المنصة</h2><p>حدد ما يظهر، فعّل القفل، وتحكم في الصوت والنسخ والمزامنة.</p></div></div>
     {notice && <div className="settings-notice">{notice}</div>}
+    <Project13SocialLinkSettings data={data} updateData={updateData} onNotice={setNotice}/>
+    <Project14YouTubeSyncSettings data={data} updateData={updateData} onNotice={setNotice}/>
     <div className="settings-grid">
       <article className="panel"><h3>الحماية</h3>
         <label className="setting-row"><span>تفعيل قفل الإدارة</span><input type="checkbox" checked={data.settings.lockEnabled} onChange={(e) => patchSettings({ lockEnabled: e.target.checked })}/></label>

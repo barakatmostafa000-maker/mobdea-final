@@ -1,0 +1,77 @@
+/* PROJECT07_MAP_CHALLENGE_SHARED_ENGINE_V1
+   Map Challenge now consumes Project06's exact teaching-map geometry. */
+
+.map-challenge-pro .map-pro-stage.project06-teaching-map .project06-reference-grid {
+  pointer-events: auto !important;
+}
+
+.map-challenge-pro .project06-reference-line.challenge-clickable {
+  pointer-events: stroke !important;
+  cursor: pointer !important;
+  stroke-width: 5 !important;
+}
+
+.map-challenge-pro .project06-reference-line.challenge-clickable:not(.challenge-highlighted) {
+  opacity: .82 !important;
+}
+
+.map-challenge-pro .project06-reference-line.challenge-highlighted {
+  stroke: #ffe276 !important;
+  stroke-width: 7 !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 8px rgba(255, 226, 118, .95)) !important;
+}
+
+.map-challenge-pro .project06-reference-label {
+  pointer-events: none !important;
+}
+
+.map-challenge-pro .project06-reference-label.challenge-highlighted {
+  fill: #fff2a7 !important;
+  font-size: 17px !important;
+}
+
+.map-challenge-pro .project06-river-group.challenge-clickable {
+  pointer-events: stroke !important;
+  cursor: pointer !important;
+}
+
+.map-challenge-pro .project06-river-group.challenge-clickable .project06-river-halo {
+  pointer-events: stroke !important;
+  stroke-width: 16 !important;
+  stroke: rgba(0, 0, 0, .01) !important;
+}
+
+.map-challenge-pro .project06-river-group.challenge-clickable .project06-river-line {
+  pointer-events: stroke !important;
+}
+
+.map-challenge-pro .project06-river-group.challenge-highlighted .project06-river-line {
+  stroke: #ffe276 !important;
+  stroke-width: 7 !important;
+  filter: drop-shadow(0 0 8px rgba(255, 226, 118, .95)) !important;
+}
+
+.map-challenge-pro .project06-river-group.challenge-highlighted .project06-river-label {
+  fill: #fff2a7 !important;
+}
+
+.map-challenge-pro .map-drawing-tools button.active {
+  border-color: #f1cf70 !important;
+  color: #f7df91 !important;
+  background: rgba(215, 173, 53, .16) !important;
+}
+
+.map-challenge-pro .project06-nile-key {
+  pointer-events: none !important;
+}
+
+@media (max-width: 900px), (max-height: 560px) {
+  .map-challenge-pro .project06-reference-line.challenge-clickable {
+    stroke-width: 6 !important;
+  }
+
+  .map-challenge-pro .project06-river-group.challenge-clickable .project06-river-halo {
+    stroke-width: 18 !important;
+  }
+}

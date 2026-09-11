@@ -1,0 +1,151 @@
+/* R20_FIX16_IMAGE_MODE_V1 */
+
+[data-r20-image-surface="true"] {
+  position:
+    relative !important;
+
+  width:
+    100% !important;
+
+  max-width:
+    100% !important;
+
+  height:
+    100% !important;
+
+  max-height:
+    100% !important;
+
+  min-width:
+    0 !important;
+
+  min-height:
+    0 !important;
+
+  display:
+    grid !important;
+
+  place-items:
+    center !important;
+
+  overflow:
+    hidden !important;
+
+  box-sizing:
+    border-box !important;
+
+  margin-inline:
+    auto !important;
+
+  touch-action:
+    none !important;
+
+  overscroll-behavior:
+    contain !important;
+}
+
+[data-r20-image-target="true"] {
+  --r20-image-scale:
+    1;
+
+  --r20-image-pan-x:
+    0px;
+
+  --r20-image-pan-y:
+    0px;
+
+  display:
+    block !important;
+
+  width:
+    auto !important;
+
+  height:
+    auto !important;
+
+  max-width:
+    100% !important;
+
+  max-height:
+    100% !important;
+
+  object-fit:
+    contain !important;
+
+  object-position:
+    center center !important;
+
+  margin:
+    auto !important;
+
+  transform:
+    translate3d(
+      var(
+        --r20-image-pan-x
+      ),
+      var(
+        --r20-image-pan-y
+      ),
+      0
+    )
+    scale(
+      var(
+        --r20-image-scale
+      )
+    ) !important;
+
+  transform-origin:
+    center center !important;
+
+  will-change:
+    transform !important;
+
+  backface-visibility:
+    hidden !important;
+
+  user-select:
+    none !important;
+
+  -webkit-user-drag:
+    none !important;
+}
+
+[data-r20-image-zoomed="true"] {
+  cursor:
+    grab !important;
+}
+
+[data-r20-classmode-image-active="true"]
+  [data-r20-control="online-lesson"] {
+  display:
+    none !important;
+}
+
+@media (
+  orientation:
+    landscape
+) and (
+  min-width:
+    700px
+) {
+  [data-r20-image-surface="true"] {
+    padding:
+      4px !important;
+  }
+}
+
+@media (
+  max-width:
+    699px
+) {
+  [data-r20-image-surface="true"] {
+    width:
+      100% !important;
+
+    height:
+      100% !important;
+
+    padding:
+      2px !important;
+  }
+}

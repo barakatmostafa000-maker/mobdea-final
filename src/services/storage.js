@@ -128,7 +128,7 @@ const normalizeMapRegionState = (state = {}) => ({
   labels: state.labels !== false,
   selectedCountryId: safeTrim(state.selectedCountryId || '', 20),
   selectedPlaceId: safeTrim(state.selectedPlaceId || '', 100),
-  zoom: clampNumber(state.zoom ?? 1, 1, 2.5, 1),
+  zoom: clampNumber(state.zoom ?? 1, 1, 3.2, 1),
   placements: Array.isArray(state.placements) ? state.placements.slice(0, 200).map(normalizeMapPlacement) : [],
   strokes: Array.isArray(state.strokes) ? state.strokes.slice(0, 500).map(normalizeMapStroke) : [],
 });

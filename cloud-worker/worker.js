@@ -1,6 +1,7 @@
+import { maybeHandleR20PortalAccounts } from './r20PortalAccounts.js';
 const MAX_SYNC_BYTES = 8_000_000;
 const MAX_SHARE_BYTES = 6_000_000;
-const MAX_ASSET_BYTES = 500 * 1024 * 1024;
+const MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const MAX_ASSET_COUNT = 500;
 const MAX_READS_PER_MINUTE = 90;
 const MAX_WRITES_PER_MINUTE = 25;
@@ -124,21 +125,152 @@ async function tokenEquals(left, right) {
 }
 
 async function authenticate(request, env) {
-  const workspace = validWorkspace(request.headers.get("X-Mobdea-Workspace"));
-  const token = (request.headers.get("Authorization") || "")
-    .replace(/^Bearer\s+/i, "")
-    .trim();
+  const workspace = validWorkspace(request.headers.get('X-Mobdea-Workspace'));
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!workspace || !token) return null;
   const expected = workspaceTokens(env)[workspace];
-  if (
-    !workspace ||
-    !token ||
-    typeof expected !== "string" ||
-    expected.length < 24 ||
-    !(await tokenEquals(token, expected))
-  )
-    return null;
+  const envValid = typeof expected === 'string' && expected.length >= 24 && await tokenEquals(token, expected);
+  const dynamicValid = await project12DynamicTokenValid(env, workspace, token);
+  if (!envValid && !dynamicValid) return null;
   return { workspace };
 }
+
+/* PROJECT12_UNIFIED_CLOUD_STUDENT_PORTAL_V1 */
+const PROJECT12_FACTORY_STAFF_SECRET=Object.freeze({hash:'XiLJBLcZ4PQY1N8IgGlL703n9LD7JSVKABh+kMbnVFI=',salt:'OnEVCcUhS4ZsBUNDBwrgwQ==',iterations:310000});
+const PROJECT12_DEFAULT_STUDENT_PIN='123456';
+const PROJECT12_STUDENT_SESSION_SECONDS=86400;
+
+async function project12Pbkdf2(value,saltB64,iterations=310000){
+  const key=await crypto.subtle.importKey('raw',encoder.encode(String(value||'')),'PBKDF2',false,['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:base64ToBytes(saltB64),iterations:Number(iterations||310000)},key,256));
+}
+function project12Equal(a,b){if(!(a instanceof Uint8Array)||!(b instanceof Uint8Array)||a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a[i]^b[i];return diff===0;}
+async function project12Verify(value,hash,salt,iterations){if(!value||!hash||!salt)return false;try{return project12Equal(await project12Pbkdf2(value,salt,iterations),base64ToBytes(hash));}catch{return false;}}
+async function project12PinSecret(pin){const saltBytes=crypto.getRandomValues(new Uint8Array(16)),salt=bytesToBase64(saltBytes),hash=await project12Pbkdf2(pin,salt,310000);return{studentPinHash:bytesToBase64(hash),studentPinSalt:salt,studentPinIterations:310000,studentPinAlgorithm:'PBKDF2-SHA256'};}
+function project12WorkspaceAuthKey(workspace){return`workspace-auth-v12:${workspace}`;}
+async function project12TokenDigestB64(token){return bytesToBase64(await tokenDigest(token));}
+async function project12DynamicTokenValid(env,workspace,token){const expected=await env.MOBDEA_DATA.get(project12WorkspaceAuthKey(workspace));if(!expected)return false;return project12Equal(base64ToBytes(await project12TokenDigestB64(token)),base64ToBytes(expected));}
+async function project12ReadWorkspace(env,workspace){const key=`workspace:${workspace}`,encrypted=await env.MOBDEA_DATA.get(key);return encrypted?decryptJson(encrypted,env,`sync:${workspace}`):null;}
+async function project12WriteWorkspace(env,workspace,record){const key=`workspace:${workspace}`;await env.MOBDEA_DATA.put(key,await encryptJson(record,env,`sync:${workspace}`));}
+async function project12TeacherPasswordOk(env,workspace,password){
+  const record=await project12ReadWorkspace(env,workspace).catch(()=>null),settings=record?.data?.settings||{};
+  if(settings.teacherPinHash&&settings.teacherPinSalt&&await project12Verify(password,settings.teacherPinHash,settings.teacherPinSalt,settings.teacherPinIterations))return true;
+  return project12Verify(password,PROJECT12_FACTORY_STAFF_SECRET.hash,PROJECT12_FACTORY_STAFF_SECRET.salt,PROJECT12_FACTORY_STAFF_SECRET.iterations);
+}
+function project12SessionKey(workspace,digest){return`student-session-v12:${workspace}:${digest}`;}
+async function project12NewSession(env,workspace,studentId){
+  const token=randomToken()+randomToken(),digest=await project12TokenDigestB64(token),expiresAt=new Date(Date.now()+PROJECT12_STUDENT_SESSION_SECONDS*1000).toISOString(),key=project12SessionKey(workspace,digest);
+  await env.MOBDEA_DATA.put(key,await encryptJson({workspace,studentId:String(studentId),expiresAt},env,key),{expirationTtl:PROJECT12_STUDENT_SESSION_SECONDS});
+  return{token,expiresAt};
+}
+async function project12Session(request,env,workspace){
+  const token=String(request.headers.get('X-Mobdea-Student-Token')||'').trim();if(token.length<20)return null;
+  const key=project12SessionKey(workspace,await project12TokenDigestB64(token)),encrypted=await env.MOBDEA_DATA.get(key);if(!encrypted)return null;
+  const session=await decryptJson(encrypted,env,key);return session&&session.workspace===workspace&&Date.parse(session.expiresAt)>Date.now()?session:null;
+}
+const project12Same=(a,b)=>String(a??'')===String(b??'');
+function project12PortalData(data={},student={}){
+  const id=student.id,grade=String(student.grade||''),group=String(student.group||'');
+  const own=(list,extra=()=>false)=>(Array.isArray(list)?list:[]).filter(x=>project12Same(x?.studentId,id)||extra(x));
+  const publicStudent={...student};for(const key of Object.keys(publicStudent))if(/Pin(Hash|Salt|Iterations|Algorithm)?$/i.test(key)||key==='guardianPin')delete publicStudent[key];
+  return{
+    students:[publicStudent],
+    sessions:(data.sessions||[]).filter(x=>(!grade||!x?.title||String(x.title)===grade)&&(!group||!x?.group||String(x.group)===group)),
+    attendance:own(data.attendance),grades:own(data.grades),detailedResults:own(data.detailedResults),payments:own(data.payments),
+    gameResults:own(data.gameResults,x=>project12Same(x?.secondStudentId,id)),achievements:own(data.achievements),rewardRedemptions:own(data.rewardRedemptions),
+    mapResults:own(data.mapResults),notifications:own(data.notifications),messages:own(data.messages),
+    onlineGameResults:own(data.onlineGameResults),rewardCatalog:Array.isArray(data.rewardCatalog)?data.rewardCatalog:[],
+    contentLibrary:(data.contentLibrary||[]).filter(x=>x?.studentVisible!==false&&x?.published!==false&&(!x?.grade||!grade||String(x.grade)===grade)),
+    customQuestionBank:(data.customQuestionBank||[]).filter(x=>!x?.grade||!grade||String(x.grade)===grade),
+    exams:Array.isArray(data.exams)?data.exams:[],
+    classPointSessions:(data.classPointSessions||[]).map(s=>({...s,points:s?.points&&Object.prototype.hasOwnProperty.call(s.points,id)?{[id]:s.points[id]}:{}})),
+settings:{ visibleModules:data.settings?.visibleModules||{}, voiceEnabled:data.settings?.voiceEnabled!==false, voiceVolume:data.settings?.voiceVolume??1, voiceRate:data.settings?.voiceRate??.92,
+      socialLinks:{...PROJECT_FINAL_SOCIAL_DEFAULTS_V1,...(data.settings?.socialLinks||{})},
+      youtubeAutoSync:data.settings?.youtubeAutoSync||{ enabled:true, channelUrl:data.settings?.socialLinks?.youtube||PROJECT_FINAL_SOCIAL_DEFAULTS_V1.youtube, fallbackByTitle:true, gradePlaylists:{} },
+      cloudSync:{ endpoint:data.settings?.cloudSync?.endpoint||'', workspaceId:data.settings?.cloudSync?.workspaceId||'', token:'', revision:'' } }  };
+}
+async function handleProject12Bootstrap(request,env){
+  if(!(await rateLimit(request,env,'bootstrap',true,5,'bootstrap-v12')))return json(request,env,{error:'rate_limited'},429,{'Retry-After':'60'});
+  const body=await parseJsonBody(request,20000),workspace=validWorkspace(body.workspaceId||request.headers.get('X-Mobdea-Workspace'));if(!workspace)return json(request,env,{error:'invalid_workspace'},400);
+  if(!(await project12TeacherPasswordOk(env,workspace,String(body.teacherPassword||''))))return json(request,env,{error:'unauthorized',message:'تعذر إثبات حساب المعلم لتفعيل المزامنة.'},401);
+  const token=randomToken()+randomToken();await env.MOBDEA_DATA.put(project12WorkspaceAuthKey(workspace),await project12TokenDigestB64(token));
+  const existing=await project12ReadWorkspace(env,workspace).catch(()=>null);return json(request,env,{ok:true,workspaceId:workspace,token,revision:existing?.revision||'',service:'mobdea-unified-cloud-v12'},201);
+}
+async function handleProject12StudentLogin(request,env,workspace){
+  if(!workspace)return json(request,env,{error:'invalid_workspace'},400);
+  if(!(await rateLimit(request,env,workspace,true,16,'student-login-v12')))return json(request,env,{error:'rate_limited'},429,{'Retry-After':'60'});
+  const body=await parseJsonBody(request,20000),code=String(body.studentCode||'').replace(/\D/g,''),pin=String(body.pin||'').replace(/\D/g,'').slice(0,10);
+  if(!code||!/^\d{6,10}$/.test(pin))return json(request,env,{error:'invalid_credentials',message:'كود الطالب أو PIN غير صحيح.'},401);
+  const record=await project12ReadWorkspace(env,workspace);if(!record?.data)return json(request,env,{error:'workspace_not_ready',message:'بيانات المنصة لم تُرفع للسحابة بعد.'},404);
+  const student=(record.data.students||[]).find(x=>String(x.code)===code||String(x.id)===code);if(!student)return json(request,env,{error:'invalid_credentials',message:'كود الطالب أو PIN غير صحيح.'},401);
+  const noSecret=!student.studentPinHash||!student.studentPinSalt;
+  const defaultAllowed=pin===PROJECT12_DEFAULT_STUDENT_PIN&&(student.studentPinMustChange===true||(noSecret&&!student.studentPinChangedByStudentAt));
+  const storedOk=await project12Verify(pin,student.studentPinHash,student.studentPinSalt,student.studentPinIterations);
+  if(!defaultAllowed&&!storedOk)return json(request,env,{error:'invalid_credentials',message:'كود الطالب أو PIN غير صحيح.'},401);
+  const session=await project12NewSession(env,workspace,student.id),portal=project12PortalData(record.data,student);
+  return json(request,env,{ok:true,student:portal.students[0],studentToken:session.token,expiresAt:session.expiresAt,mustChangePin:Boolean(defaultAllowed||student.studentPinMustChange),data:portal});
+}
+async function handleProject12StudentRefresh(request,env,workspace){
+  const session=await project12Session(request,env,workspace);if(!session)return json(request,env,{error:'student_session_invalid'},401);
+  const record=await project12ReadWorkspace(env,workspace);if(!record?.data)return json(request,env,{error:'workspace_not_ready'},404);
+  const student=(record.data.students||[]).find(x=>project12Same(x.id,session.studentId));if(!student)return json(request,env,{error:'student_not_found'},404);
+  const portal=project12PortalData(record.data,student);return json(request,env,{ok:true,student:portal.students[0],mustChangePin:Boolean(student.studentPinMustChange),data:portal});
+}
+async function handleProject12StudentChangePin(request,env,workspace){
+  const session=await project12Session(request,env,workspace);if(!session)return json(request,env,{error:'student_session_invalid'},401);
+  const body=await parseJsonBody(request,10000),pin=String(body.newPin||'').replace(/\D/g,'').slice(0,10);
+  if(!/^\d{6,10}$/.test(pin)||pin===PROJECT12_DEFAULT_STUDENT_PIN)return json(request,env,{error:'invalid_pin',message:'اختر PIN جديدًا من 6 إلى 10 أرقام غير 123456.'},400);
+  const record=await project12ReadWorkspace(env,workspace);if(!record?.data)return json(request,env,{error:'workspace_not_ready'},404);
+  const index=(record.data.students||[]).findIndex(x=>project12Same(x.id,session.studentId));if(index<0)return json(request,env,{error:'student_not_found'},404);
+  const changedAt=new Date().toISOString(),secret=await project12PinSecret(pin),nextStudent={...record.data.students[index],...secret,studentPinMustChange:false,studentPinDefaultVersion:1,studentPinChangedByStudentAt:changedAt,updatedAt:changedAt};
+  const students=record.data.students.slice();students[index]=nextStudent;
+  const next={...record,data:{...record.data,students},revision:crypto.randomUUID(),updatedAt:changedAt};await project12WriteWorkspace(env,workspace,next);
+  const portal=project12PortalData(next.data,nextStudent);return json(request,env,{ok:true,changedAt,revision:next.revision,student:portal.students[0],data:portal});
+}
+
+
+/* PROJECT14_YOUTUBE_AUTO_SYNC_V1 */
+const PROJECT14_YOUTUBE_CACHE_SECONDS = 180;
+const PROJECT_FINAL_SOCIAL_DEFAULTS_V1 = Object.freeze({
+  youtube: 'https://youtube.com/@mostafabarakat21?si=FczgywNrmc9FTBsl',
+  facebook: 'https://www.facebook.com/share/1AyBatYgJv/',
+  tiktok: 'https://www.tiktok.com/@mostafabarakat210?_r=1&_t=ZS-996NuPuPOy1',
+});
+function project14DecodeXml(v=''){return String(v||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>');}
+function project14PlaylistId(v=''){const t=String(v||'').trim();if(!t)return'';if(/^[A-Za-z0-9_-]{12,80}$/.test(t)&&!/^https?:/i.test(t))return t;try{const u=new URL(t),l=u.searchParams.get('list');return l&&/^[A-Za-z0-9_-]{12,80}$/.test(l)?l:'';}catch{return'';}}
+function project14Norm(v=''){return String(v||'').toLowerCase().replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[ًٌٍَُِّْـ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();}
+function project14Aliases(grade=''){const g=project14Norm(grade).replace(/\bالصف\b/g,'').trim(),out=new Set([g]);const ord=[['الاول','اولي','اولى','1','١'],['الثاني','الثانيه','الثانية','تانيه','تانية','2','٢'],['الثالث','الثالثه','الثالثة','تالته','تالتة','3','٣'],['الرابع','الرابعه','الرابعة','4','٤'],['الخامس','الخامسه','الخامسة','5','٥'],['السادس','السادسه','السادسة','6','٦']],stage=[['الاعدادي','اعدادي','الاعداديه','الاعدادية'],['الثانوي','ثانوي','الثانويه','الثانوية'],['الابتدائي','ابتدائي','الابتدائيه','الابتدائية']];const o=ord.find(x=>x.some(t=>g.includes(project14Norm(t))))||[],s=stage.find(x=>x.some(t=>g.includes(project14Norm(t))))||[];for(const a of o)for(const b of s){out.add(`${project14Norm(a)} ${project14Norm(b)}`);out.add(`${project14Norm(b)} ${project14Norm(a)}`);}return[...out].filter(Boolean);}
+function project14Match(v,g){const h=project14Norm(`${v.title||''} ${v.description||''}`);return project14Aliases(g).some(a=>a&&h.includes(a));}
+function project14Tag(e,t){const m=e.match(new RegExp(`<${t}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${t}>`,'i'));return project14DecodeXml(m?.[1]||'').trim();}
+function project14ParseFeed(xml=''){return(String(xml).match(/<entry>[\s\S]*?<\/entry>/gi)||[]).map(e=>{const id=project14Tag(e,'yt:videoId')||project14Tag(e,'videoId'),title=project14Tag(e,'title'),thumb=e.match(/<media:thumbnail[^>]*url="([^"]+)"/i)?.[1]||'';return id&&title?{id,title,description:project14Tag(e,'media:description'),publishedAt:project14Tag(e,'published'),url:`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`,thumbnail:project14DecodeXml(thumb)||`https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`}:null;}).filter(Boolean).sort((a,b)=>Date.parse(b.publishedAt||0)-Date.parse(a.publishedAt||0));}
+async function project14FetchText(url){const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (compatible; MobdeaEducation/14)','Accept':'application/atom+xml,text/xml,text/html;q=0.9,*/*;q=0.7'}});if(!r.ok)throw new Error(`youtube_upstream_${r.status}`);return r.text();}
+async function project14ChannelId(env,w,url){const direct=String(url||'').match(/\/channel\/(UC[A-Za-z0-9_-]{20,})/i)?.[1];if(direct)return direct;const key=`youtube-channel-id-v14:${w}`,cached=await env.MOBDEA_DATA.get(key);if(cached)return cached;if(!/^https:\/\/(?:www\.)?youtube\.com\//i.test(String(url||'')))return'';const html=await project14FetchText(url),id=html.match(/"channelId":"(UC[A-Za-z0-9_-]{20,})"/)?.[1]||html.match(/"externalId":"(UC[A-Za-z0-9_-]{20,})"/)?.[1]||'';if(id)await env.MOBDEA_DATA.put(key,id,{expirationTtl:86400});return id;}
+
+async function handleProjectFinalStudentAsset(request, env, workspace, assetId) {
+  if (!workspace || !assetId || !['GET', 'HEAD'].includes(request.method)) {
+    return json(request, env, { error: 'not_found' }, 404);
+  }
+  const session = await project12Session(request, env, workspace);
+  if (!session) return json(request, env, { error: 'student_session_invalid' }, 401);
+  const record = await project12ReadWorkspace(env, workspace);
+  if (!record?.data) return json(request, env, { error: 'workspace_not_ready' }, 404);
+  const student = (record.data.students || []).find((item) => project12Same(item.id, session.studentId));
+  if (!student) return json(request, env, { error: 'student_not_found' }, 404);
+
+  const portal = project12PortalData(record.data, student);
+  const allowed = new Set();
+  for (const item of portal.contentLibrary || []) {
+    const type = String(item?.type || '').toLowerCase();
+    const kind = String(item?.kind || '').toLowerCase();
+    if ((type === 'image' || kind === 'lesson-media' || kind === 'lesson-image') && item?.assetId) allowed.add(String(item.assetId));
+    if (item?.thumbnailAssetId) allowed.add(String(item.thumbnailAssetId));
+  }
+  if (!allowed.has(String(assetId))) return json(request, env, { error: 'forbidden_asset' }, 403);
+  return handleAsset(request, env, { workspace }, String(assetId));
+}
+
+async function handleProject14YouTubeGradeFeed(request,env,w,url){if(!w)return json(request,env,{error:'invalid_workspace'},400);const grade=String(url.searchParams.get('grade')||'').trim().slice(0,120);if(!grade)return json(request,env,{error:'grade_required'},400);const cacheKey=`youtube-grade-v14:${w}:${project14Norm(grade)}`,cached=await env.MOBDEA_DATA.get(cacheKey,{type:'json'}).catch(()=>null);if(cached?.videos)return json(request,env,{...cached,cached:true});const record=await project12ReadWorkspace(env,w),data=record?.data||{},settings=data.settings||{},sync=settings.youtubeAutoSync||{};if(sync.enabled===false)return json(request,env,{grade,videos:[],source:'disabled'});const playlistId=project14PlaylistId(sync.gradePlaylists?.[grade]||'');let videos=[],source='none',channelId='';if(playlistId){videos=project14ParseFeed(await project14FetchText(`https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(playlistId)}`));source='playlist';}else if(sync.fallbackByTitle!==false){channelId=await project14ChannelId(env,w,sync.channelUrl||settings.socialLinks?.youtube||PROJECT_FINAL_SOCIAL_DEFAULTS_V1.youtube);if(channelId){videos=project14ParseFeed(await project14FetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`)).filter(v=>project14Match(v,grade));source='channel-title';}}const payload={grade,source,playlistId,channelId,videos:videos.slice(0,12),updatedAt:new Date().toISOString()};await env.MOBDEA_DATA.put(cacheKey,JSON.stringify(payload),{expirationTtl:PROJECT14_YOUTUBE_CACHE_SECONDS});return json(request,env,{...payload,cached:false});}
+
 
 function bytesToBase64(bytes) {
   let binary = "";
@@ -2481,7 +2613,7 @@ async function handleReadShare(request, env, token, workspace) {
   });
 }
 
-export default {
+const R20_LEGACY_WORKER = {
   async fetch(request, env) {
     try {
       const origin = request.headers.get("Origin");
@@ -2494,6 +2626,16 @@ export default {
         });
       }
       const url = new URL(request.url);
+      const project14Workspace = validWorkspace(request.headers.get('X-Mobdea-Workspace'));
+      if (url.pathname === '/youtube/grade-feed' && request.method === 'GET') return handleProject14YouTubeGradeFeed(request, env, project14Workspace, url);
+      if (url.pathname === '/bootstrap/workspace' && request.method === 'POST') return handleProject12Bootstrap(request, env);
+      const project12StudentWorkspace = validWorkspace(request.headers.get('X-Mobdea-Workspace'));
+      if (url.pathname === '/student/login' && request.method === 'POST') return handleProject12StudentLogin(request, env, project12StudentWorkspace);
+      if (url.pathname === '/student/refresh' && request.method === 'GET') return handleProject12StudentRefresh(request, env, project12StudentWorkspace);
+      if (url.pathname === '/student/change-pin' && request.method === 'POST') return handleProject12StudentChangePin(request, env, project12StudentWorkspace);
+      const projectFinalStudentAssetPrefix = '/student/assets/';
+      const projectFinalStudentAssetId = url.pathname.startsWith(projectFinalStudentAssetPrefix) ? url.pathname.slice(projectFinalStudentAssetPrefix.length) : '';
+      if (/^[a-zA-Z0-9._-]{1,100}$/.test(projectFinalStudentAssetId) && ['GET', 'HEAD'].includes(request.method)) return handleProjectFinalStudentAsset(request, env, project12StudentWorkspace, projectFinalStudentAssetId);
       const shareMatch = /^\/share\/([a-zA-Z0-9_-]+)$/.exec(url.pathname);
       if (request.method === "GET" && shareMatch)
         return handleReadShare(
@@ -2696,5 +2838,15 @@ export default {
         status >= 500 ? "internal_error" : error?.message || "bad_request";
       return json(request, env, { error: message }, status);
     }
+  },
+};
+
+
+/* R20_FIX04_WORKER_WRAPPER_V1 */
+export default {
+  async fetch(request, env, ctx) {
+    const accountResponse = await maybeHandleR20PortalAccounts(request, env);
+    if (accountResponse) return accountResponse;
+    return R20_LEGACY_WORKER.fetch(request, env, ctx);
   },
 };

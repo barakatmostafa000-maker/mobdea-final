@@ -14,7 +14,16 @@ const RECORD_ARRAYS = [
   'mapResults',
   'messages',
   'questionBanks',
+  'customQuestionBank',
+  'exams',
   'onlineGameResults',
+  'rewardCatalog',
+  'rewardRedemptions',
+  'gameRooms',
+  'whiteboardRecords',
+  'auditLog',
+  'updateHistory',
+  'classPointSessions',
 ];
 
 function clone(value) {
@@ -30,12 +39,12 @@ function recordKey(record, index = 0) {
   if (!record || typeof record !== 'object') return `index:${index}`;
   const id = record.id ?? record.studentId ?? record.sessionId ?? record.roomId;
   if (id !== undefined && id !== null && String(id)) return `id:${String(id)}`;
-  const createdAt = record.createdAt || record.date || '';
+  const createdAt = record.createdAt || record.updatedAt || record.checkedAt || record.date || record.timestamp || '';
   return `fallback:${String(createdAt)}:${String(record.name || record.title || '')}:${index}`;
 }
 
 function timestamp(record) {
-  const raw = record?.updatedAt || record?.modifiedAt || record?.createdAt || record?.date || '';
+  const raw = record?.updatedAt || record?.modifiedAt || record?.createdAt || record?.checkedAt || record?.date || record?.timestamp || '';
   const value = Date.parse(raw);
   return Number.isFinite(value) ? value : 0;
 }
@@ -51,6 +60,19 @@ function richerRecord(left, right) {
   const newest = rightTime >= leftTime ? right : left;
   const older = newest === right ? left : right;
   return { ...older, ...newest };
+}
+
+export function mergeQuestionHistory(localValue, remoteValue, limit = 500) {
+  const merged = [];
+  const source = [...safeArray(remoteValue), ...safeArray(localValue)]
+    .map(String)
+    .filter(Boolean);
+  for (const id of source) {
+    const existing = merged.indexOf(id);
+    if (existing >= 0) merged.splice(existing, 1);
+    merged.push(id);
+  }
+  return merged.slice(-Math.max(30, Number(limit || 500)));
 }
 
 export function mergeRecordArrays(localValue, remoteValue, limit = 5000) {
@@ -142,7 +164,11 @@ export function mergeAppData(localData = {}, remoteData = {}) {
     if (key in local || key in remote) merged[key] = mergeRecordArrays(local[key], remote[key]);
   }
   merged.students = mergeStudents(local.students, remote.students);
+  if ('classLiveSync' in local || 'classLiveSync' in remote) {
+    merged.classLiveSync = richerRecord(remote.classLiveSync, local.classLiveSync);
+  }
   merged.settings = mergeSettings(local.settings, remote.settings);
+  if ('gameQuestionHistory' in local || 'gameQuestionHistory' in remote) merged.gameQuestionHistory = mergeQuestionHistory(local.gameQuestionHistory, remote.gameQuestionHistory);
   return merged;
 }
 

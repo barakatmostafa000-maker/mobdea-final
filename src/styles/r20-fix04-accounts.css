@@ -1,0 +1,98 @@
+/* R20_FIX04_STUDENT_PARENT_ACCOUNTS_V1 */
+
+.r20-account-row-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-inline-start: 5px !important;
+}
+
+.r20-account-status,
+.r20-account-reset {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+
+.r20-account-status {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.r20-account-reset {
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: inherit !important;
+}
+
+.r20-password-gate {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 18px !important;
+  background: rgba(5, 10, 20, 0.84) !important;
+  backdrop-filter: blur(8px) !important;
+  direction: rtl !important;
+}
+
+.r20-password-gate__card {
+  width: min(460px, 94vw) !important;
+  max-height: min(620px, 90dvh) !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  background: #ffffff !important;
+  color: #172033 !important;
+  border-radius: 20px !important;
+  padding: 22px !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3) !important;
+}
+
+.r20-password-gate__icon {
+  font-size: 34px !important;
+  text-align: center !important;
+}
+
+.r20-password-gate__card h2 {
+  margin: 8px 0 6px !important;
+  text-align: center !important;
+}
+
+.r20-password-gate__card label {
+  display: grid !important;
+  gap: 6px !important;
+  margin-top: 12px !important;
+  font-weight: 700 !important;
+}
+
+.r20-password-gate__card input {
+  min-height: 44px !important;
+  border: 1px solid #ccd3df !important;
+  border-radius: 10px !important;
+  padding: 8px 10px !important;
+  font-size: 16px !important;
+}
+
+.r20-password-gate__card button {
+  width: 100% !important;
+  min-height: 46px !important;
+  margin-top: 14px !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+
+.r20-password-gate__error {
+  min-height: 22px !important;
+  margin: 8px 0 0 !important;
+  color: #b42318 !important;
+  font-weight: 700 !important;
+}

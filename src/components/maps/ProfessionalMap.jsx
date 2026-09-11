@@ -3,8 +3,8 @@ import {
   geometryPath,
   featureCenter,
   getCountryFeatureId,
-  getCountryName,
-} from "../../data/geography";
+  getCountryName, GEOGRAPHY_REGIONS } from '../../data/geography';
+import { REFERENCE_LATITUDES, REFERENCE_LONGITUDES, NILE_LANDMARKS, getTeachingRiverPaths } from '../../data/project06TeachingMaps';
 
 function mapItemColor(layerKey) {
   return (
@@ -770,6 +770,124 @@ function MapFurniture({ region }) {
   );
 }
 
+const PROJECT06_PROFESSIONAL_TEACHING_MAPS_V1 = true;
+const PROJECT07_MAP_CHALLENGE_SHARED_ENGINE_V1 = true;
+
+function projectedPolyline(coords = [], project) {
+  return coords.map((coord, index) => {
+    const point = project(coord[0], coord[1]);
+    return `${index ? 'L' : 'M'}${point[0].toFixed(2)},${point[1].toFixed(2)}`;
+  }).join(' ');
+}
+
+function TeachingReferenceGrid({ regionKey, layerKey, project, items = [], highlightedId = '', selectedId = '', onFeatureClick, displayMode = 'atlas' }) {
+  const region = GEOGRAPHY_REGIONS[regionKey] || GEOGRAPHY_REGIONS.world;
+  const [minLon, minLat, maxLon, maxLat] = region.bounds;
+  const latitudes = REFERENCE_LATITUDES.filter((line) => line.value >= minLat && line.value <= maxLat);
+  const longitudes = REFERENCE_LONGITUDES.filter((line) => line.value >= minLon && line.value <= maxLon && (line.prime || layerKey === 'longitude'));
+
+  return (
+    <g className="project06-reference-grid" aria-label="خطوط الإحداثيات المرجعية">
+      {latitudes.map((line) => {
+        const start = project(minLon, line.value);
+        const end = project(maxLon, line.value);
+        const labelPoint = project(minLon + (maxLon - minLon) * 0.015, line.value);
+        const targetItem = items.find((item) => Math.abs(Number(item.coord?.[1]) - line.value) < 0.01);
+        const isTargetLayer = layerKey === 'latitude' && Boolean(targetItem);
+        const isHighlighted = targetItem && (highlightedId === targetItem.id || selectedId === targetItem.id);
+        return (
+          <g key={line.id}>
+            <line
+              x1={start[0]} y1={start[1]} x2={end[0]} y2={end[1]}
+              className={`project06-reference-line latitude ${line.major ? 'major' : ''} ${layerKey === 'latitude' ? 'active' : ''} ${isTargetLayer ? 'challenge-clickable' : ''} ${isHighlighted ? 'challenge-highlighted' : ''}`}
+              onClick={isTargetLayer ? (event) => { event.stopPropagation(); onFeatureClick?.(targetItem.id, targetItem.name, targetItem); } : undefined}
+            />
+            <text x={labelPoint[0] + 5} y={labelPoint[1] - 6} className={`project06-reference-label latitude ${layerKey === 'latitude' ? 'active' : ''} ${isHighlighted ? 'challenge-highlighted' : ''}`}>{line.label}</text>
+          </g>
+        );
+      })}
+      {longitudes.map((line) => {
+        const start = project(line.value, minLat);
+        const end = project(line.value, maxLat);
+        const labelPoint = project(line.value, maxLat - (maxLat - minLat) * 0.03);
+        const targetItem = items.find((item) => Math.abs(Number(item.coord?.[0]) - line.value) < 0.01);
+        const isTargetLayer = layerKey === 'longitude' && Boolean(targetItem);
+        const isHighlighted = targetItem && (highlightedId === targetItem.id || selectedId === targetItem.id);
+        return (
+          <g key={line.id}>
+            <line
+              x1={start[0]} y1={start[1]} x2={end[0]} y2={end[1]}
+              className={`project06-reference-line longitude ${line.prime ? 'prime' : ''} ${layerKey === 'longitude' ? 'active' : ''} ${isTargetLayer ? 'challenge-clickable' : ''} ${isHighlighted ? 'challenge-highlighted' : ''}`}
+              onClick={isTargetLayer ? (event) => { event.stopPropagation(); onFeatureClick?.(targetItem.id, targetItem.name, targetItem); } : undefined}
+            />
+            <text x={labelPoint[0] + 7} y={labelPoint[1] + 16} className={`project06-reference-label longitude ${line.prime || layerKey === 'longitude' ? 'active' : ''} ${isHighlighted ? 'challenge-highlighted' : ''}`}>{line.label}</text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function normalizeRiverLabel(value = '') {
+  return String(value)
+    .replace(/^نهر\s+/u, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function TeachingRiverOverlay({ regionKey, layerKey, project, items = [], highlightedId = '', selectedId = '', onFeatureClick, displayMode = 'atlas' }) {
+  const paths = getTeachingRiverPaths(regionKey);
+  const visible = regionKey === 'nile' || ['rivers', 'water'].includes(layerKey);
+  if (!visible || !paths.length) return null;
+
+  return (
+    <g className={`project06-river-overlay ${regionKey === 'nile' ? 'nile-system' : ''}`} aria-label="شبكة الأنهار التعليمية">
+      {paths.map((river) => {
+        const label = project(...river.labelCoord);
+        const d = projectedPolyline(river.coords, project);
+        const normalizedRiver = normalizeRiverLabel(river.name);
+        const targetItem = items.find((item) => {
+          const normalizedItem = normalizeRiverLabel(item.name);
+          return normalizedItem === normalizedRiver
+            || normalizedItem.includes(normalizedRiver)
+            || normalizedRiver.includes(normalizedItem);
+        });
+        const isTargetLayer = layerKey === 'rivers' && Boolean(targetItem);
+        const isHighlighted = targetItem && (highlightedId === targetItem.id || selectedId === targetItem.id);
+        return (
+          <g
+            key={river.id}
+            className={`project06-river-group ${river.kind || 'river'} ${isTargetLayer ? 'challenge-clickable' : ''} ${isHighlighted ? 'challenge-highlighted' : ''}`}
+            onClick={isTargetLayer ? (event) => { event.stopPropagation(); onFeatureClick?.(targetItem.id, targetItem.name, targetItem); } : undefined}
+          >
+            <path d={d} className="project06-river-halo" />
+            <path d={d} className="project06-river-line" />
+            {displayMode !== 'blank' && <text x={label[0] + 8} y={label[1] - 7} className="project06-river-label">{river.name}</text>}
+          </g>
+        );
+      })}
+      {regionKey === 'nile' && NILE_LANDMARKS.map((place) => {
+        const point = project(...place.coord);
+        return (
+          <g key={place.id} className={`project06-nile-landmark ${place.kind}`}>
+            <circle cx={point[0]} cy={point[1]} r={place.kind === 'confluence' ? 7 : 5.5} />
+            {displayMode !== 'blank' && <text x={point[0] + 10} y={point[1] + 4}>{place.name}</text>}
+          </g>
+        );
+      })}
+      {regionKey === 'nile' && displayMode !== 'blank' && (
+        <g className="project06-nile-key" transform="translate(28 25)">
+          <rect x="0" y="0" width="225" height="88" rx="12" />
+          <text x="14" y="24" className="title">مفتاح خريطة نهر النيل</text>
+          <line x1="16" y1="43" x2="52" y2="43" className="white-sample" /><text x="61" y="47">النيل الأبيض</text>
+          <line x1="16" y1="62" x2="52" y2="62" className="blue-sample" /><text x="61" y="66">النيل الأزرق</text>
+          <line x1="16" y1="79" x2="52" y2="79" className="main-sample" /><text x="61" y="83">النيل الرئيسي</text>
+        </g>
+      )}
+    </g>
+  );
+}
+
 function MapDefs() {
   return (
     <defs>
@@ -887,6 +1005,9 @@ export default function ProfessionalMap({
   highlightedId = "",
   selectedId = "",
   project,
+  regionKey = 'world',
+  teachingMode = false,
+  displayMode = 'atlas',
   zoom = 1,
   placements = [],
   selectedPlacementId = "",
@@ -1017,7 +1138,7 @@ export default function ProfessionalMap({
   return (
     <div
       ref={stageRef}
-      className={`map-pro-stage map-style-${mapStyle} ${silent ? "silent-map" : ""} ${Number(zoom || 1) > 1 ? "can-pan" : ""}`}
+      className={`map-pro-stage ${teachingMode ? 'project06-teaching-map' : ''} ${teachingMode && regionKey === 'nile' ? 'project06-nile-map' : ''} ${teachingMode ? `project06-map-mode-${displayMode}` : ''}`} data-map-display-mode={displayMode}
       onClickCapture={(event) => {
         if (!suppressStageClickRef.current) return;
         suppressStageClickRef.current = false;
@@ -1055,6 +1176,7 @@ export default function ProfessionalMap({
             filter={mapStyle === "relief" ? "url(#mapOceanTexture)" : undefined}
           />
           {!silent && <rect width="1000" height="620" fill="url(#mapGrid)" />}
+          {!silent && teachingMode && <TeachingReferenceGrid regionKey={regionKey} layerKey={layerKey} project={project} items={items} highlightedId={highlightedId} selectedId={selectedId} onFeatureClick={onFeatureClick} displayMode={displayMode} />}
           {!silent && !["latitude", "longitude"].includes(layerKey) && (
             <MapReferenceOverlay region={region} project={project} />
           )}
@@ -1202,8 +1324,10 @@ export default function ProfessionalMap({
               })}
             </g>
           )}
+          {!silent && teachingMode && <TeachingRiverOverlay regionKey={regionKey} layerKey={layerKey} project={project} items={items} highlightedId={highlightedId} selectedId={selectedId} onFeatureClick={onFeatureClick} displayMode={displayMode} />}
           {!silent &&
             !["countries", "latitude", "longitude"].includes(layerKey) &&
+            !(teachingMode && ['latitude', 'longitude', 'rivers'].includes(layerKey)) &&
             items.map((item) => {
               const point = project(...item.coord);
               const active =

@@ -20,12 +20,14 @@ import com.getcapacitor.BridgeActivity;
 import com.mobdea.education.security.MobdeaSecureStorePlugin;
 import com.mobdea.education.pdf.MobdeaPdfRendererPlugin;
 import com.mobdea.education.ocr.MobdeaPdfOcrPlugin;
+import com.mobdea.education.ocr.R20PageOcrPlugin;
 import com.mobdea.education.pptx.MobdeaPptxRendererPlugin;
 import com.mobdea.education.update.MobdeaUpdaterPlugin;
 import com.mobdea.education.voice.MobdeaTextToSpeechPlugin;
 import com.mobdea.education.document.MobdeaDocumentViewerPlugin;
 import com.mobdea.education.printing.MobdeaPrintPlugin;
 import com.mobdea.education.recording.MobdeaScreenRecorderPlugin;
+import com.mobdea.education.barcode.MobdeaBarcodeScannerPlugin;
 import com.mobdea.education.assets.MobdeaNativeAssetPlugin;
 import com.mobdea.education.handwriting.MobdeaDigitalInkPlugin;
 
@@ -38,15 +40,35 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(MobdeaSecureStorePlugin.class);
         registerPlugin(MobdeaPdfRendererPlugin.class);
         registerPlugin(MobdeaPdfOcrPlugin.class);
+        registerPlugin(R20PageOcrPlugin.class);
         registerPlugin(MobdeaPptxRendererPlugin.class);
         registerPlugin(MobdeaUpdaterPlugin.class);
         registerPlugin(MobdeaTextToSpeechPlugin.class);
         registerPlugin(MobdeaDocumentViewerPlugin.class);
         registerPlugin(MobdeaPrintPlugin.class);
         registerPlugin(MobdeaScreenRecorderPlugin.class);
+        registerPlugin(MobdeaBarcodeScannerPlugin.class);
         registerPlugin(MobdeaNativeAssetPlugin.class);
         registerPlugin(MobdeaDigitalInkPlugin.class);
         super.onCreate(savedInstanceState);
+        // R20_FIX01_TABLET_MEDIA_WEBVIEW_V1
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().post(() -> {
+                android.webkit.WebSettings settings =
+                    getBridge().getWebView().getSettings();
+                settings.setMediaPlaybackRequiresUserGesture(false);
+                settings.setDomStorageEnabled(true);
+                settings.setAllowContentAccess(true);
+                settings.setAllowFileAccess(true);
+                if (android.os.Build.VERSION.SDK_INT >=
+                    android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    settings.setMixedContentMode(
+                        android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                    );
+                }
+            });
+        }
+
 
         configureSystemBarInsets();
         applyImmersiveFullscreen();

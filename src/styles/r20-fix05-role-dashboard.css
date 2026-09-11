@@ -1,0 +1,110 @@
+/* R20_FIX05_ROLE_DASHBOARD_V1 */
+
+[data-r20-dashboard-role="student"],
+[data-r20-dashboard-role="parent"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.r20-dashboard-welcome {
+  width: min(1180px, calc(100% - 24px)) !important;
+  margin: 10px auto 16px !important;
+  padding: 16px 18px !important;
+  border-radius: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, Canvas 90%, currentColor 10%),
+      color-mix(in srgb, Canvas 96%, currentColor 4%)
+    ) !important;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent) !important;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 8%) !important;
+}
+
+.r20-dashboard-welcome__icon {
+  flex: 0 0 auto !important;
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 13px !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 22px !important;
+  background: color-mix(in srgb, Canvas 82%, currentColor 18%) !important;
+}
+
+.r20-dashboard-welcome__copy {
+  min-width: 0 !important;
+}
+
+.r20-dashboard-welcome__copy h2 {
+  margin: 0 !important;
+  font-size: clamp(17px, 2.1vw, 24px) !important;
+  line-height: 1.45 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.r20-dashboard-welcome__copy p {
+  margin: 4px 0 0 !important;
+  font-size: clamp(12px, 1.4vw, 15px) !important;
+  opacity: .78 !important;
+  line-height: 1.55 !important;
+}
+
+[data-r20-dashboard-role="student"]
+  [data-r20-dashboard-access="denied"],
+[data-r20-dashboard-role="student"]
+  [data-r20-dashboard-access="hidden-unknown"],
+[data-r20-dashboard-role="parent"]
+  [data-r20-dashboard-access="denied"],
+[data-r20-dashboard-role="parent"]
+  [data-r20-dashboard-access="hidden-unknown"] {
+  display: none !important;
+}
+
+[data-r20-dashboard-role="student"]
+  [data-r20-dashboard-access="allowed"],
+[data-r20-dashboard-role="parent"]
+  [data-r20-dashboard-access="allowed"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+[data-r20-dashboard-role="student"] .dashboard-feature-grid,
+[data-r20-dashboard-role="parent"] .dashboard-feature-grid,
+[data-r20-dashboard-role="student"] .dashboard-grid,
+[data-r20-dashboard-role="parent"] .dashboard-grid {
+  width: min(1180px, calc(100% - 24px)) !important;
+  margin-inline: auto !important;
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(220px, 100%), 1fr)) !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+}
+
+[data-r20-dashboard-locked="true"]
+  > :not(.r20-password-gate):not([data-r20-password-gate]) {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+@media (max-width: 699px) {
+  .r20-dashboard-welcome {
+    align-items: flex-start !important;
+    width: calc(100% - 16px) !important;
+    margin-block: 8px 12px !important;
+    padding: 13px !important;
+    border-radius: 16px !important;
+  }
+
+  [data-r20-dashboard-role="student"] .dashboard-feature-grid,
+  [data-r20-dashboard-role="parent"] .dashboard-feature-grid,
+  [data-r20-dashboard-role="student"] .dashboard-grid,
+  [data-r20-dashboard-role="parent"] .dashboard-grid {
+    width: calc(100% - 16px) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

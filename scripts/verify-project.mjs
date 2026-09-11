@@ -15,7 +15,11 @@ const worker = read('cloud-worker/worker.js');
 const seed = read('src/data/seed.js');
 const updateManifest = JSON.parse(read('public/update.manifest.json'));
 
-assert(versionSource.includes(`APP_VERSION = '${pkg.version}'`), 'Version source is not synchronized with package.json.');
+assert(
+  versionSource.includes(`APP_VERSION = "${pkg.version}"`) ||
+    versionSource.includes(`APP_VERSION = '${pkg.version}'`),
+  'Version source is not synchronized with package.json.',
+);
 assert(androidGradle.includes(`versionCode ${pkg.mobdea.versionCode}`), 'Android versionCode is not synchronized.');
 assert(androidGradle.includes(`versionName "${pkg.version}"`), 'Android versionName is not synchronized.');
 assert(updateManifest.version === pkg.version, 'Internal update manifest version is not synchronized.');
@@ -39,7 +43,11 @@ assert(read('src/pages/MapChallenge.jsx').includes('contest:') && read('src/page
 assert(exists('src/utils/printLayout.js') && read('src/pages/StudentCards.jsx').includes('mirrorCardsForDuplex'), 'Duplex student-card printing support is missing.');
 assert(!read('src/App.jsx').includes('nextOrUpdater(previous)'), 'Functional updates must use the current data reference.');
 assert(read('src/services/secureVault.js').includes('web-crypto-indexeddb'), 'Encrypted web vault is missing.');
-assert(worker.includes("'/assets/status'") && worker.includes('pruneWorkspaceAssets'), 'Cloud asset batching or cleanup is missing.');
+assert(
+  /["']\/assets\/status["']/.test(worker) &&
+    worker.includes('pruneWorkspaceAssets'),
+  'Cloud asset batching or cleanup is missing.',
+);
 assert(!read('scripts/create-update-manifest.mjs').includes('REPLACE_WITH_HTTPS_APK_URL'), 'Update manifest generator still permits a placeholder URL.');
 assert(exists('PROJECT_AUDIT_AR.md'), 'Pre-implementation project audit is missing.');
 assert(exists('src/services/libraryModel.js'), 'Unified library model service is missing.');

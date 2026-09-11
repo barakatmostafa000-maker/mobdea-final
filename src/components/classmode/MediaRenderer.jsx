@@ -34,6 +34,7 @@ function RobustImage({ resource, source, zoom = 1, onZoomChange }) {
   const [fallbackUrl, setFallbackUrl] = useState('');
   const [failed, setFailed] = useState(false);
   const [fitMode, setFitMode] = useState('contain');
+  const [fitPickerOpen, setFitPickerOpen] = useState(true);
   const normalizedBlob = useMemo(() => {
     if (!(source?.blob instanceof Blob) || source.blob.size <= 0) return null;
     const mime = imageMime(resource, source.blob);
@@ -51,6 +52,11 @@ function RobustImage({ resource, source, zoom = 1, onZoomChange }) {
     return () => URL.revokeObjectURL(url);
   }, [normalizedBlob]);
 
+  useEffect(() => {
+    setFitMode('contain');
+    setFitPickerOpen(true);
+  }, [resource?.id]);
+
   const src = fallbackUrl || source?.url || resource?.url || '';
   if (!src || failed) return null;
   return (
@@ -58,7 +64,7 @@ function RobustImage({ resource, source, zoom = 1, onZoomChange }) {
       <PanZoomSurface
         zoom={zoom}
         onZoomChange={onZoomChange}
-        maxZoom={4}
+        maxZoom={6}
         className="classmode-image-panzoom"
         ariaLabel="الصورة — قرّب بإصبعين واسحب بعد التكبير"
       >
@@ -71,11 +77,13 @@ function RobustImage({ resource, source, zoom = 1, onZoomChange }) {
           onError={() => setFailed(true)}
         />
       </PanZoomSurface>
-      <div className="classmode-image-fit-controls" role="group" aria-label="طريقة عرض الصورة">
-        <button type="button" className={fitMode === 'contain' ? 'active' : ''} onClick={() => setFitMode('contain')}>احتواء</button>
-        <button type="button" className={fitMode === 'width' ? 'active' : ''} onClick={() => setFitMode('width')}>ملء العرض</button>
-        <button type="button" className={fitMode === 'cover' ? 'active' : ''} onClick={() => setFitMode('cover')}>ملء الشاشة</button>
-      </div>
+      {fitPickerOpen && (
+        <div className="classmode-image-fit-controls" role="group" aria-label="طريقة عرض الصورة">
+          <button type="button" className={fitMode === 'contain' ? 'active' : ''} onClick={() => { setFitMode('contain'); setFitPickerOpen(false); }}>احتواء</button>
+          <button type="button" className={fitMode === 'width' ? 'active' : ''} onClick={() => { setFitMode('width'); setFitPickerOpen(false); }}>ملء العرض</button>
+          <button type="button" className={fitMode === 'cover' ? 'active' : ''} onClick={() => { setFitMode('cover'); setFitPickerOpen(false); }}>ملء الشاشة</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -134,11 +142,19 @@ export default function MediaRenderer({
         />
       )}
       {['pdf', 'textbook'].includes(type) && nativeRuntime && pdfPage?.dataUrl && (
-        <img
-          className="classmode-pdf-page-image unified-media-pdf"
-          src={pdfPage.dataUrl}
-          alt={`${resource.title} — صفحة ${page || 1}`}
-        />
+        <PanZoomSurface
+          zoom={zoom}
+          onZoomChange={onZoomChange}
+          maxZoom={6}
+          className="classmode-pdf-panzoom classmode-native-pdf-panzoom"
+          ariaLabel="صفحة PDF — قرّب بإصبعين واسحب بعد التكبير"
+        >
+          <img
+            className="classmode-pdf-page-image unified-media-pdf"
+            src={pdfPage.dataUrl}
+            alt={`${resource.title} — صفحة ${page || 1}`}
+          />
+        </PanZoomSurface>
       )}
       {['pdf', 'textbook'].includes(type) && !nativeRuntime && (source?.blob || assetUrl) && (
         <PdfCanvasPreview

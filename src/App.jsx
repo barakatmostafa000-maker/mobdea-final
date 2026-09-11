@@ -1,52 +1,115 @@
-import { App as CapacitorApp } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import AppShell from './components/AppShell';
-import AppErrorBoundary from './components/AppErrorBoundary';
-import LockScreen from './components/LockScreen';
-import Placeholder from './pages/Placeholder';
-import SharedAccess from './pages/SharedAccess';
-import { loadAppData, saveAppData, resetAppData } from './services/storage';
-import { checkForUpdate, openApkDownload } from './services/updater';
-import { registerServiceWorker, applyServiceWorkerUpdate } from './services/pwaUpdate';
-import { cloudConfigured, pullCloudData, pullCloudDataIfExists, pushCloudData } from './services/cloudSync';
-import { mergeAppData, normalizeStudentCodes } from './services/dataMerge';
-import { shouldRunAutoBackup } from './services/autoBackup';
-import UpdatePrompt from './components/UpdatePrompt';
-import { speakWelcome } from './services/voice';
-import { readShareFromLocation, resolveShareFromLocation } from './services/share';
-import { release } from './config/release';
-import { ROLE_HOME, getRoleModules, buildWelcomeMessage } from './utils/auth';
-import { identity } from './config/identity';
-import { mergeStudentPortalSnapshot, refreshStudentPortalSnapshot } from './services/studentPortalCloud';
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import AppShell from "./components/AppShell";
+import AppErrorBoundary from "./components/AppErrorBoundary";
+import LockScreen from "./components/LockScreen";
+import Placeholder from "./pages/Placeholder";
+import SharedAccess from "./pages/SharedAccess";
+import { loadAppData, saveAppData, resetAppData } from "./services/storage";
+import { checkForUpdate, openApkDownload } from "./services/updater";
+import {
+  registerServiceWorker,
+  applyServiceWorkerUpdate,
+} from "./services/pwaUpdate";
+import {
+  cloudConfigured,
+  pullCloudData,
+  pullCloudDataIfExists,
+  pushCloudData,
+} from "./services/cloudSync";
+import { mergeAppData, normalizeStudentCodes } from "./services/dataMerge";
+import { shouldRunAutoBackup } from "./services/autoBackup";
+import UpdatePrompt from "./components/UpdatePrompt";
+import { speakWelcome } from "./services/voice";
+import {
+  readShareFromLocation,
+  resolveShareFromLocation,
+} from "./services/share";
+import { release } from "./config/release";
+import { ROLE_HOME, getRoleModules, buildWelcomeMessage } from "./utils/auth";
+import { identity } from "./config/identity";
+import Project12StudentPinGate from './components/auth/Project12StudentPinGate';
+import { refreshStudentCloud } from './services/project12StudentCloud';
+import { syncStudentPortalImages } from './services/projectFinalStudentAssets.js';
+import {
+  mergeStudentPortalSnapshot,
+  refreshStudentPortalSnapshot,
+} from "./services/studentPortalCloud";
 
-const MapChallenge = lazy(() => import('./pages/MapChallenge'));
-const ContentLibrary = lazy(() => import('./pages/ContentLibrary'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Students = lazy(() => import('./pages/Students'));
-const Attendance = lazy(() => import('./pages/Attendance'));
-const Sessions = lazy(() => import('./pages/Sessions'));
-const Grades = lazy(() => import('./pages/Grades'));
-const GradeScanner = lazy(() => import('./pages/GradeScanner'));
-const ResultDetails = lazy(() => import('./pages/ResultDetails'));
-const Payments = lazy(() => import('./pages/Payments'));
-const Messages = lazy(() => import('./pages/Messages'));
-const Reports = lazy(() => import('./pages/Reports'));
-const Games = lazy(() => import('./pages/Games'));
-const Achievements = lazy(() => import('./pages/Achievements'));
-const QuestionBankManager = lazy(() => import('./pages/QuestionBankManager'));
+function lazyWithNativeRecovery(key, importer) {
+  return lazy(async () => {
+    const retryKey = `mobdea_native_lazy_retry:${key}`;
+    try {
+      const loaded = await importer();
+      try {
+        sessionStorage.removeItem(retryKey);
+      } catch {
+        /* optional */
+      }
+      return loaded;
+    } catch (error) {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          if (!sessionStorage.getItem(retryKey)) {
+            sessionStorage.setItem(retryKey, "1");
+            window.setTimeout(() => globalThis.location?.reload?.(), 80);
+            await new Promise((resolve) => window.setTimeout(resolve, 4000));
+            throw error;
+          }
+        } catch {
+          // Fall through to the normal error boundary.
+        }
+      }
+      throw error;
+    }
+  });
+}
 
-const ClassMode = lazy(() => import('./pages/ClassMode'));
-const Whiteboard = lazy(() => import('./pages/Whiteboard'));
-const StudentCards = lazy(() => import('./pages/StudentCards'));
-const Settings = lazy(() => import('./pages/Settings'));
-const PortalPreview = lazy(() => import('./pages/PortalPreview'));
-const DeviceDiagnostics = lazy(() => import('./pages/DeviceDiagnostics'));
-const SmartAssistant = lazy(() => import('./pages/SmartAssistant'));
+const MapChallenge = lazy(() => import("./pages/MapChallenge"));
+const ContentLibrary = lazy(() => import("./pages/ContentLibrary"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Students = lazy(() => import("./pages/Students"));
+const Attendance = lazy(() => import("./pages/Attendance"));
+const Sessions = lazy(() => import("./pages/Sessions"));
+const Grades = lazy(() => import("./pages/Grades"));
+const GradeScanner = lazy(() => import("./pages/GradeScanner"));
+const ResultDetails = lazy(() => import("./pages/ResultDetails"));
+const Payments = lazy(() => import("./pages/Payments"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Games = lazy(() => import("./pages/Games"));
+const Achievements = lazy(() => import("./pages/Achievements"));
+const QuestionBankManager = lazy(() => import("./pages/QuestionBankManager"));
 
-const Updates = lazy(() => import('./pages/Updates'));
+const ClassMode = lazyWithNativeRecovery(
+  "class-mode",
+  () => import("./pages/ClassMode"),
+);
+const Whiteboard = lazy(() => import("./pages/Whiteboard"));
+const StudentCards = lazy(() => import("./pages/StudentCards"));
+const Settings = lazy(() => import("./pages/Settings"));
+const PortalPreview = lazy(() => import("./pages/PortalPreview"));
+const DeviceDiagnostics = lazy(() => import("./pages/DeviceDiagnostics"));
+const SmartAssistant = lazy(() => import("./pages/SmartAssistant"));
 
-const LoadingScreen = () => <div className="loading-screen"><div className="loading-mark">م</div><h1>منصة المُبدع</h1><p>جارٍ تحميل الصفحة...</p></div>;
+const Updates = lazy(() => import("./pages/Updates"));
+
+const LoadingScreen = () => (
+  <div className="loading-screen">
+    <div className="loading-mark">م</div>
+    <h1>منصة المُبدع</h1>
+    <p>جارٍ تحميل الصفحة...</p>
+  </div>
+);
 
 const DATA_LOAD_TIMEOUT_MS = 15000;
 
@@ -54,21 +117,40 @@ function loadAppDataWithTimeout() {
   return Promise.race([
     loadAppData(),
     new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('استغرق فتح البيانات وقتًا أطول من المتوقع. أعد المحاولة دون إغلاق التطبيق.')), DATA_LOAD_TIMEOUT_MS);
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              "استغرق فتح البيانات وقتًا أطول من المتوقع. أعد المحاولة دون إغلاق التطبيق.",
+            ),
+          ),
+        DATA_LOAD_TIMEOUT_MS,
+      );
     }),
   ]);
 }
 
-const AUTH_STORAGE_KEY = 'mobdea_mobile_auth_v2';
+const AUTH_STORAGE_KEY = "mobdea_mobile_auth_v2";
 const AUTH_TTL_REMEMBERED = 7 * 24 * 60 * 60 * 1000;
 const AUTH_TTL_SESSION = 12 * 60 * 60 * 1000;
-const VALID_ROLES = new Set(['admin', 'teacher', 'student', 'guardian', 'visitor']);
+const VALID_ROLES = new Set([
+  "admin",
+  "teacher",
+  "student",
+  "guardian",
+  "visitor",
+]);
 
 function validateStoredAuth(raw, storage) {
   try {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || !VALID_ROLES.has(parsed.role) || !Number.isFinite(Number(parsed.expiresAt)) || Number(parsed.expiresAt) <= Date.now()) {
+    if (
+      !parsed ||
+      !VALID_ROLES.has(parsed.role) ||
+      !Number.isFinite(Number(parsed.expiresAt)) ||
+      Number(parsed.expiresAt) <= Date.now()
+    ) {
       storage?.removeItem(AUTH_STORAGE_KEY);
       return null;
     }
@@ -86,14 +168,41 @@ function readAuthFromStorage() {
     const persisted = globalThis.localStorage?.getItem(AUTH_STORAGE_KEY);
     const remembered = validateStoredAuth(persisted, globalThis.localStorage);
     if (remembered) return remembered;
-    return validateStoredAuth(globalThis.sessionStorage?.getItem(AUTH_STORAGE_KEY), globalThis.sessionStorage);
+    return validateStoredAuth(
+      globalThis.sessionStorage?.getItem(AUTH_STORAGE_KEY),
+      globalThis.sessionStorage,
+    );
   } catch {
     return null;
   }
 }
 
 export default function App() {
-  const [active, setActive] = useState('dashboard');
+  const [active, setActive] = useState("dashboard");
+
+  useEffect(() => {
+    const openMapChallenge = (event) => {
+      const screen =
+        event?.detail?.screen ||
+        "mapChallenge";
+
+      if (screen === "mapChallenge") {
+        setActive("mapChallenge");
+      }
+    };
+
+    globalThis.addEventListener?.(
+      "mobdea:r20-open-map-challenge",
+      openMapChallenge,
+    );
+
+    return () => {
+      globalThis.removeEventListener?.(
+        "mobdea:r20-open-map-challenge",
+        openMapChallenge,
+      );
+    };
+  }, []);
   // === MOBDEA ANDROID BACK START ===
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
@@ -107,8 +216,8 @@ export default function App() {
       const style = window.getComputedStyle(element);
 
       return (
-        style.display !== 'none' &&
-        style.visibility !== 'hidden' &&
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
         element.getClientRects().length > 0
       );
     };
@@ -121,13 +230,13 @@ export default function App() {
 
       const overlaySelectors = [
         '[role="dialog"]',
-        '.modal-backdrop',
-        '.modal-card',
-        '.drawer.open',
-        '.drawer.is-open',
-        '.mobile-menu.open',
-        '.mobile-menu.is-open',
-      ].join(',');
+        ".modal-backdrop",
+        ".modal-card",
+        ".drawer.open",
+        ".drawer.is-open",
+        ".mobile-menu.open",
+        ".mobile-menu.is-open",
+      ].join(",");
 
       const overlay = Array.from(
         document.querySelectorAll(overlaySelectors),
@@ -137,13 +246,13 @@ export default function App() {
 
       const closeButton =
         overlay.querySelector(
-          '[data-close], .modal-close, .drawer-close, ' +
+          "[data-close], .modal-close, .drawer-close, " +
             '.close-button, button[aria-label="إغلاق"], ' +
             'button[aria-label="Close"]',
         ) ||
         Array.from(
           document.querySelectorAll(
-            '[data-close], .modal-close, .drawer-close, ' +
+            "[data-close], .modal-close, .drawer-close, " +
               '.close-button, button[aria-label="إغلاق"], ' +
               'button[aria-label="Close"]',
           ),
@@ -153,9 +262,9 @@ export default function App() {
         closeButton.click();
       } else {
         document.dispatchEvent(
-          new KeyboardEvent('keydown', {
-            key: 'Escape',
-            code: 'Escape',
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            code: "Escape",
             bubbles: true,
           }),
         );
@@ -164,11 +273,11 @@ export default function App() {
       return true;
     };
 
-    void CapacitorApp.addListener('backButton', () => {
+    void CapacitorApp.addListener("backButton", () => {
       if (closeVisibleOverlay()) return;
 
-      if (String(active) !== 'dashboard') {
-        setActive('dashboard');
+      if (String(active) !== "dashboard") {
+        setActive("dashboard");
         return;
       }
 
@@ -193,28 +302,37 @@ export default function App() {
   // === MOBDEA ANDROID BACK END ===
 
   const [data, setData] = useState(null);
-  const [loadError, setLoadError] = useState('');
+  const [loadError, setLoadError] = useState("");
   const [auth, setAuth] = useState(() => readAuthFromStorage());
   useEffect(() => {
     if (!auth) return;
-    if (active === 'dashboard' && ['student', 'guardian'].includes(auth.role)) {
-      setActive('portalPreview');
+    if (active === "dashboard" && ["student", "guardian"].includes(auth.role)) {
+      setActive("portalPreview");
     }
   }, [active, auth?.role]);
 
-  const rememberRef = useRef(Boolean(globalThis.localStorage?.getItem(AUTH_STORAGE_KEY)));
+  const rememberRef = useRef(
+    Boolean(globalThis.localStorage?.getItem(AUTH_STORAGE_KEY)),
+  );
   const [welcomePlayed, setWelcomePlayed] = useState(false);
-  const [welcomeToast, setWelcomeToast] = useState('');
+  const [welcomeToast, setWelcomeToast] = useState("");
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateBusy, setUpdateBusy] = useState(false);
   const swReadyRef = useRef(false);
   const dataRef = useRef(null);
   const persistedDataRef = useRef(null);
+  const project12PortalModeRef = useRef(false);
   const saveQueueRef = useRef(Promise.resolve());
   const autoBackupRunningRef = useRef(false);
   const autoSyncRunningRef = useRef(false);
 
-  useEffect(() => registerServiceWorker(() => { swReadyRef.current = true; }), []);
+  useEffect(
+    () =>
+      registerServiceWorker(() => {
+        swReadyRef.current = true;
+      }),
+    [],
+  );
 
   useEffect(() => {
     dataRef.current = data;
@@ -222,14 +340,16 @@ export default function App() {
 
   useEffect(() => {
     if (!welcomeToast) return undefined;
-    const timer = setTimeout(() => setWelcomeToast(''), 5000);
+    const timer = setTimeout(() => setWelcomeToast(""), 5000);
     return () => clearTimeout(timer);
   }, [welcomeToast]);
-  const [shareState, setShareState] = useState(() => readShareFromLocation(globalThis.location));
+  const [shareState, setShareState] = useState(() =>
+    readShareFromLocation(globalThis.location),
+  );
   const autoCheckedRef = useRef(false);
 
   const reloadData = useCallback(async () => {
-    setLoadError('');
+    setLoadError("");
     try {
       let loaded;
       try {
@@ -246,7 +366,7 @@ export default function App() {
       persistedDataRef.current = loaded;
       setData(loaded);
     } catch (error) {
-      setLoadError(error?.message || 'تعذر فتح بيانات التطبيق المشفرة.');
+      setLoadError(error?.message || "تعذر فتح بيانات التطبيق المشفرة.");
     }
   }, []);
 
@@ -257,16 +377,24 @@ export default function App() {
       await reloadData();
     };
     void run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [reloadData]);
 
   useEffect(() => {
     try {
       if (auth && rememberRef.current) {
-        globalThis.localStorage?.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+        globalThis.localStorage?.setItem(
+          AUTH_STORAGE_KEY,
+          JSON.stringify(auth),
+        );
         globalThis.sessionStorage?.removeItem(AUTH_STORAGE_KEY);
       } else if (auth) {
-        globalThis.sessionStorage?.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+        globalThis.sessionStorage?.setItem(
+          AUTH_STORAGE_KEY,
+          JSON.stringify(auth),
+        );
         globalThis.localStorage?.removeItem(AUTH_STORAGE_KEY);
       } else {
         globalThis.sessionStorage?.removeItem(AUTH_STORAGE_KEY);
@@ -286,47 +414,113 @@ export default function App() {
     }
     const timer = setTimeout(handleLogout, Math.min(expiresIn, 2_147_000_000));
     return () => clearTimeout(timer);
-  }, [auth?.expiresAt]);
-
-  useEffect(() => {
+  }, [auth?.expiresAt]);  useEffect(() => {
     if (!data || !auth || !['student', 'guardian'].includes(auth.role)) return;
+    if (auth.cloudPortal) return;
     const students = Array.isArray(data.students) ? data.students : [];
-    const normalize = (value) => String(value || '').replace(/\D/g, '').slice(-10);
+    const normalize = (value) =>
+      String(value || "")
+        .replace(/\D/g, "")
+        .slice(-10);
     const linked = students.some((student) => {
       if (String(student.id) === String(auth.studentId)) return true;
-      if (auth.role === 'student' && String(student.code) === String(auth.studentCode || '')) return true;
-      if (auth.role === 'guardian' && normalize(student.guardianPhone) === normalize(auth.guardianPhone)) return true;
+      if (
+        auth.role === "student" &&
+        String(student.code) === String(auth.studentCode || "")
+      )
+        return true;
+      if (
+        auth.role === "guardian" &&
+        normalize(student.guardianPhone) === normalize(auth.guardianPhone)
+      )
+        return true;
       return false;
     });
     if (!linked) handleLogout();
-  }, [data?.students, auth?.guardianPhone, auth?.role, auth?.studentCode, auth?.studentId]);
+  }, [
+    data?.students,
+    auth?.guardianPhone,
+    auth?.role,
+    auth?.studentCode,
+    auth?.studentId,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
     const initial = readShareFromLocation(globalThis.location);
     setShareState(initial);
-    if (initial.mode === 'remote') {
-      resolveShareFromLocation(globalThis.location).then((resolved) => { if (!cancelled) setShareState(resolved); });
+    if (initial.mode === "remote") {
+      resolveShareFromLocation(globalThis.location).then((resolved) => {
+        if (!cancelled) setShareState(resolved);
+      });
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  // PROJECT12_STUDENT_PORTAL_RUNTIME_V1
+  useEffect(() => {
+    if (auth?.role !== 'student' || !auth?.cloudPortal || !auth?.studentSessionToken || !data?.settings?.cloudSync) return undefined;
+    let stopped = false;
+    const refresh = async () => {
+      try {
+        const response = await refreshStudentCloud(dataRef.current?.settings || data.settings, auth.studentSessionToken);
+        if (stopped || !response?.data) return;
+        await syncStudentPortalImages(response.data.settings, auth.studentSessionToken, response.data).catch(() => undefined);
+        project12PortalModeRef.current = true;
+        dataRef.current = response.data;
+        setData(response.data);
+        setAuth((current) => current ? { ...current, mustChangePin: Boolean(response.mustChangePin) } : current);
+      } catch (error) {
+        if (Number(error?.status || 0) === 401) handleLogout();
+      }
+    };
+    void refresh();
+    const timer = setInterval(refresh, 15000);
+    const visible = () => { if (!document.hidden) void refresh(); };
+    document.addEventListener('visibilitychange', visible);
+    globalThis.addEventListener?.('online', refresh);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', visible);
+      globalThis.removeEventListener?.('online', refresh);
+    };
+  }, [auth?.cloudPortal, auth?.role, auth?.studentSessionToken, data?.settings?.cloudSync?.endpoint, data?.settings?.cloudSync?.workspaceId]);
+
+  useEffect(() => {
+    if (auth?.role === 'student' && auth?.mustChangePin && active !== 'portalPreview') setActive('portalPreview');
+  }, [active, auth?.mustChangePin, auth?.role]);
 
   useEffect(() => {
     if (!data || !auth || !data.settings.lockEnabled) return undefined;
     let timer;
     const resetTimer = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => setAuth(null), Math.max(1, Number(data.settings.lockAfterMinutes || 10)) * 60 * 1000);
+      timer = setTimeout(
+        () => setAuth(null),
+        Math.max(1, Number(data.settings.lockAfterMinutes || 10)) * 60 * 1000,
+      );
     };
-    const events = ['pointerdown', 'keydown', 'touchstart'];
-    events.forEach((event) => window.addEventListener(event, resetTimer, { passive: true }));
+    const events = ["pointerdown", "keydown", "touchstart"];
+    events.forEach((event) =>
+      window.addEventListener(event, resetTimer, { passive: true }),
+    );
     resetTimer();
-    return () => { clearTimeout(timer); events.forEach((event) => window.removeEventListener(event, resetTimer)); };
+    return () => {
+      clearTimeout(timer);
+      events.forEach((event) => window.removeEventListener(event, resetTimer));
+    };
   }, [data?.settings?.lockEnabled, data?.settings?.lockAfterMinutes, auth]);
 
   const updateData = useCallback((nextOrUpdater, options = {}) => {
-    let candidate = typeof nextOrUpdater === 'function' ? nextOrUpdater(dataRef.current) : nextOrUpdater;
-    if (!candidate || typeof candidate !== 'object') return Promise.reject(new Error('بيانات الحفظ غير صالحة.'));
+    let candidate =
+      typeof nextOrUpdater === "function"
+        ? nextOrUpdater(dataRef.current)
+        : nextOrUpdater;
+    if (!candidate || typeof candidate !== "object")
+      return Promise.reject(new Error("بيانات الحفظ غير صالحة."));
 
     if (!options.skipCloudDirty && candidate.settings?.cloudSync) {
       candidate = {
@@ -336,7 +530,7 @@ export default function App() {
           cloudSync: {
             ...candidate.settings.cloudSync,
             localChangedAt: new Date().toISOString(),
-            autoSyncError: '',
+            autoSyncError: "",
           },
         },
       };
@@ -350,20 +544,22 @@ export default function App() {
       .then(() => saveAppData(candidate));
     saveQueueRef.current = operation.catch(() => undefined);
 
-    return operation.then((saved) => {
-      persistedDataRef.current = saved;
-      if (dataRef.current === candidate) {
-        dataRef.current = saved;
-        setData(saved);
-      }
-      return saved;
-    }).catch((error) => {
-      if (dataRef.current === candidate) {
-        dataRef.current = persistedDataRef.current;
-        setData(persistedDataRef.current);
-      }
-      throw error;
-    });
+    return operation
+      .then((saved) => {
+        persistedDataRef.current = saved;
+        if (dataRef.current === candidate) {
+          dataRef.current = saved;
+          setData(saved);
+        }
+        return saved;
+      })
+      .catch((error) => {
+        if (dataRef.current === candidate) {
+          dataRef.current = persistedDataRef.current;
+          setData(persistedDataRef.current);
+        }
+        throw error;
+      });
   }, []);
 
   useEffect(() => {
@@ -385,11 +581,17 @@ export default function App() {
       if (!current?.settings?.update?.autoCheck || running) return;
       running = true;
       try {
-        const result = await checkForUpdate(current.settings, release.appVersion);
+        const result = await checkForUpdate(
+          current.settings,
+          release.appVersion,
+        );
         if (cancelled) return;
         const checkedAt = new Date().toISOString();
         const latest = dataRef.current || current;
-        const history = [{ checkedAt, version: result.version, available: result.available }, ...(latest.updateHistory || [])].slice(0, 20);
+        const history = [
+          { checkedAt, version: result.version, available: result.available },
+          ...(latest.updateHistory || []),
+        ].slice(0, 20);
         const next = {
           ...latest,
           updateHistory: history,
@@ -397,7 +599,8 @@ export default function App() {
             ...latest.settings,
             update: {
               ...(latest.settings.update || {}),
-              manifestUrl: latest.settings.update?.manifestUrl || release.manifestPath,
+              manifestUrl:
+                latest.settings.update?.manifestUrl || release.manifestPath,
               autoCheck: true,
               lastAutoCheckAt: checkedAt,
               lastAutoCheckVersion: result.version,
@@ -408,7 +611,11 @@ export default function App() {
         const saved = await updateData(next);
         if (cancelled) return;
         const dismissed = saved.settings.update?.dismissedVersion;
-        if (result.available && (result.mandatory || dismissed !== result.version)) setUpdateInfo(result);
+        if (
+          result.available &&
+          (result.mandatory || dismissed !== result.version)
+        )
+          setUpdateInfo(result);
       } catch {
         // Update checks must never interrupt normal app use.
       } finally {
@@ -424,17 +631,20 @@ export default function App() {
     const onVisible = () => {
       if (!document.hidden) void run();
     };
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [data?.settings?.update?.autoCheck, data?.settings?.update?.manifestUrl, updateData]);
-
+  }, [
+    data?.settings?.update?.autoCheck,
+    data?.settings?.update?.manifestUrl,
+    updateData,
+  ]);
 
   useEffect(() => {
-    if (auth?.role !== 'student') return undefined;
+    if (auth?.role !== "student") return undefined;
     let cancelled = false;
     let running = false;
 
@@ -451,16 +661,21 @@ export default function App() {
         await updateData(merged, { skipCloudDirty: true });
       } catch (error) {
         if (cancelled) return;
-        await updateData((latest) => ({
-          ...latest,
-          settings: {
-            ...latest.settings,
-            studentPortalSession: {
-              ...(latest.settings?.studentPortalSession || {}),
-              lastError: String(error?.message || 'تعذر تحديث حساب الطالب.').slice(0, 220),
+        await updateData(
+          (latest) => ({
+            ...latest,
+            settings: {
+              ...latest.settings,
+              studentPortalSession: {
+                ...(latest.settings?.studentPortalSession || {}),
+                lastError: String(
+                  error?.message || "تعذر تحديث حساب الطالب.",
+                ).slice(0, 220),
+              },
             },
-          },
-        }), { skipCloudDirty: true }).catch(() => null);
+          }),
+          { skipCloudDirty: true },
+        ).catch(() => null);
       } finally {
         running = false;
       }
@@ -468,27 +683,37 @@ export default function App() {
 
     const first = setTimeout(refreshStudentData, 700);
     const interval = setInterval(refreshStudentData, 2 * 60 * 1000);
-    const onVisible = () => { if (!document.hidden) void refreshStudentData(); };
-    document.addEventListener('visibilitychange', onVisible);
-    globalThis.addEventListener?.('online', refreshStudentData);
+    const onVisible = () => {
+      if (!document.hidden) void refreshStudentData();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    globalThis.addEventListener?.("online", refreshStudentData);
     return () => {
       cancelled = true;
       clearTimeout(first);
       clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-      globalThis.removeEventListener?.('online', refreshStudentData);
+      document.removeEventListener("visibilitychange", onVisible);
+      globalThis.removeEventListener?.("online", refreshStudentData);
     };
-  }, [auth?.role, data?.settings?.studentPortalSession?.studentToken, updateData]);
-
+  }, [
+    auth?.role,
+    data?.settings?.studentPortalSession?.studentToken,
+    updateData,
+  ]);
 
   useEffect(() => {
-    if (!['admin', 'teacher'].includes(auth?.role)) return undefined;
+    if (!["admin", "teacher"].includes(auth?.role)) return undefined;
 
     let cancelled = false;
 
     const runAutoBackup = async () => {
       const current = dataRef.current;
-      if (!current || autoBackupRunningRef.current) return;
+      if (
+        !current ||
+        autoBackupRunningRef.current ||
+        autoSyncRunningRef.current
+      )
+        return;
       if (globalThis.navigator && globalThis.navigator.onLine === false) return;
       if (!shouldRunAutoBackup(current.settings, Date.now())) return;
 
@@ -498,35 +723,41 @@ export default function App() {
         if (cancelled) return;
 
         const completedAt = result.updatedAt || new Date().toISOString();
-        await updateData((latest) => ({
-          ...latest,
-          settings: {
-            ...latest.settings,
-            cloudSync: {
-              ...latest.settings.cloudSync,
-              revision: result.revision,
-              lastPushAt: completedAt,
-              lastAutoBackupAt: completedAt,
-              localChangedAt: '',
-              autoBackupError: '',
+        await updateData(
+          (latest) => ({
+            ...latest,
+            settings: {
+              ...latest.settings,
+              cloudSync: {
+                ...latest.settings.cloudSync,
+                revision: result.revision,
+                lastPushAt: completedAt,
+                lastAutoBackupAt: completedAt,
+                localChangedAt: "",
+                autoBackupError: "",
+              },
             },
-          },
-        }), { skipCloudDirty: true });
+          }),
+          { skipCloudDirty: true },
+        );
       } catch (error) {
         if (cancelled) return;
 
-        await updateData((latest) => ({
-          ...latest,
-          settings: {
-            ...latest.settings,
-            cloudSync: {
-              ...latest.settings.cloudSync,
-              autoBackupError: String(
-                error?.message || 'تعذر إنشاء النسخة السحابية التلقائية.',
-              ).slice(0, 240),
+        await updateData(
+          (latest) => ({
+            ...latest,
+            settings: {
+              ...latest.settings,
+              cloudSync: {
+                ...latest.settings.cloudSync,
+                autoBackupError: String(
+                  error?.message || "تعذر إنشاء النسخة السحابية التلقائية.",
+                ).slice(0, 240),
+              },
             },
-          },
-        }), { skipCloudDirty: true }).catch(() => null);
+          }),
+          { skipCloudDirty: true },
+        ).catch(() => null);
       } finally {
         autoBackupRunningRef.current = false;
       }
@@ -534,12 +765,12 @@ export default function App() {
 
     void runAutoBackup();
     const interval = setInterval(runAutoBackup, 15 * 60 * 1000);
-    globalThis.addEventListener?.('online', runAutoBackup);
+    globalThis.addEventListener?.("online", runAutoBackup);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
-      globalThis.removeEventListener?.('online', runAutoBackup);
+      globalThis.removeEventListener?.("online", runAutoBackup);
     };
   }, [
     auth?.role,
@@ -553,33 +784,41 @@ export default function App() {
     updateData,
   ]);
 
-
   useEffect(() => {
-    if (!['admin', 'teacher'].includes(auth?.role)) return undefined;
+    if (!["admin", "teacher"].includes(auth?.role)) return undefined;
 
     let cancelled = false;
     let initialTimer;
 
     const recordSyncError = async (message) => {
       if (cancelled) return;
-      await updateData((latest) => ({
-        ...latest,
-        settings: {
-          ...latest.settings,
-          cloudSync: {
-            ...latest.settings.cloudSync,
-            autoSyncError: String(message || 'تعذر إكمال المزامنة التلقائية.').slice(0, 240),
+      await updateData(
+        (latest) => ({
+          ...latest,
+          settings: {
+            ...latest.settings,
+            cloudSync: {
+              ...latest.settings.cloudSync,
+              autoSyncError: String(
+                message || "تعذر إكمال المزامنة التلقائية.",
+              ).slice(0, 240),
+            },
           },
-        },
-      }), { skipCloudDirty: true }).catch(() => null);
+        }),
+        { skipCloudDirty: true },
+      ).catch(() => null);
     };
 
     const localCloudConfig = (current, remoteCloud = {}) => ({
       ...remoteCloud,
       ...(current?.settings?.cloudSync || {}),
-      token: current?.settings?.cloudSync?.token || '',
-      endpoint: current?.settings?.cloudSync?.endpoint || remoteCloud.endpoint || '',
-      workspaceId: current?.settings?.cloudSync?.workspaceId || remoteCloud.workspaceId || '',
+      token: current?.settings?.cloudSync?.token || "",
+      endpoint:
+        current?.settings?.cloudSync?.endpoint || remoteCloud.endpoint || "",
+      workspaceId:
+        current?.settings?.cloudSync?.workspaceId ||
+        remoteCloud.workspaceId ||
+        "",
     });
 
     const pushMergedSnapshot = async (localSnapshot, initialRemote) => {
@@ -601,7 +840,9 @@ export default function App() {
           const result = await pushCloudData(merged);
           return { merged, result, completedAt: pulledAt };
         } catch (error) {
-          const conflict = String(error?.message || '').includes('نسخة سحابية أحدث');
+          const conflict = String(error?.message || "").includes(
+            "نسخة سحابية أحدث",
+          );
           if (!conflict || attempt > 0) throw error;
           // Another device pushed after our pull. Download once more, merge the
           // newest records, repair codes, and retry without making the teacher
@@ -610,13 +851,20 @@ export default function App() {
           source = dataRef.current || merged;
         }
       }
-      throw new Error('تعذر دمج النسخة السحابية بعد محاولتين.');
+      throw new Error("تعذر دمج النسخة السحابية بعد محاولتين.");
     };
 
     const runAutoSync = async () => {
       const current = dataRef.current;
       const cloud = current?.settings?.cloudSync;
-      if (!current || !cloud || cloud.autoSync === false || autoSyncRunningRef.current) return;
+      if (
+        !current ||
+        !cloud ||
+        cloud.autoSync === false ||
+        autoSyncRunningRef.current ||
+        autoBackupRunningRef.current
+      )
+        return;
       if (globalThis.navigator && globalThis.navigator.onLine === false) return;
       if (!cloudConfigured(current.settings)) return;
 
@@ -631,26 +879,29 @@ export default function App() {
             students: normalizeStudentCodes(current.students || []),
             settings: {
               ...current.settings,
-              cloudSync: { ...current.settings.cloudSync, revision: '' },
+              cloudSync: { ...current.settings.cloudSync, revision: "" },
             },
           };
           const result = await pushCloudData(seeded);
           if (cancelled) return;
           const completedAt = result.updatedAt || new Date().toISOString();
-          await updateData((latest) => ({
-            ...seeded,
-            settings: {
-              ...seeded.settings,
-              cloudSync: {
-                ...localCloudConfig(latest),
-                revision: result.revision,
-                lastPushAt: completedAt,
-                lastAutoSyncAt: completedAt,
-                localChangedAt: '',
-                autoSyncError: '',
+          await updateData(
+            (latest) => ({
+              ...seeded,
+              settings: {
+                ...seeded.settings,
+                cloudSync: {
+                  ...localCloudConfig(latest),
+                  revision: result.revision,
+                  lastPushAt: completedAt,
+                  lastAutoSyncAt: completedAt,
+                  localChangedAt: "",
+                  autoSyncError: "",
+                },
               },
-            },
-          }), { skipCloudDirty: true });
+            }),
+            { skipCloudDirty: true },
+          );
           return;
         }
 
@@ -664,8 +915,8 @@ export default function App() {
             revision: pushed.result.revision,
             lastPushAt: pushedAt,
             lastAutoSyncAt: pushedAt,
-            localChangedAt: '',
-            autoSyncError: '',
+            localChangedAt: "",
+            autoSyncError: "",
           };
           await updateData(pushed.merged, { skipCloudDirty: true });
           return;
@@ -682,36 +933,54 @@ export default function App() {
               revision: remote.revision,
               lastPullAt: completedAt,
               lastAutoSyncAt: completedAt,
-              localChangedAt: '',
-              autoSyncError: '',
+              localChangedAt: "",
+              autoSyncError: "",
             },
           },
         };
         await updateData(restored, { skipCloudDirty: true });
       } catch (error) {
-        await recordSyncError(error?.message || 'تعذر إكمال المزامنة التلقائية.');
+        await recordSyncError(
+          error?.message || "تعذر إكمال المزامنة التلقائية.",
+        );
       } finally {
         autoSyncRunningRef.current = false;
       }
     };
 
-    const minutes = Math.max(1, Math.min(60, Number(data?.settings?.cloudSync?.autoSyncIntervalMinutes || 2)));
+    const minutes = Math.max(
+      1,
+      Math.min(
+        60,
+        Number(data?.settings?.cloudSync?.autoSyncIntervalMinutes || 2),
+      ),
+    );
     const localDirty = Boolean(data?.settings?.cloudSync?.localChangedAt);
     initialTimer = setTimeout(runAutoSync, localDirty ? 900 : 2200);
-    const interval = setInterval(runAutoSync, minutes * 60 * 1000);
-    const onVisible = () => { if (!document.hidden) void runAutoSync(); };
-    document.addEventListener('visibilitychange', onVisible);
-    globalThis.addEventListener?.('online', runAutoSync);
+    // PROJECT11_FAST_CLASS_SYNC_V1
+    const fastClassSync = ['classMode', 'onlineClass', 'whiteboard'].includes(active);
+    const syncIntervalMs = fastClassSync ? 5000 : (minutes * 60 * 1000);
+    const interval = setInterval(runAutoSync, syncIntervalMs);
+    const onVisible = () => {
+      if (!document.hidden) void runAutoSync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    globalThis.addEventListener?.("online", runAutoSync);
+    globalThis.addEventListener?.('focus', runAutoSync);
+    globalThis.addEventListener?.('pageshow', runAutoSync);
 
     return () => {
       cancelled = true;
       clearTimeout(initialTimer);
       clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-      globalThis.removeEventListener?.('online', runAutoSync);
+      document.removeEventListener("visibilitychange", onVisible);
+      globalThis.removeEventListener?.("online", runAutoSync);
+      globalThis.removeEventListener?.('focus', runAutoSync);
+      globalThis.removeEventListener?.('pageshow', runAutoSync);
     };
   }, [
     auth?.role,
+    active,
     data?.settings?.cloudSync?.autoSync,
     data?.settings?.cloudSync?.autoSyncIntervalMinutes,
     data?.settings?.cloudSync?.endpoint,
@@ -722,22 +991,50 @@ export default function App() {
   ]);
 
   const handleUnlock = (session, options = {}) => {
-    const remember = Boolean(options.remember);
-    const next = { ...(session || { role: 'admin' }), expiresAt: Date.now() + (remember ? AUTH_TTL_REMEMBERED : AUTH_TTL_SESSION) };
+
+  const remember = Boolean(options.remember);
+
+  const next = { ...(session || { role: 'admin' }), expiresAt: Date.now() + (remember ? AUTH_TTL_REMEMBERED : AUTH_TTL_SESSION) };
+
+  rememberRef.current = remember;
+
+  if (options.bootstrappedData) {
+
+  dataRef.current = options.bootstrappedData;
+
+  setData(options.bootstrappedData);
+
+  }
+
+  if (options.portalData) {
+
+  project12PortalModeRef.current = true;
+
+  dataRef.current = options.portalData;
+
+  setData(options.portalData);
+
+  }
+
+  setAuth(next);
+
+  setActive(ROLE_HOME[next.role] || 'dashboard');
     rememberRef.current = remember;
     setAuth(next);
-    setActive(ROLE_HOME[next.role] || 'dashboard');
-    if (shareState.kind === 'game') setActive('games');
-    if (shareState.kind === 'lesson' || shareState.kind === 'portal') setActive('classMode');
+    setActive(ROLE_HOME[next.role] || "dashboard");
+    if (shareState.kind === "game") setActive("games");
+    if (shareState.kind === "lesson" || shareState.kind === "portal")
+      setActive("classMode");
     setWelcomeToast(buildWelcomeMessage(next, identity));
-  };
-
-  const handleLogout = () => {
+  };  const handleLogout = () => {
+    const restoreLocal = project12PortalModeRef.current;
+    project12PortalModeRef.current = false;
     rememberRef.current = false;
     setAuth(null);
     setWelcomePlayed(false);
     setWelcomeToast('');
     setActive('dashboard');
+    if (restoreLocal) void reloadData();
   };
 
   const handleUpdateNow = async () => {
@@ -760,37 +1057,107 @@ export default function App() {
 
   const handleUpdateLater = async () => {
     if (!updateInfo || updateInfo.mandatory) return;
-    const next = { ...data, settings: { ...data.settings, update: { ...(data.settings.update || {}), dismissedVersion: updateInfo.version } } };
+    const next = {
+      ...data,
+      settings: {
+        ...data.settings,
+        update: {
+          ...(data.settings.update || {}),
+          dismissedVersion: updateInfo.version,
+        },
+      },
+    };
     await updateData(next);
     setUpdateInfo(null);
   };
 
-  const allowedModules = useMemo(() => getRoleModules(auth?.role), [auth?.role]);
+  const allowedModules = useMemo(
+    () => getRoleModules(auth?.role),
+    [auth?.role],
+  );
 
   const goHomeFromShare = () => {
-    const url = new URL(globalThis.location?.href || '/');
-    url.search = '';
-    url.hash = '';
-    globalThis.history?.replaceState({}, '', url.toString());
-    setShareState({ kind: '', payload: null, token: null, mode: 'none' });
-    if (auth) setActive('dashboard');
+    const url = new URL(globalThis.location?.href || "/");
+    url.search = "";
+    url.hash = "";
+    globalThis.history?.replaceState({}, "", url.toString());
+    setShareState({ kind: "", payload: null, token: null, mode: "none" });
+    if (auth) setActive("dashboard");
   };
 
-  if (loadError) return <div className="loading-screen loading-recovery" role="alert"><img className="loading-logo" src={identity.logo} alt={identity.schoolName} /><h1>تعذر فتح المنصة</h1><p>{loadError}</p><div className="loading-recovery-actions"><button className="primary-btn" type="button" onClick={() => void reloadData()}>إعادة المحاولة بأمان</button><button className="secondary-btn" type="button" onClick={() => globalThis.location?.reload?.()}>إعادة تشغيل الواجهة</button></div><small>لن يتم حذف أي بيانات عند إعادة المحاولة.</small></div>;
+  if (loadError)
+    return (
+      <div className="loading-screen loading-recovery" role="alert">
+        <img
+          className="loading-logo"
+          src={identity.logo}
+          alt={identity.schoolName}
+        />
+        <h1>تعذر فتح المنصة</h1>
+        <p>{loadError}</p>
+        <div className="loading-recovery-actions">
+          <button
+            className="primary-btn"
+            type="button"
+            onClick={() => void reloadData()}
+          >
+            إعادة المحاولة بأمان
+          </button>
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={() => globalThis.location?.reload?.()}
+          >
+            إعادة تشغيل الواجهة
+          </button>
+        </div>
+        <small>لن يتم حذف أي بيانات عند إعادة المحاولة.</small>
+      </div>
+    );
   if (!data) return <LoadingScreen />;
-  if (shareState.kind && (!auth || shareState.kind === 'live')) {
+  if (shareState.kind && (!auth || shareState.kind === "live")) {
     return (
       <>
-        {updateInfo && <UpdatePrompt currentVersion={release.displayVersion} newVersion={updateInfo.version} notes={updateInfo.notes} mandatory={updateInfo.mandatory} busy={updateBusy} onUpdateNow={handleUpdateNow} onLater={handleUpdateLater} />}
-        <SharedAccess shareKind={shareState.kind} sharePayload={shareState.payload} shareLoading={shareState.loading} shareError={shareState.error} onGoHome={goHomeFromShare} />
+        {updateInfo && (
+          <UpdatePrompt
+            currentVersion={release.displayVersion}
+            newVersion={updateInfo.version}
+            notes={updateInfo.notes}
+            mandatory={updateInfo.mandatory}
+            busy={updateBusy}
+            onUpdateNow={handleUpdateNow}
+            onLater={handleUpdateLater}
+          />
+        )}
+        <SharedAccess
+          shareKind={shareState.kind}
+          sharePayload={shareState.payload}
+          shareLoading={shareState.loading}
+          shareError={shareState.error}
+          onGoHome={goHomeFromShare}
+        />
       </>
     );
   }
   if (!auth) {
     return (
       <>
-        {updateInfo && <UpdatePrompt currentVersion={release.displayVersion} newVersion={updateInfo.version} notes={updateInfo.notes} mandatory={updateInfo.mandatory} busy={updateBusy} onUpdateNow={handleUpdateNow} onLater={handleUpdateLater} />}
-        <LockScreen data={data} onUnlock={handleUnlock} updateData={updateData} />
+        {updateInfo && (
+          <UpdatePrompt
+            currentVersion={release.displayVersion}
+            newVersion={updateInfo.version}
+            notes={updateInfo.notes}
+            mandatory={updateInfo.mandatory}
+            busy={updateBusy}
+            onUpdateNow={handleUpdateNow}
+            onLater={handleUpdateLater}
+          />
+        )}
+        <LockScreen
+          data={data}
+          onUnlock={handleUnlock}
+          updateData={updateData}
+        />
       </>
     );
   }
@@ -799,6 +1166,7 @@ export default function App() {
   const screenProps = {
     dashboard: { data, navigate: setActive, auth },
     classMode: { ...common, navigate: setActive, shareState },
+    onlineClass: { ...common, navigate: setActive, shareState, onlineEntry: true },
     whiteboard: { ...common, navigate: setActive },
     students: common,
     studentCards: { data, auth },
@@ -822,9 +1190,11 @@ export default function App() {
     settings: { ...common, resetAppData },
   };
 
+  // PROJECT10_ONLINE_CLASS_V1
   const screenMap = {
     dashboard: Dashboard,
     classMode: ClassMode,
+    onlineClass: ClassMode,
     whiteboard: Whiteboard,
     students: Students,
     studentCards: StudentCards,
@@ -848,20 +1218,46 @@ export default function App() {
     settings: Settings,
   };
 
-  const constrainedActive = allowedModules && !allowedModules.has(active)
-    ? ROLE_HOME[auth?.role] || 'dashboard'
-    : active;
+  const constrainedActive =
+    allowedModules && !allowedModules.has(active)
+      ? ROLE_HOME[auth?.role] || "dashboard"
+      : active;
   const Screen = screenMap[constrainedActive] || Placeholder;
-  const ScreenProps = screenProps[constrainedActive] || { title: 'قيد التطوير', subtitle: 'سيتم استكمال الوحدة في الإصدار التالي.' };
+  const ScreenProps = screenProps[constrainedActive] || {
+    title: "قيد التطوير",
+    subtitle: "سيتم استكمال الوحدة في الإصدار التالي.",
+  };
 
   return (
     <>
-      {updateInfo && <UpdatePrompt currentVersion={release.displayVersion} newVersion={updateInfo.version} notes={updateInfo.notes} mandatory={updateInfo.mandatory} busy={updateBusy} onUpdateNow={handleUpdateNow} onLater={handleUpdateLater} />}
+      {updateInfo && (
+        <UpdatePrompt
+          currentVersion={release.displayVersion}
+          newVersion={updateInfo.version}
+          notes={updateInfo.notes}
+          mandatory={updateInfo.mandatory}
+          busy={updateBusy}
+          onUpdateNow={handleUpdateNow}
+          onLater={handleUpdateLater}
+        />
+      )}
       {welcomeToast && (
         <div className="welcome-toast" role="status">
           <span>{welcomeToast}</span>
         </div>
       )}
+      <Project12StudentPinGate
+        auth={auth}
+        data={data}
+        updateData={updateData}
+        onAuthChange={(patch) => setAuth((current) => current ? { ...current, ...patch } : current)}
+        onPortalData={(portalData) => {
+          if (!portalData) return;
+          project12PortalModeRef.current = true;
+          dataRef.current = portalData;
+          setData(portalData);
+        }}
+      />
       <AppShell
         active={constrainedActive}
         onChange={setActive}
@@ -870,7 +1266,10 @@ export default function App() {
         auth={auth}
         onLogout={handleLogout}
       >
-        <AppErrorBoundary key={constrainedActive} onReset={() => setActive(ROLE_HOME[auth?.role] || 'dashboard')}>
+        <AppErrorBoundary
+          key={constrainedActive}
+          onReset={() => setActive(ROLE_HOME[auth?.role] || "dashboard")}
+        >
           <Suspense fallback={<LoadingScreen />}>
             <div className="screen-stage">
               <Screen {...ScreenProps} />

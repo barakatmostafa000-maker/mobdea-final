@@ -1,0 +1,351 @@
+/* R19 targeted fixes — intentionally scoped to the reported regressions only. */
+
+/* 1) Student ranking: keep the current design, remove attendance letters,
+   show full names, and make the full roster scrollable. */
+.classmode-student-row-actions .student-attendance-mini {
+  display: none !important;
+}
+.classmode-student-row-main,
+.classmode-student-row-main > div {
+  min-width: 0 !important;
+}
+.classmode-student-row-main strong {
+  display: block !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.25 !important;
+}
+.classmode-viewport-students,
+.classmode-viewport-students > .classmode-side-column {
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+.classmode-viewport-students > .classmode-side-column {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+.classmode-students-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 10px !important;
+}
+/* Keep online / recording / save / screenshot reachable while the roster scrolls. */
+.classmode-management-actions-panel {
+  flex: 0 0 auto !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 12 !important;
+  background: rgba(5, 9, 13, 0.98) !important;
+  padding-top: 6px !important;
+}
+
+/* 2) Whiteboard / PDF / image annotation:
+   tools float above the stage instead of shrinking the drawable surface. */
+.classmode-board-surface,
+.classmode-board-surface.with-tools {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.classmode-board-stage,
+.classmode-board-surface .classmode-board-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+}
+.classmode-board-stage .class-board-canvas-shell,
+.classmode-board-stage .class-board-canvas-shell.has-resource-head {
+  position: absolute !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  transform: none !important;
+  pointer-events: auto !important;
+  touch-action: none !important;
+}
+.classmode-board-stage .class-board-canvas-shell .class-board-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  pointer-events: auto !important;
+  touch-action: none !important;
+}
+/* R19 master repair was re-applying object-fit:contain after Phase 1.
+   Fill the exact drawable surface so the side gutters are part of the board. */
+.classmode-viewport .board-theme-history .classmode-board-reference-image,
+.classmode-viewport.stage-focus-mode .board-theme-history .classmode-board-reference-image,
+.classmode-viewport.stage-focus-mode .classmode-board-reference-image {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: fill !important;
+  object-position: center center !important;
+  transform: none !important;
+  pointer-events: none !important;
+}
+/* Left tools are overlays, not a 44–50 px dead strip. */
+.classmode-board-sidebar-left {
+  position: absolute !important;
+  z-index: 80 !important;
+  inset-inline-start: 8px !important;
+  top: 8px !important;
+  bottom: 56px !important;
+  width: 44px !important;
+  height: auto !important;
+  pointer-events: none !important;
+  background: rgba(5, 8, 12, 0.66) !important;
+  border-radius: 12px !important;
+}
+.classmode-board-sidebar-left button,
+.classmode-board-sidebar-left input,
+.classmode-board-sidebar-left select {
+  pointer-events: auto !important;
+}
+/* Only real controls consume pointer input. The stage below remains writable. */
+.classmode-toolbar,
+.media-annotation-toolbar {
+  position: absolute !important;
+  z-index: 90 !important;
+  left: 58px !important;
+  right: 58px !important;
+  bottom: max(7px, var(--mobdea-safe-bottom, 0px)) !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+}
+.classmode-toolbar button,
+.classmode-toolbar input,
+.classmode-toolbar select,
+.classmode-toolbar textarea,
+.classmode-toolbar .classmode-tool-group,
+.media-annotation-toolbar button,
+.media-annotation-toolbar input,
+.media-annotation-toolbar select {
+  pointer-events: auto !important;
+}
+
+/* 3) Educational cards: blend fields into the artwork instead of
+   putting a bright white rectangle over the card. */
+.board-card-field {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.board-card-field.tone-ink {
+  background: rgba(255, 244, 213, 0.90) !important;
+  color: #1d1710 !important;
+}
+.board-card-field.tone-brown {
+  background: rgb(116, 63, 15) !important;
+  color: #fff4c8 !important;
+}
+.board-card-field.tone-navy {
+  background: rgb(31, 48, 72) !important;
+  color: #fff3b7 !important;
+}
+/* The term cards have a sample "التعريف" printed in the artwork. Move the
+   editable definition field over that sample zone and use the paper tone as an
+   opaque mask, so the teacher's text replaces it instead of floating in a
+   separate white box. */
+.board-card-overlay[data-card-template="geographical-term"] .board-card-field.tone-ink,
+.board-card-overlay[data-card-template="historical-term"] .board-card-field.tone-ink {
+  top: 35.5% !important;
+  height: 39% !important;
+  background: rgb(255, 244, 213) !important;
+  border-radius: 8px !important;
+}
+.country-card-field-editor,
+.country-card-field-text {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.05 !important;
+}
+
+/* 4) Map Challenge: keep zoom controls reachable and let the professional map
+   use the stage instead of creating a second oversized minimum-width surface. */
+.map-challenge-pro .map-game-toolbar {
+  overscroll-behavior-x: contain !important;
+}
+.map-challenge-pro .map-view-tools {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 6 !important;
+  flex: 0 0 auto !important;
+  padding: 2px !important;
+  border-radius: 9px !important;
+  background: rgba(5, 13, 17, 0.97) !important;
+}
+.map-challenge-pro .map-game-canvas-shell {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+.map-challenge-pro .map-game-canvas-shell > .map-pro-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  aspect-ratio: auto !important;
+}
+.map-challenge-pro .map-pro-transform,
+.map-challenge-pro .map-pro-svg {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+.map-pro-stage.can-pan {
+  touch-action: none !important;
+  cursor: grab !important;
+}
+.map-pro-stage.can-pan:active {
+  cursor: grabbing !important;
+}
+.map-pro-label {
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  paint-order: stroke fill !important;
+  stroke: rgba(255, 255, 255, 0.94) !important;
+  stroke-width: 3px !important;
+  stroke-linejoin: round !important;
+}
+
+/* 5) Nile / map symbol drawer: readable icon + Arabic label, no clipping. */
+.lesson-map-symbol-list button {
+  min-width: 0 !important;
+  min-height: 68px !important;
+  height: auto !important;
+  display: grid !important;
+  grid-template-columns: 64px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 6px 8px !important;
+  overflow: visible !important;
+  text-align: right !important;
+}
+.lesson-map-symbol-preview {
+  width: 62px !important;
+  min-width: 62px !important;
+  height: 52px !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: visible !important;
+}
+.lesson-map-symbol-list button > span {
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 2px !important;
+}
+.lesson-map-symbol-list button strong,
+.lesson-map-symbol-list button small {
+  display: block !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.2 !important;
+}
+.lesson-map-symbol-list button strong {
+  font-size: 12px !important;
+}
+.lesson-map-symbol-list button small {
+  font-size: 9px !important;
+  opacity: 0.78 !important;
+}
+
+@media (orientation: landscape) and (max-width: 960px) {
+  .classmode-toolbar,
+  .media-annotation-toolbar {
+    left: 52px !important;
+    right: 52px !important;
+  }
+  .lesson-map-symbol-list button {
+    grid-template-columns: 54px minmax(0, 1fr) !important;
+    min-height: 60px !important;
+  }
+  .lesson-map-symbol-preview {
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 46px !important;
+  }
+}
+
+/* R19 student row actions — points plus direct encouragement/warning per student.
+   The name keeps the full row; controls sit at the end on their own compact line
+   so a narrow tablet rail never truncates the student's full name. */
+.classmode-student-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: 4px !important;
+}
+.classmode-student-row-main {
+  width: 100% !important;
+}
+.classmode-student-point-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 3px !important;
+  width: 100% !important;
+  flex: 0 0 auto !important;
+}
+.student-row-point-btn,
+.student-row-phrase-btn {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  font-weight: 900 !important;
+}
+.student-row-point-btn svg,
+.student-row-phrase-btn svg {
+  pointer-events: none !important;
+}
+.student-row-phrase-btn.positive {
+  border-color: rgba(74, 222, 128, 0.58) !important;
+}
+.student-row-phrase-btn.corrective {
+  border-color: rgba(251, 191, 36, 0.62) !important;
+}

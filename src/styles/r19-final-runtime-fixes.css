@@ -1,0 +1,327 @@
+/* R19_FINAL_RUNTIME_FIXES_V2
+   Final precedence owner for Android/tablet scrolling, dashboard visibility,
+   and Map Challenge geometry. Loaded after Projects 01-14. */
+
+@media (max-width: 1366px), (pointer: coarse) {
+  .app-shell-v103:not(.lesson-mode-shell) {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    grid-template-areas: "mobileHeader" "content" !important;
+    width: var(--mobdea-app-width, 100vw) !important;
+    height: var(--mobdea-app-height, 100dvh) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .mobile-header {
+    grid-area: mobileHeader !important;
+    position: relative !important;
+    inset: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    grid-area: content !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-padding-bottom: calc(64px + var(--mobdea-safe-bottom, 0px)) !important;
+    padding-bottom: calc(30px + var(--mobdea-safe-bottom, 0px)) !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content > .screen-stage {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content > .screen-stage > .page:not(.map-challenge-pro):not(.classmode-scene):not(.whiteboard-page),
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content > .screen-stage > section.page:not(.map-challenge-pro) {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    contain: none !important;
+    padding-bottom: calc(56px + var(--mobdea-safe-bottom, 0px)) !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell-v103:not(.lesson-mode-shell) .attendance-list,
+  .app-shell-v103:not(.lesson-mode-shell) .student-list,
+  .app-shell-v103:not(.lesson-mode-shell) .cards-list,
+  .app-shell-v103:not(.lesson-mode-shell) .project13-attendance-page,
+  .app-shell-v103:not(.lesson-mode-shell) .students-page {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-v103,
+  .dashboard-page.dashboard-v103,
+  .dashboard-reference-layout.dashboard-v103 {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    display: grid !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    gap: 10px !important;
+    overflow: visible !important;
+    contain: none !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy p {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card small {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-link {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-bottom {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-v103 .dashboard-current-class-card {
+    grid-column: 1 / -1 !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-hero {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 300px !important;
+    max-height: none !important;
+    grid-template-columns: minmax(0, 1.05fr) minmax(230px, .78fr) !important;
+    grid-template-rows: auto auto !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-v103 .dashboard-today-panel {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(150px, .5fr) minmax(0, 1.5fr) auto !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-grid {
+    width: 100% !important;
+    height: auto !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+
+  /* Current JSX wraps nav/main/question in map-game-layout.
+     Legacy maps-reference.css also makes the PAGE itself a three-column grid.
+     The wrapper then occupies one old parent cell and overflows to the left.
+     Make the page one-column; map-game-layout becomes the single 3-column owner. */
+  .map-challenge-pro.map-game-v103,
+  .map-game-v103.map-challenge-pro {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: max(520px, calc(var(--mobdea-app-height, 100dvh) - 80px)) !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 4px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+    direction: ltr !important;
+    contain: layout style !important;
+    box-sizing: border-box !important;
+  }
+
+  .map-challenge-pro > .map-game-topbar {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .map-challenge-pro > .map-game-layout {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: clamp(96px, 14vw, 145px) minmax(0, 1fr) clamp(170px, 24vw, 210px) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+    direction: ltr !important;
+    box-sizing: border-box !important;
+  }
+
+  .map-challenge-pro .map-game-nav {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .map-challenge-pro .map-game-main {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+  }
+
+  .map-challenge-pro .map-game-question-panel {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .map-challenge-pro .map-game-toolbar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: thin !important;
+  }
+
+  .map-challenge-pro .map-region-tabs-core,
+  .map-challenge-pro .map-view-tools,
+  .map-challenge-pro .map-layer-dock {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .map-challenge-pro .map-game-canvas-shell,
+  .map-challenge-pro .map-pro-stage,
+  .map-challenge-pro .map-pro-transform,
+  .map-challenge-pro .map-pro-svg {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .map-challenge-pro .map-game-canvas-shell {
+    height: 100% !important;
+    min-height: 340px !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 700px) {
+  .app-shell-v103:not(.lesson-mode-shell) > .app-content {
+    padding: 5px 6px calc(26px + var(--mobdea-safe-bottom, 0px)) !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-hero {
+    min-height: 280px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy {
+    padding: 16px 18px !important;
+  }
+
+  .dashboard-v103 .dashboard-reference-copy p {
+    display: block !important;
+    font-size: .78rem !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-v103 .dashboard-feature-card {
+    min-height: 132px !important;
+  }
+
+  .map-challenge-pro > .map-game-layout {
+    grid-template-columns: clamp(86px, 13vw, 118px) minmax(0, 1fr) clamp(156px, 23vw, 188px) !important;
+    gap: 3px !important;
+  }
+
+  .map-challenge-pro .map-game-canvas-shell {
+    min-height: 300px !important;
+  }
+
+  .map-challenge-pro .map-game-nav,
+  .map-challenge-pro .map-game-question-panel {
+    font-size: clamp(8px, 1.2vw, 11px) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-v103 .dashboard-reference-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-v103 .dashboard-today-panel,
+  .dashboard-v103 .dashboard-reference-bottom,
+  .dashboard-v103 .dashboard-feature-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

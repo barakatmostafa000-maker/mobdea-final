@@ -1,0 +1,331 @@
+/* R19 Fix7: final tablet/device overrides. Loaded last. */
+
+/* Compact whiteboard tools and give the real canvas the full teaching area. */
+.classmode-v103 .classmode-board-surface.with-tools {
+  grid-template-columns: minmax(0, 1fr) !important;
+  position: relative !important;
+}
+.classmode-v103 .classmode-board-sidebar-left {
+  position: absolute !important;
+  left: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 90 !important;
+  width: 46px !important;
+  min-width: 46px !important;
+  max-width: 46px !important;
+  height: auto !important;
+  max-height: 78% !important;
+  padding: 4px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-radius: 14px !important;
+  background: rgba(8, 11, 16, 0.91) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42) !important;
+}
+.classmode-v103 .classmode-board-sidebar-left button {
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+}
+.classmode-v103 .classmode-board-sidebar-left button span,
+.classmode-v103 .classmode-board-sidebar-left .tool-copy,
+.classmode-v103 .classmode-board-sidebar-left .board-tool-label {
+  display: none !important;
+}
+.classmode-v103 .classmode-board-stage,
+.classmode-v103 .class-board-canvas-shell,
+.classmode-v103 .class-board-canvas,
+.classmode-v103 .classmode-resource-preview,
+.classmode-v103 .resource-preview-body,
+.classmode-v103 .unified-media-renderer,
+.classmode-v103 .classmode-pdf-canvas-host,
+.classmode-v103 .classmode-panzoom-viewport {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+.classmode-v103 .class-board-canvas-shell,
+.classmode-v103 .classmode-resource-preview {
+  position: absolute !important;
+  inset: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+.classmode-v103 .class-board-canvas,
+.classmode-v103 .class-board-canvas-shell > canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none !important;
+}
+/* On PDF/images: Move/Select passes pinch/pan to media. Pen/highlighter keep ink active. */
+.classmode-v103 .class-board-canvas-shell.has-resource-head.tool-move,
+.classmode-v103 .class-board-canvas-shell.has-resource-head.tool-select {
+  pointer-events: none !important;
+}
+.classmode-v103
+  .class-board-canvas-shell.has-resource-head.tool-move
+  .board-card-overlay,
+.classmode-v103
+  .class-board-canvas-shell.has-resource-head.tool-select
+  .board-card-overlay,
+.classmode-v103
+  .class-board-canvas-shell.has-resource-head.tool-move
+  .country-card-overlay,
+.classmode-v103
+  .class-board-canvas-shell.has-resource-head.tool-select
+  .country-card-overlay {
+  pointer-events: auto !important;
+}
+.classmode-v103 .classmode-pdf-panzoom,
+.classmode-v103 .classmode-image-panzoom,
+.classmode-v103 .classmode-panzoom-viewport {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+
+/* Definition/event/country cards scale text against their own resized card. */
+.classmode-v103 .board-card-overlay,
+.classmode-v103 .country-card-overlay {
+  container-type: inline-size !important;
+  overflow: visible !important;
+}
+.classmode-v103 .board-card-field-text,
+.classmode-v103 .board-card-field-editor,
+.classmode-v103 .country-card-field-text,
+.classmode-v103 .country-card-field-editor {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: clamp(1px, 0.7cqw, 6px) clamp(2px, 1.1cqw, 9px) !important;
+  line-height: 1.22 !important;
+  overflow: hidden !important;
+  overflow-wrap: anywhere !important;
+  resize: none !important;
+}
+.classmode-v103 .board-card-field-text:not(.title),
+.classmode-v103 .board-card-field-editor:not(.title) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.classmode-v103 .country-card-meta-strip {
+  font-size: clamp(6px, 2.6cqw, 15px) !important;
+  line-height: 1.12 !important;
+  overflow: hidden !important;
+}
+
+/* Student buttons must receive touch above all teaching overlays. */
+.classmode-v103 .classmode-management-toggle,
+.classmode-v103 .student-row-phrase-btn,
+.classmode-v103 .classmode-command-buttons button,
+.classmode-v103 .student-point-btn,
+.classmode-v103 .classmode-student-row-actions button {
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  position: relative !important;
+  z-index: 145 !important;
+}
+.classmode-v103 .classmode-management-panel,
+.classmode-v103 .classmode-students-panel {
+  z-index: 135 !important;
+}
+.classmode-v103 .classmode-command-popover,
+.classmode-v103 .student-row-phrase-popover {
+  z-index: 220 !important;
+  pointer-events: auto !important;
+}
+.classmode-v103 .classmode-student-row.r19-second-half {
+  display: none !important;
+}
+
+.r19-students-toggle-mirror,
+.r19-quick-board-save {
+  position: fixed;
+  z-index: 9996;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(239, 199, 94, 0.72);
+  border-radius: 14px;
+  background: rgba(8, 11, 16, 0.95);
+  color: #f4d77f;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
+  touch-action: none;
+  user-select: none;
+}
+.r19-students-toggle-mirror {
+  left: 14px;
+  top: 20%;
+  width: 48px;
+  height: 48px;
+}
+.r19-quick-board-save {
+  right: 14px;
+  bottom: 66px;
+  min-width: 48px;
+  height: 46px;
+  padding: 0 11px;
+  gap: 6px;
+  grid-auto-flow: column;
+}
+.r19-quick-board-save span {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.r19-students-left-panel {
+  position: fixed;
+  z-index: 9994;
+  left: 10px;
+  top: 29%;
+  width: min(34vw, 510px);
+  max-height: 62vh;
+  display: none;
+  overflow: hidden;
+  padding: 9px;
+  border: 1px solid rgba(215, 173, 53, 0.42);
+  border-radius: 16px;
+  background: rgba(7, 10, 15, 0.97);
+  color: #f6e6b0;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.58);
+  direction: rtl;
+}
+.r19-students-left-panel.open {
+  display: block;
+}
+.r19-students-left-panel > strong {
+  display: block;
+  margin: 0 0 7px;
+  font-size: 13px;
+  color: #f2ce68;
+}
+.r19-students-left-list {
+  display: grid;
+  gap: 6px;
+  max-height: calc(62vh - 38px);
+  overflow: auto;
+}
+.r19-students-left-list .classmode-student-row {
+  display: block !important;
+  margin: 0 !important;
+}
+.r19-students-left-list button {
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+
+/* Teaching maps: always-visible latitude/longitude reference grid and clean challenge map. */
+.map-pro-reference-grid,
+.map-pro-coordinate-focus {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+.map-pro-reference-grid line {
+  stroke: rgba(12, 52, 70, 0.52) !important;
+  stroke-width: 1.35 !important;
+  stroke-dasharray: 5 5 !important;
+  vector-effect: non-scaling-stroke !important;
+}
+.map-pro-reference-grid text,
+.map-pro-coordinate-focus text {
+  fill: #163746 !important;
+  font-weight: 800 !important;
+  paint-order: stroke !important;
+  stroke: rgba(255, 255, 255, 0.86) !important;
+  stroke-width: 2.2px !important;
+}
+.map-pro-coordinate-focus line {
+  stroke: #124b63 !important;
+  stroke-width: 2 !important;
+  vector-effect: non-scaling-stroke !important;
+}
+.map-pro-line-feature,
+.map-pro-river-line,
+.map-line-feature {
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  vector-effect: non-scaling-stroke !important;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3)) !important;
+}
+.map-challenge-page .map-game-canvas-shell::before,
+.map-challenge-page .map-game-canvas-shell::after,
+.map-game-canvas-shell .map-stage-dim,
+.map-game-canvas-shell .map-dark-overlay {
+  display: none !important;
+  content: none !important;
+}
+.map-challenge-page .map-game-canvas-shell,
+.map-challenge-page .map-pro-stage,
+.map-challenge-page .map-pro-svg {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Dashboard hero repair for tablet landscape. */
+.dashboard-v103 .dashboard-reference-hero {
+  grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.86fr) !important;
+  min-height: clamp(310px, 48vh, 520px) !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+.dashboard-v103 .dashboard-reference-copy {
+  min-width: 0 !important;
+  padding: clamp(22px, 3vw, 48px) !important;
+  align-self: center !important;
+}
+.dashboard-v103 .dashboard-reference-copy h2 {
+  font-size: clamp(2.8rem, 7vw, 6.4rem) !important;
+  line-height: 0.95 !important;
+}
+.dashboard-v103 .dashboard-reference-portrait {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.dashboard-v103 .dashboard-reference-portrait > img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center 18% !important;
+}
+
+/* Force Android print services to retain every duplex back page. */
+@media print {
+  body.mobdea-printing-cards,
+  body.mobdea-printing-cards .print-only,
+  body.mobdea-printing-cards .print-run,
+  body.mobdea-printing-cards .print-pack,
+  body.mobdea-printing-cards .duplex-print-run {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body.mobdea-printing-cards .duplex-back-page {
+    display: block !important;
+    visibility: visible !important;
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+  body.mobdea-printing-cards .duplex-front-page,
+  body.mobdea-printing-cards .duplex-back-page {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+/* R19 Fix8.9 interaction stability: sort with CSS order, never DOM re-parenting. */
+.classmode-v103 .classmode-students-list.r19-split-source {
+  display: flex !important;
+  flex-direction: column !important;
+}

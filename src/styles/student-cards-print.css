@@ -136,3 +136,65 @@
     opacity: 0 !important;
   }
 }
+
+/* R19_CARD_PRINT_FINAL_OWNER
+ * Loaded after every R19 stylesheet. Keep the printable tree out of transformed
+ * or overflow-hidden app containers so Android WebView captures real cards.
+ */
+@media print {
+  body.mobdea-printing-cards #root,
+  body.mobdea-printing-cards .app-shell,
+  body.mobdea-printing-cards .app-content,
+  body.mobdea-printing-cards .screen-stage,
+  body.mobdea-printing-cards .page.student-card-lab {
+    position: static !important;
+    inset: auto !important;
+    width: 297mm !important;
+    min-width: 297mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+    contain: none !important;
+    clip-path: none !important;
+  }
+
+  body.mobdea-printing-cards .print-only {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 297mm !important;
+    max-width: 297mm !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  body.mobdea-printing-cards .print-only .student-card-template-image {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: fill !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  body.mobdea-printing-cards .print-only svg,
+  body.mobdea-printing-cards .print-only canvas {
+    visibility: visible !important;
+    opacity: 1 !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  body.mobdea-printing-cards .print-pack-page[data-side="front"],
+  body.mobdea-printing-cards .print-pack-page[data-side="back"] {
+    display: block !important;
+  }
+}

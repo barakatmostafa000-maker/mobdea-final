@@ -1,0 +1,307 @@
+/* R20_FIX23_DUPLEX_PRINTING_V1 */
+
+.r20-duplex-print-root {
+  display:
+    none;
+}
+
+@page {
+  size:
+    A4
+    portrait;
+
+  margin:
+    0;
+}
+
+@media print {
+  html,
+  body {
+    width:
+      210mm !important;
+
+    min-width:
+      210mm !important;
+
+    max-width:
+      210mm !important;
+
+    margin:
+      0 !important;
+
+    padding:
+      0 !important;
+
+    overflow:
+      visible !important;
+
+    background:
+      #fff !important;
+
+    -webkit-print-color-adjust:
+      exact !important;
+
+    print-color-adjust:
+      exact !important;
+  }
+
+  body > *:not(.r20-duplex-print-root) {
+    display:
+      none !important;
+  }
+
+  .r20-duplex-print-root {
+    display:
+      block !important;
+
+    position:
+      static !important;
+
+    width:
+      210mm !important;
+
+    margin:
+      0 !important;
+
+    padding:
+      0 !important;
+
+    background:
+      #fff !important;
+  }
+
+  .r20-duplex-sheet-page {
+    width:
+      210mm !important;
+
+    height:
+      297mm !important;
+
+    min-width:
+      210mm !important;
+
+    min-height:
+      297mm !important;
+
+    max-width:
+      210mm !important;
+
+    max-height:
+      297mm !important;
+
+    box-sizing:
+      border-box !important;
+
+    margin:
+      0 !important;
+
+    padding:
+      10mm !important;
+
+    overflow:
+      hidden !important;
+
+    background:
+      #fff !important;
+
+    break-after:
+      page !important;
+
+    page-break-after:
+      always !important;
+
+    break-inside:
+      avoid-page !important;
+
+    page-break-inside:
+      avoid !important;
+
+    -webkit-print-color-adjust:
+      exact !important;
+
+    print-color-adjust:
+      exact !important;
+  }
+
+  .r20-duplex-sheet-page:last-child {
+    break-after:
+      auto !important;
+
+    page-break-after:
+      auto !important;
+  }
+
+  .r20-duplex-sheet-grid {
+    width:
+      190mm !important;
+
+    height:
+      277mm !important;
+
+    display:
+      grid !important;
+
+    grid-template-columns:
+      repeat(
+        2,
+        85.6mm
+      ) !important;
+
+    grid-template-rows:
+      repeat(
+        5,
+        54mm
+      ) !important;
+
+    column-gap:
+      8mm !important;
+
+    row-gap:
+      1.75mm !important;
+
+    justify-content:
+      center !important;
+
+    align-content:
+      start !important;
+
+    margin:
+      0 !important;
+
+    padding:
+      0 !important;
+
+    overflow:
+      hidden !important;
+  }
+
+  .r20-duplex-card-slot {
+    width:
+      85.6mm !important;
+
+    height:
+      54mm !important;
+
+    min-width:
+      85.6mm !important;
+
+    min-height:
+      54mm !important;
+
+    max-width:
+      85.6mm !important;
+
+    max-height:
+      54mm !important;
+
+    box-sizing:
+      border-box !important;
+
+    margin:
+      0 !important;
+
+    padding:
+      0 !important;
+
+    overflow:
+      hidden !important;
+
+    position:
+      relative !important;
+
+    break-inside:
+      avoid !important;
+
+    page-break-inside:
+      avoid !important;
+
+    contain:
+      layout
+      paint !important;
+  }
+
+  .r20-duplex-card-content {
+    position:
+      absolute !important;
+
+    inset:
+      0 !important;
+
+    width:
+      100% !important;
+
+    height:
+      100% !important;
+
+    box-sizing:
+      border-box !important;
+
+    margin:
+      0 !important;
+
+    padding:
+      0 !important;
+
+    overflow:
+      hidden !important;
+  }
+
+  .r20-duplex-card-content >
+  [data-r20-duplex-clone="true"] {
+    width:
+      100% !important;
+
+    height:
+      100% !important;
+
+    max-width:
+      100% !important;
+
+    max-height:
+      100% !important;
+
+    box-sizing:
+      border-box !important;
+
+    margin:
+      0 !important;
+
+    transform:
+      none !important;
+
+    translate:
+      none !important;
+
+    rotate:
+      none !important;
+
+    scale:
+      none !important;
+
+    perspective:
+      none !important;
+
+    backface-visibility:
+      visible !important;
+
+    visibility:
+      visible !important;
+
+    opacity:
+      1 !important;
+
+    overflow:
+      hidden !important;
+
+    -webkit-print-color-adjust:
+      exact !important;
+
+    print-color-adjust:
+      exact !important;
+  }
+
+  .r20-duplex-card-slot[data-r20-empty-slot="true"] {
+    visibility:
+      hidden !important;
+  }
+}

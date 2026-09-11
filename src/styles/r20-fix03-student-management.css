@@ -1,0 +1,231 @@
+/* R20_FIX03_STUDENT_MANAGEMENT_V1
+   Student roster + exact-candidate random picker + compact student modal.
+   No React-owned student row is re-parented.
+*/
+
+[data-r20-student-list="true"],
+.classmode-students-list,
+.classmode-student-list {
+  min-height: 0 !important;
+  max-height: min(68dvh, 680px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  scrollbar-gutter: stable !important;
+  overflow-anchor: none !important;
+  padding-bottom: 10px !important;
+}
+
+[data-r20-student-list="true"] [data-student-id],
+.classmode-students-list [data-student-id],
+.classmode-student-list [data-student-id] {
+  flex: 0 0 auto !important;
+  min-height: 42px !important;
+}
+
+.r20-random-picker {
+  direction: rtl;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  margin: 0 0 8px;
+  border-radius: 14px;
+  background: color-mix(in srgb, Canvas 88%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 8%);
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+  font-size: 13px;
+}
+
+.r20-random-picker__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.r20-random-picker__title {
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.r20-random-picker__buttons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.r20-random-picker button,
+.r20-random-picker summary {
+  min-height: 32px;
+  border-radius: 10px;
+  padding: 5px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.r20-random-picker__draw {
+  font-weight: 800;
+}
+
+.r20-random-picker__candidates {
+  min-width: 0;
+}
+
+.r20-random-picker__candidates > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  user-select: none;
+}
+
+.r20-random-picker__candidates > summary::-webkit-details-marker {
+  display: none;
+}
+
+.r20-random-picker__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  max-height: min(28dvh, 220px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 7px 2px 2px;
+}
+
+.r20-random-picker__option {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 7px;
+  border-radius: 10px;
+  background: color-mix(in srgb, Canvas 94%, currentColor 6%);
+}
+
+.r20-random-picker__option input {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+}
+
+.r20-random-picker__option span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.r20-random-picker__status {
+  min-height: 20px;
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: .86;
+}
+
+.r20-random-picker__result {
+  font-weight: 900;
+  font-size: 13px;
+}
+
+[data-r20-random-selected="true"] {
+  outline: 2px solid currentColor !important;
+  outline-offset: -2px !important;
+  border-radius: 10px !important;
+}
+
+[data-r20-legacy-random-modal="true"],
+[data-r20-legacy-random-trigger="true"] {
+  display: none !important;
+}
+
+/* Compact, stable Add Student dialog. */
+[data-r20-student-modal="true"] {
+  width: min(94vw, 760px) !important;
+  max-width: min(94vw, 760px) !important;
+  max-height: calc(100dvh - 16px) !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  scrollbar-gutter: stable !important;
+  overflow-anchor: none !important;
+  box-sizing: border-box !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+[data-r20-student-modal="true"] *,
+[data-r20-student-modal="true"] *::before,
+[data-r20-student-modal="true"] *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+}
+
+[data-r20-student-modal="true"] form {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 8px !important;
+}
+
+[data-r20-student-modal="true"] label,
+[data-r20-student-modal="true"] input,
+[data-r20-student-modal="true"] select,
+[data-r20-student-modal="true"] textarea,
+[data-r20-student-modal="true"] button {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-student-modal="true"] input,
+[data-r20-student-modal="true"] select {
+  min-height: 38px !important;
+  padding-block: 6px !important;
+}
+
+[data-r20-student-modal="true"] textarea {
+  min-height: 74px !important;
+}
+
+[data-r20-student-modal="true"] [data-r20-modal-wide="true"] {
+  grid-column: 1 / -1 !important;
+}
+
+@media (min-width: 700px) {
+  [data-r20-student-modal="true"] form {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  [data-r20-student-modal="true"] h1,
+  [data-r20-student-modal="true"] h2,
+  [data-r20-student-modal="true"] h3,
+  [data-r20-student-modal="true"] .modal-actions,
+  [data-r20-student-modal="true"] .dialog-actions,
+  [data-r20-student-modal="true"] [class*="actions"] {
+    grid-column: 1 / -1 !important;
+  }
+
+  .r20-random-picker__options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 699px) {
+  .r20-random-picker__options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

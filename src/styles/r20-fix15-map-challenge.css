@@ -1,0 +1,452 @@
+/* R20_FIX15_MAP_CHALLENGE_V1 */
+
+[data-r20-map-challenge-root="true"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+
+  box-sizing: border-box !important;
+
+  display: grid !important;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(210px, 270px) !important;
+
+  grid-template-rows:
+    minmax(0, 1fr) !important;
+
+  gap:
+    clamp(
+      8px,
+      1.2vw,
+      14px
+    ) !important;
+
+  padding:
+    clamp(
+      6px,
+      1vw,
+      12px
+    ) !important;
+
+  overflow:
+    hidden !important;
+
+  position:
+    relative !important;
+}
+
+[data-r20-map-challenge-map="true"] {
+  grid-column:
+    1 !important;
+
+  grid-row:
+    1 !important;
+
+  width:
+    100% !important;
+
+  max-width:
+    100% !important;
+
+  min-width:
+    0 !important;
+
+  min-height:
+    clamp(
+      420px,
+      68dvh,
+      760px
+    ) !important;
+
+  max-height:
+    calc(
+      100dvh -
+      92px -
+      env(
+        safe-area-inset-top,
+        0px
+      ) -
+      env(
+        safe-area-inset-bottom,
+        0px
+      )
+    ) !important;
+
+  overflow:
+    hidden !important;
+
+  margin-inline:
+    auto !important;
+
+  touch-action:
+    none !important;
+}
+
+[data-r20-map-challenge-panel="true"] {
+  grid-column:
+    2 !important;
+
+  min-width:
+    0 !important;
+
+  max-width:
+    100% !important;
+
+  max-height:
+    calc(
+      100dvh -
+      98px
+    ) !important;
+
+  overflow-y:
+    auto !important;
+
+  overflow-x:
+    hidden !important;
+
+  overscroll-behavior:
+    contain !important;
+
+  -webkit-overflow-scrolling:
+    touch !important;
+}
+
+[data-r20-map-challenge-student-card="hidden"] {
+  display:
+    none !important;
+}
+
+[data-r20-map-challenge-layer-controls="true"] {
+  position:
+    absolute !important;
+
+  top:
+    max(
+      10px,
+      env(
+        safe-area-inset-top,
+        0px
+      )
+    ) !important;
+
+  inset-inline-start:
+    12px !important;
+
+  z-index:
+    2480 !important;
+
+  display:
+    grid !important;
+
+  justify-items:
+    start !important;
+
+  gap:
+    6px !important;
+
+  pointer-events:
+    auto !important;
+}
+
+[data-r20-map-challenge-layers-trigger="true"] {
+  min-height:
+    36px !important;
+
+  min-width:
+    42px !important;
+
+  padding:
+    5px 9px !important;
+
+  display:
+    inline-flex !important;
+
+  align-items:
+    center !important;
+
+  gap:
+    5px !important;
+
+  border-radius:
+    11px !important;
+
+  opacity:
+    .82 !important;
+
+  backdrop-filter:
+    blur(
+      7px
+    ) !important;
+}
+
+[data-r20-map-challenge-layers-tray="true"] {
+  display:
+    none !important;
+
+  max-width:
+    min(
+      88vw,
+      360px
+    ) !important;
+
+  padding:
+    6px !important;
+
+  border-radius:
+    12px !important;
+
+  background:
+    color-mix(
+      in srgb,
+      Canvas 86%,
+      transparent
+    ) !important;
+
+  backdrop-filter:
+    blur(
+      8px
+    ) !important;
+
+  box-shadow:
+    0 5px 16px
+    rgb(
+      0 0 0 / 14%
+    ) !important;
+}
+
+[data-r20-map-challenge-layers-open="true"]
+  [data-r20-map-challenge-layers-tray="true"] {
+  display:
+    flex !important;
+
+  flex-wrap:
+    wrap !important;
+
+  gap:
+    5px !important;
+}
+
+[data-r20-map-challenge-layer-toggle] {
+  min-height:
+    32px !important;
+
+  padding:
+    4px 8px !important;
+
+  display:
+    inline-flex !important;
+
+  align-items:
+    center !important;
+
+  gap:
+    4px !important;
+
+  border-radius:
+    9px !important;
+
+  font-size:
+    11px !important;
+
+  white-space:
+    nowrap !important;
+}
+
+[data-r20-map-challenge-layer-toggle][aria-pressed="false"] {
+  opacity:
+    .5 !important;
+}
+
+[data-r20-map-challenge-layer-boundaries="off"]
+  [data-r20-challenge-layer="boundaries"],
+[data-r20-map-challenge-layer-names="off"]
+  [data-r20-challenge-layer="names"],
+[data-r20-map-challenge-layer-rivers="off"]
+  [data-r20-challenge-layer="rivers"],
+[data-r20-map-challenge-layer-references="off"]
+  [data-r20-challenge-layer="references"] {
+  opacity:
+    0 !important;
+}
+
+.r20-map-challenge-dashboard-card {
+  width:
+    100% !important;
+
+  min-width:
+    0 !important;
+
+  min-height:
+    108px !important;
+
+  padding:
+    14px !important;
+
+  display:
+    flex !important;
+
+  align-items:
+    center !important;
+
+  gap:
+    12px !important;
+
+  text-align:
+    start !important;
+
+  border-radius:
+    18px !important;
+
+  cursor:
+    pointer !important;
+}
+
+.r20-map-challenge-dashboard-card__icon {
+  flex:
+    0 0 auto !important;
+
+  font-size:
+    32px !important;
+}
+
+.r20-map-challenge-dashboard-card__copy {
+  min-width:
+    0 !important;
+
+  display:
+    flex !important;
+
+  flex-direction:
+    column !important;
+
+  gap:
+    4px !important;
+}
+
+.r20-map-challenge-dashboard-card__copy strong {
+  font-size:
+    16px !important;
+}
+
+.r20-map-challenge-dashboard-card__copy small {
+  opacity:
+    .72 !important;
+
+  font-size:
+    12px !important;
+}
+
+@media (
+  orientation: landscape
+) and (
+  min-width: 1100px
+) and (
+  max-height: 850px
+) {
+  [data-r20-map-challenge-root="true"] {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(190px, 240px) !important;
+
+    gap:
+      8px !important;
+
+    padding:
+      6px !important;
+  }
+
+  [data-r20-map-challenge-map="true"] {
+    min-height:
+      calc(
+        100dvh -
+        84px
+      ) !important;
+  }
+}
+
+@media (
+  max-width: 899px
+) {
+  [data-r20-map-challenge-root="true"] {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      ) !important;
+
+    grid-template-rows:
+      auto auto !important;
+
+    overflow-y:
+      auto !important;
+
+    overflow-x:
+      hidden !important;
+  }
+
+  [data-r20-map-challenge-map="true"] {
+    grid-column:
+      1 !important;
+
+    grid-row:
+      1 !important;
+
+    min-height:
+      min(
+        66dvh,
+        620px
+      ) !important;
+
+    max-height:
+      none !important;
+  }
+
+  [data-r20-map-challenge-panel="true"] {
+    grid-column:
+      1 !important;
+
+    grid-row:
+      auto !important;
+
+    max-height:
+      min(
+        36dvh,
+        340px
+      ) !important;
+  }
+}
+
+@media (
+  max-width: 699px
+) {
+  [data-r20-map-challenge-root="true"] {
+    padding:
+      4px !important;
+
+    gap:
+      6px !important;
+  }
+
+  [data-r20-map-challenge-map="true"] {
+    min-height:
+      58dvh !important;
+  }
+
+  [data-r20-map-challenge-layer-controls="true"] {
+    top:
+      6px !important;
+
+    inset-inline-start:
+      6px !important;
+  }
+
+  [data-r20-map-challenge-layers-trigger="true"] {
+    min-height:
+      34px !important;
+
+    padding:
+      4px 7px !important;
+  }
+}

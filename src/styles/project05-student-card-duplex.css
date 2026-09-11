@@ -1,0 +1,83 @@
+/* PROJECT05_DUPLEX_STUDENT_CARDS_V1
+   Automatic duplex page pairing. Existing card artwork and physical grid sizing
+   stay untouched; this layer only fixes front/back sequencing and page isolation. */
+
+.cards-v103 .duplex-print-run .duplex-sheet-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.cards-v103 .duplex-print-run .duplex-front-page,
+.cards-v103 .duplex-print-run .duplex-back-page {
+  min-width: 0;
+}
+
+.cards-v103 .duplex-print-run .duplex-back-page {
+  border-color: rgba(215, 173, 53, .42);
+}
+
+@media (max-width: 900px) {
+  .cards-v103 .duplex-print-run .duplex-sheet-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+
+  body.mobdea-printing-cards .print-only .duplex-print-run,
+  body.mobdea-printing-cards .print-only .duplex-print-pack {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  body.mobdea-printing-cards .print-only .duplex-print-run > .print-run-header,
+  body.mobdea-printing-cards .print-only .duplex-print-run .print-pack-label {
+    display: none !important;
+  }
+
+  body.mobdea-printing-cards .print-only .duplex-sheet-pair {
+    display: contents !important;
+  }
+
+  body.mobdea-printing-cards .print-only .duplex-print-run .print-pack-page {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  body.mobdea-printing-cards .print-only .duplex-print-run .duplex-sheet-pair:last-child > .duplex-back-page {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  body.mobdea-printing-cards .print-only .duplex-print-run .print-sheet,
+  body.mobdea-printing-cards .print-only .duplex-print-run .print-sheet-grid,
+  body.mobdea-printing-cards .print-only .duplex-print-run .print-slot,
+  body.mobdea-printing-cards .print-only .duplex-print-run .student-card-face {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.mobdea-printing-cards .print-only .duplex-print-run .duplex-front-page .print-sheet,
+  body.mobdea-printing-cards .print-only .duplex-print-run .duplex-back-page .print-sheet {
+    margin: 0 !important;
+    transform: none !important;
+  }
+}

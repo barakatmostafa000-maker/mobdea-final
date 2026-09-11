@@ -12,6 +12,8 @@ import {
 } from '../services/assessment';
 import { getGradeExams } from '../services/libraryModel';
 import { useAssetUrl } from '../hooks/useAssetUrl';
+import Project08ExamOcrImport from '../components/questions/Project08ExamOcrImport';
+import { isQuestionReadyForGame, questionImportFingerprint } from '../services/project08QuestionImport';
 
 const TYPE_KEYS = Object.keys(questionTypeMeta);
 
@@ -62,6 +64,8 @@ function OfficialExamsSource({ resource, gradeLabel }) {
     </div>
   );
 }
+
+const PROJECT08_OCR_EXAM_IMPORT_V1 = true;
 
 export default function QuestionBankManager({ data, updateData }) {
   const inputRef = useRef(null);
@@ -170,7 +174,7 @@ export default function QuestionBankManager({ data, updateData }) {
       const rows = Array.isArray(payload) ? payload : payload.questions;
       if (!Array.isArray(rows)) throw new Error('صيغة غير صحيحة');
 
-      const existing = new Set(merged.map(fingerprintQuestion));
+      const existing = new Set(merged.map(questionImportFingerprint));
       const accepted = [];
       rows.forEach((row, index) => {
         const question = sanitizeQuestion({
@@ -193,7 +197,7 @@ export default function QuestionBankManager({ data, updateData }) {
           source: 'custom'
         });
         if (!question.text) return;
-        const key = fingerprintQuestion(question);
+        const key = questionImportFingerprint(question);
         if (existing.has(key)) return;
         existing.add(key);
         accepted.push(question);
@@ -209,10 +213,10 @@ export default function QuestionBankManager({ data, updateData }) {
   };
 
   const cleanDuplicates = () => {
-    const builtIn = new Set(questionBank.map(fingerprintQuestion));
+    const builtIn = new Set(questionBank.map(questionImportFingerprint));
     const seen = new Set(builtIn);
     const cleaned = custom.filter((item) => {
-      const key = fingerprintQuestion(item);
+      const key = questionImportFingerprint(item);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -253,7 +257,7 @@ export default function QuestionBankManager({ data, updateData }) {
   };
 
   const generateExam = () => {
-    const pool = filtered.filter((q) => ['mcq', 'tf', 'fill', 'essay'].includes(q.type));
+    const pool = filtered.filter((q) => ['mcq', 'tf', 'fill', 'essay'].includes(q.type) && isQuestionReadyForGame(q));
     const exam = buildExamFromPool(pool, {
       title: examTitle,
       grade: selectedGradeLabel || pool[0]?.grade,
@@ -296,6 +300,28 @@ export default function QuestionBankManager({ data, updateData }) {
       </div>
 
       <OfficialExamsSource resource={officialExamSource} gradeLabel={selectedGradeLabel} />
+
+      <Project08ExamOcrImport
+        resource={officialExamSource}
+        gradeKey={gradeKey}
+        gradeLabel={selectedGradeLabel}
+        existingQuestions={merged}
+        onImport={(accepted) => {
+          const existing = new Set(merged.map(questionImportFingerprint));
+          const next = accepted.filter((question) => {
+            const key = questionImportFingerprint(question);
+            if (!key || existing.has(key)) return false;
+            existing.add(key);
+            return true;
+          });
+          if (!next.length) {
+            setMessage('لم تتم إضافة أسئلة جديدة؛ كل الأسئلة المكتملة موجودة بالفعل.');
+            return;
+          }
+          updateData({ ...data, customQuestionBank: [...custom, ...next] });
+          setMessage(`تمت إضافة ${next.length} سؤالًا جديدًا إلى بنك الأسئلة والألعاب، ومنع أي تكرار.`);
+        }}
+      />
 
       <div className="panel bank-toolbar">
         <select value={gradeKey} onChange={(event) => setGradeKey(event.target.value)}>

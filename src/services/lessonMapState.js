@@ -2,10 +2,11 @@ import { GEOGRAPHY_REGIONS, getGradeMapRecommendation } from '../data/geography.
 
 export function normalizeMapRegionSnapshot(saved = {}) {
   return {
+    displayMode: ['atlas', 'blank'].includes(saved.displayMode) ? saved.displayMode : 'atlas',
     labels: saved.labels !== false,
     selectedCountryId: String(saved.selectedCountryId || ''),
     selectedPlaceId: String(saved.selectedPlaceId || ''),
-    zoom: Math.max(1, Math.min(2.5, Number(saved.zoom || 1))),
+    zoom: Math.max(1, Math.min(3.2, Number(saved.zoom || 1))),
     placements: Array.isArray(saved.placements) ? saved.placements : [],
     strokes: Array.isArray(saved.strokes) ? saved.strokes : [],
   };

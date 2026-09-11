@@ -1,0 +1,202 @@
+/* R20_FIX13_ATLAS_BOUNDARIES_NAMES_V1 */
+
+[data-r20-atlas-root="true"] {
+  position: relative !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+}
+
+[data-r20-atlas-controls="true"] {
+  position: absolute !important;
+  top:
+    max(
+      8px,
+      env(
+        safe-area-inset-top,
+        0px
+      )
+    ) !important;
+  left: 50% !important;
+  transform:
+    translateX(
+      -50%
+    ) !important;
+  z-index: 2360 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  max-width:
+    min(
+      92%,
+      430px
+    ) !important;
+  padding: 5px !important;
+  border-radius: 14px !important;
+  background:
+    color-mix(
+      in srgb,
+      Canvas 84%,
+      transparent
+    ) !important;
+  backdrop-filter:
+    blur(
+      8px
+    ) !important;
+  box-shadow:
+    0 4px 14px
+    rgb(
+      0 0 0 / 13%
+    ) !important;
+  pointer-events:
+    auto !important;
+}
+
+[data-r20-atlas-toggle] {
+  min-height:
+    34px !important;
+  min-width:
+    0 !important;
+  max-width:
+    180px !important;
+  padding:
+    5px 9px !important;
+  display:
+    inline-flex !important;
+  align-items:
+    center !important;
+  justify-content:
+    center !important;
+  gap:
+    5px !important;
+  border-radius:
+    10px !important;
+  white-space:
+    nowrap !important;
+  font-size:
+    12px !important;
+  opacity:
+    .82 !important;
+}
+
+[data-r20-atlas-toggle][aria-pressed="true"] {
+  opacity:
+    1 !important;
+  font-weight:
+    800 !important;
+}
+
+[data-r20-atlas-toggle][aria-pressed="false"] {
+  opacity:
+    .5 !important;
+}
+
+.r20-atlas-control__icon {
+  display:
+    inline-grid !important;
+  place-items:
+    center !important;
+  min-width:
+    20px !important;
+  font-size:
+    14px !important;
+  line-height:
+    1 !important;
+}
+
+.r20-atlas-control__text {
+  min-width:
+    0 !important;
+  overflow:
+    hidden !important;
+  text-overflow:
+    ellipsis !important;
+}
+
+[data-r20-atlas-boundary="true"] {
+  vector-effect:
+    non-scaling-stroke !important;
+  stroke-linecap:
+    round !important;
+  stroke-linejoin:
+    round !important;
+}
+
+[data-r20-atlas-boundaries-visible="false"]
+  [data-r20-atlas-boundary="true"] {
+  stroke-opacity:
+    0 !important;
+}
+
+[data-r20-atlas-label="true"] {
+  pointer-events:
+    none !important;
+  paint-order:
+    stroke fill !important;
+  stroke:
+    color-mix(
+      in srgb,
+      Canvas 82%,
+      transparent
+    ) !important;
+  stroke-width:
+    1.8px !important;
+  stroke-linejoin:
+    round !important;
+}
+
+[data-r20-atlas-names-visible="false"]
+  [data-r20-atlas-label="true"] {
+  display:
+    none !important;
+}
+
+[data-r20-atlas-legacy-control="true"] {
+  display:
+    none !important;
+}
+
+@media (
+  orientation: landscape
+) and (
+  min-width: 700px
+) {
+  [data-r20-atlas-controls="true"] {
+    top:
+      6px !important;
+    padding:
+      4px !important;
+  }
+
+  [data-r20-atlas-toggle] {
+    min-height:
+      30px !important;
+    padding:
+      4px 7px !important;
+    font-size:
+      11px !important;
+  }
+}
+
+@media (
+  max-width: 699px
+) {
+  [data-r20-atlas-controls="true"] {
+    max-width:
+      calc(
+        100% - 16px
+      ) !important;
+  }
+
+  [data-r20-atlas-toggle] {
+    max-width:
+      145px !important;
+  }
+
+  .r20-atlas-control__text {
+    font-size:
+      11px !important;
+  }
+}

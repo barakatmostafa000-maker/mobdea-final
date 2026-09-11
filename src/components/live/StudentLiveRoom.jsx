@@ -32,6 +32,8 @@ function joinErrorMessage(error) {
   return error?.message || 'تعذر دخول الحصة. تأكد من الإنترنت وكود الدخول.';
 }
 
+const PROJECT10_ONLINE_CLASS_V1 = true;
+
 export default function StudentLiveRoom({ payload, onGoHome }) {
   const [name, setName] = useState('');
   const [studentCode, setStudentCode] = useState('');
@@ -103,7 +105,7 @@ export default function StudentLiveRoom({ payload, onGoHome }) {
       if (event.track.kind === 'video') setScreenActive(true);
     };
     peer.onconnectionstatechange = () => {
-      if (peer.connectionState === 'failed') {
+      if (['failed', 'disconnected'].includes(peer.connectionState)) {
         setNotice('انقطع البث مؤقتًا. سيتم إعادة المحاولة تلقائيًا.');
         if (peerRef.current === peer) peerRef.current = null;
         peer.close();

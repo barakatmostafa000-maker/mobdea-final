@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Presentation,
   QrCode,
+  Radio,
   Search,
   Sparkles,
   Trophy,
@@ -27,7 +28,10 @@ import { identity } from '../config/identity';
 import { formatDateAr, formatTime12, todayISO } from '../utils/time';
 import { roleGreeting, getRoleModules } from '../utils/auth';
 
+const PROJECT10_ONLINE_CLASS_V1 = true;
+
 const mainActions = [
+  { id: 'onlineClass', title: 'الحصة الأونلاين', hint: 'إنشاء غرفة مباشرة ومشاركة الشرح والصوت والميكروفون', icon: Radio, tone: 'green' },
   { id: 'students', title: 'إدارة الطلاب', hint: 'إضافة وتعديل بيانات الطلاب ومتابعة ملفاتهم', icon: Users, tone: 'violet' },
   { id: 'attendance', title: 'الحضور والغياب', hint: 'تسجيل الحضور يدويًا أو باستخدام QR', icon: CheckCircle2, tone: 'green' },
   { id: 'reports', title: 'الدرجات والتقارير', hint: 'إدخال الدرجات واستعراض النتائج والتحليلات', icon: Trophy, tone: 'blue' },
@@ -39,6 +43,7 @@ const mainActions = [
 const searchableModules = [
   ['dashboard', 'الرئيسية', 'لوحة التحكم واليوم'],
   ['classMode', 'وضع الحصة', 'السبورة والطلاب والتفاعل'],
+  ['onlineClass', 'الحصة الأونلاين', 'رابط مباشر وبث شاشة وصوت وميكروفون'],
   ['whiteboard', 'السبورة', 'شرح وكتابة ورسم'],
   ['students', 'الطلاب', 'إدارة بيانات الطلاب'],
   ['studentCards', 'كروت الطلاب', 'الطباعة وQR'],

@@ -1,0 +1,211 @@
+/* R20_FIX06_TEACHER_TABLET_DASHBOARD_V1
+   Teacher dashboard only.
+   Goal: full hero visibility, no left/right crop, stable tablet grid.
+*/
+
+[data-r20-teacher-dashboard="true"] {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: clip !important;
+  padding-inline:
+    max(10px, env(safe-area-inset-left, 0px))
+    max(10px, env(safe-area-inset-right, 0px)) !important;
+}
+
+[data-r20-teacher-dashboard="true"] > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-teacher-hero="true"] {
+  width: min(1180px, 100%) !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 8px auto 16px !important;
+  padding: clamp(14px, 2.1vw, 28px) !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.15fr) minmax(180px, .85fr) !important;
+  align-items: center !important;
+  gap: clamp(12px, 2vw, 28px) !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+[data-r20-teacher-hero="true"] > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-teacher-hero-copy="true"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+[data-r20-teacher-hero-copy="true"] h1,
+[data-r20-teacher-hero-copy="true"] h2,
+[data-r20-teacher-hero-copy="true"] h3,
+[data-r20-teacher-hero-copy="true"] p,
+[data-r20-teacher-hero="true"] h1,
+[data-r20-teacher-hero="true"] h2,
+[data-r20-teacher-hero="true"] h3,
+[data-r20-teacher-hero="true"] p {
+  max-width: 100% !important;
+  margin-inline: 0 !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+[data-r20-teacher-hero-media="true"] {
+  display: block !important;
+  width: auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: min(34dvh, 310px) !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  margin-inline: auto !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+[data-r20-teacher-grid="true"] {
+  width: min(1180px, 100%) !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin-inline: auto !important;
+  padding-inline: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(210px, 100%), 1fr)) !important;
+  gap: clamp(10px, 1.5vw, 16px) !important;
+  align-items: stretch !important;
+  justify-items: stretch !important;
+  transform: none !important;
+  translate: none !important;
+  overflow: visible !important;
+}
+
+[data-r20-teacher-card="true"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: auto !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  transform: none !important;
+  translate: none !important;
+  margin-inline: 0 !important;
+}
+
+[data-r20-teacher-card="true"] > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-teacher-card="true"] img,
+[data-r20-teacher-card="true"] svg,
+[data-r20-teacher-card="true"] video,
+[data-r20-teacher-card="true"] canvas {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+[data-r20-teacher-card="true"] h1,
+[data-r20-teacher-card="true"] h2,
+[data-r20-teacher-card="true"] h3,
+[data-r20-teacher-card="true"] h4,
+[data-r20-teacher-card="true"] p,
+[data-r20-teacher-card="true"] span {
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (min-width: 700px) and (max-width: 1400px) {
+  [data-r20-teacher-dashboard="true"] {
+    padding-inline:
+      max(12px, env(safe-area-inset-left, 0px))
+      max(12px, env(safe-area-inset-right, 0px)) !important;
+  }
+
+  [data-r20-teacher-hero="true"] {
+    width: 100% !important;
+    grid-template-columns:
+      minmax(0, 1.2fr) minmax(220px, .8fr) !important;
+    gap: 16px !important;
+  }
+
+  [data-r20-teacher-grid="true"] {
+    width: 100% !important;
+    grid-template-columns:
+      repeat(auto-fit, minmax(min(190px, 100%), 1fr)) !important;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 1024px) {
+  [data-r20-teacher-hero="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    text-align: center !important;
+  }
+
+  [data-r20-teacher-hero-media="true"] {
+    max-height: min(26dvh, 230px) !important;
+  }
+
+  [data-r20-teacher-grid="true"] {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 900px) and (max-width: 1400px) {
+  [data-r20-teacher-hero="true"] {
+    grid-template-columns:
+      minmax(0, 1.2fr) minmax(210px, .8fr) !important;
+    padding-block: 14px !important;
+  }
+
+  [data-r20-teacher-hero-media="true"] {
+    max-height: min(38dvh, 260px) !important;
+  }
+
+  [data-r20-teacher-grid="true"] {
+    grid-template-columns:
+      repeat(auto-fit, minmax(200px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 699px) {
+  [data-r20-teacher-dashboard="true"] {
+    padding-inline: 8px !important;
+  }
+
+  [data-r20-teacher-hero="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    padding: 12px !important;
+    text-align: center !important;
+  }
+
+  [data-r20-teacher-hero-media="true"] {
+    max-height: 220px !important;
+  }
+
+  [data-r20-teacher-grid="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

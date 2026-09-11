@@ -47,3 +47,22 @@ export function queueLowGradeNotification(data, student, examTitle, result) {
   const message=`السلام عليكم ورحمة الله وبركاته\n\nعزيزي ولي الأمر،\nنتيجة الطالب: ${student.name}\nفي اختبار: ${examTitle}\nالدرجة: ${result.score}/${result.total}\nالنسبة: ${percentage}%\n\nالموضوعات التي تحتاج مراجعة:\n${weak.map(x=>`- ${x}`).join('\n')||'- مراجعة أسئلة الاختبار'}\n\nالمُبدع مصطفى بركات\nالمُبدع لتعليم ممتع`;
   return {...data,notifications:[...(data.notifications||[]),{id:Date.now()+Math.random(),eventKey,type:"low-grade",studentId:student.id,guardianPhone:student.guardianPhone,examId:result.examId,date:result.date,status:"ready",createdAt:new Date().toISOString(),message}]};
 }
+
+// RUN18_ATTENDANCE_WHATSAPP_EXPORT_CLOSURE_V1
+export function sendAbsenceWhatsApp(student = {}, session = {}, date = '') {
+  const rawPhone = String(student?.guardianPhone || '').trim();
+  const normalized = rawPhone.replace(/\D/g, '').replace(/^0/, '20');
+  if (!normalized) {
+    return { ok: false, message: 'لا يوجد رقم هاتف مسجل لولي الأمر.' };
+  }
+  const safeDate = String(date || new Date().toISOString().slice(0, 10));
+  const message = cleanWhatsAppMessage(
+    buildAttendanceMessage(student?.name || 'الطالب', 'absent', safeDate),
+  );
+  if (typeof window === 'undefined' || typeof window.open !== 'function') {
+    return { ok: false, message: 'فتح واتساب متاح من التطبيق أو المتصفح فقط.' };
+  }
+  const url = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+  return { ok: true, message: `تم فتح واتساب لإبلاغ ولي أمر ${student?.name || 'الطالب'}.` };
+}

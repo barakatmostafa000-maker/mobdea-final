@@ -1,0 +1,140 @@
+/* R20_FIX11_COUNTRY_CARDS_V1
+   Layout/stability only. Geographic correctness is deferred.
+*/
+
+[data-r20-country-card="true"] {
+  --r20-country-font-scale: 1;
+  width: min(94vw, 600px) !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 250px !important;
+  max-height: min(72dvh, 620px) !important;
+  margin-inline: auto !important;
+  padding: clamp(14px, 2vw, 22px) !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(120px, .72fr) minmax(0, 1.28fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: clamp(12px, 2vw, 20px) !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  position: relative !important;
+  transform: none !important;
+  translate: none !important;
+  container-type: inline-size !important;
+}
+
+[data-r20-country-card="true"] > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-r20-country-name="true"] {
+  grid-column: 1 / -1 !important;
+  margin: 0 !important;
+  padding: 0 0 clamp(7px, 1.3cqw, 12px) !important;
+  max-width: 100% !important;
+  text-align: center !important;
+  font-size:
+    calc(clamp(21px, 5.1cqw, 34px) * var(--r20-country-font-scale)) !important;
+  line-height: 1.25 !important;
+  font-weight: 850 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  text-overflow: clip !important;
+}
+
+[data-r20-country-media="true"] {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  width: 100% !important;
+  max-width: 220px !important;
+  height: auto !important;
+  max-height: 210px !important;
+  margin: auto !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+[data-r20-country-details="true"] {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: grid !important;
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(170px, 100%), 1fr)) !important;
+  gap: clamp(7px, 1.4cqw, 12px) !important;
+  align-content: center !important;
+  overflow: visible !important;
+}
+
+[data-r20-country-detail-row="true"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: clamp(6px, 1cqw, 9px) clamp(7px, 1.2cqw, 11px) !important;
+  box-sizing: border-box !important;
+  font-size:
+    calc(clamp(13px, 3.1cqw, 19px) * var(--r20-country-font-scale)) !important;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  border-radius: 10px !important;
+}
+
+[data-r20-country-text-class="long"] [data-r20-country-details="true"],
+[data-r20-country-text-class="xlong"] [data-r20-country-details="true"],
+[data-r20-country-text-class="xxlong"] [data-r20-country-details="true"] {
+  align-content: start !important;
+}
+
+[data-r20-country-phase="excluded-educational-card"] {
+  --r20-country-card-not-applied: 1;
+}
+
+@media (max-width: 699px) {
+  [data-r20-country-card="true"] {
+    width: min(95vw, 560px) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto !important;
+    max-height: 78dvh !important;
+  }
+
+  [data-r20-country-name="true"],
+  [data-r20-country-media="true"],
+  [data-r20-country-details="true"] {
+    grid-column: 1 !important;
+  }
+
+  [data-r20-country-name="true"] { grid-row: 1 !important; }
+  [data-r20-country-media="true"] {
+    grid-row: 2 !important;
+    max-height: 150px !important;
+    max-width: 190px !important;
+  }
+  [data-r20-country-details="true"] {
+    grid-row: 3 !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  [data-r20-country-card="true"] {
+    width: min(78vw, 650px) !important;
+    max-height: 76dvh !important;
+  }
+
+  [data-r20-country-media="true"] {
+    max-height: 190px !important;
+  }
+}

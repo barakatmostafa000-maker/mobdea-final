@@ -1,0 +1,69 @@
+/* R20_FIX16_MAP_NATURAL_LAYERS_V1 */
+
+[data-r20-natural-layer-toggle] {
+  min-height:
+    32px !important;
+
+  padding:
+    4px 8px !important;
+
+  display:
+    inline-flex !important;
+
+  align-items:
+    center !important;
+
+  gap:
+    4px !important;
+
+  border-radius:
+    9px !important;
+
+  font-size:
+    11px !important;
+
+  white-space:
+    nowrap !important;
+}
+
+[data-r20-natural-layer-toggle][aria-pressed="false"] {
+  opacity:
+    .5 !important;
+}
+
+[data-r20-natural-layer-terrain="off"]
+  [data-r20-natural-layer="terrain"],
+[data-r20-natural-layer-minerals="off"]
+  [data-r20-natural-layer="minerals"],
+[data-r20-natural-layer-forests="off"]
+  [data-r20-natural-layer="forests"],
+[data-r20-natural-layer-grasslands="off"]
+  [data-r20-natural-layer="grasslands"],
+[data-r20-natural-layer-deserts="off"]
+  [data-r20-natural-layer="deserts"] {
+  opacity:
+    0 !important;
+
+  pointer-events:
+    none !important;
+}
+
+[data-r20-terrain-kind] {
+  transition:
+    opacity
+    .12s
+    linear !important;
+}
+
+@media (
+  max-width:
+    699px
+) {
+  [data-r20-natural-layer-toggle] {
+    padding:
+      4px 6px !important;
+
+    font-size:
+      10px !important;
+  }
+}
