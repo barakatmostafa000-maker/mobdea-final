@@ -91,7 +91,6 @@ import {
 import { rankStudentsByPoints } from "../services/studentRanking";
 import TeacherLivePanel from "../components/live/TeacherLivePanel";
 import OnlineGameHostPanel from "../components/live/OnlineGameHostPanel";
-import Project03StudentPanels from '../components/classmode/Project03StudentPanels';
 import Project11ClassSyncBridge from '../components/classmode/Project11ClassSyncBridge';
 import Project12PageQuestionDock from '../components/classmode/Project12PageQuestionDock';
 import { buildPageAwareQuestionSets, pickPageQuestionScope } from '../services/project12PageQuestions';
@@ -3842,9 +3841,7 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
   const [notes, setNotes] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
   const [stageFocus, setStageFocus] = useState(false);
-  const [managementOpen, setManagementOpen] = useState(
-    () => Number(globalThis.innerWidth || 1024) >= 961,
-  );
+  const [managementOpen, setManagementOpen] = useState(false);
   const [contentMode, setContentMode] = useState("pdf");
   const [clockTime, setClockTime] = useState(() =>
     new Date().toLocaleTimeString("ar-EG", {
@@ -6072,12 +6069,35 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
       className={`page classmode-scene classmode-final-layout ${fullscreen ? "fullscreen presentation-fullscreen stage-focus-mode" : ""} ${!fullscreen && stageFocus ? "stage-focus-mode" : ""} ${managementOpen ? "management-open" : "management-closed"}`}
       sceneRef={sceneRef}
     >
-      <div className="project12-classmode-dock">
-        <button type="button" className="secondary-btn" onClick={() => setManagementOpen((value) => !value)} title="إدارة"><Users size={16}/><span>إدارة</span></button>
-        <button type="button" className="secondary-btn" onClick={saveBoard} title="حفظ"><Save size={16}/><span>حفظ</span></button>
-        <button type="button" className="secondary-btn" onClick={toggleFullscreen} title="ملء العرض"><Maximize2 size={16}/><span>ملء العرض</span></button>
-        <button type="button" className="secondary-btn" onClick={() => switchContentMode('board')} title="عودة للحصة"><Presentation size={16}/><span>عودة للحصة</span></button>
+      <div className="project12-classmode-dock classmode-user-bottom-dock">
+        <button
+          type="button"
+          className={managementOpen ? "secondary-btn active" : "secondary-btn"}
+          onClick={() => setManagementOpen((value) => !value)}
+          title={managementOpen ? "إغلاق إدارة الطلاب" : "إدارة الطلاب"}
+          aria-label={managementOpen ? "إغلاق إدارة الطلاب" : "إدارة الطلاب"}
+        >
+          <Users size={22} />
+        </button>
+        <button
+          type="button"
+          className="secondary-btn"
+          onClick={saveBoard}
+          title="حفظ"
+          aria-label="حفظ"
+        >
+          <Save size={22} />
+        </button>
       </div>
+      <button
+        type="button"
+        className="classmode-user-fullscreen"
+        onClick={toggleFullscreen}
+        title="ملء الشاشة"
+        aria-label="ملء الشاشة"
+      >
+        <ArrowUpRight size={25} />
+      </button>
       <Project12PageQuestionDock
         visible={contentMode === 'pdf' && Boolean(selectedResource)}
         page={classPage || selectedResource?.pageStart || 1}
@@ -6293,7 +6313,7 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
                   <TimerReset />
                 </button>
                 <button
-                  className="icon-action"
+                  className="icon-action classmode-legacy-fullscreen-action"
                   onClick={toggleFullscreen}
                   type="button"
                 >
@@ -7494,7 +7514,19 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
                   <span className="eyebrow">الطلاب والنقاط</span>
                   <h3>الترتيب الحالي</h3>
                 </div>
-                <Trophy size={20} />
+                <div className="classmode-students-heading-actions">
+                  <button
+                    type="button"
+                    className="classmode-random-student-btn"
+                    onClick={randomStudent}
+                    title="اختيار طالب عشوائي"
+                    aria-label="اختيار طالب عشوائي"
+                  >
+                    <Dices size={18} />
+                    <span>اختيار عشوائي</span>
+                  </button>
+                  <Trophy size={20} />
+                </div>
               </div>
               <div
                 className="classmode-student-sort"
@@ -7516,7 +7548,15 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
                   الأكثر تحسنًا
                 </button>
               </div>
-              <div className="classmode-students-list">
+              <div
+                className="classmode-students-list"
+                style={{
+                  "--student-rows": Math.max(
+                    1,
+                    Math.ceil(displayedStudents.length / 2),
+                  ),
+                }}
+              >
                 {displayedStudents.map((student) => {
                   const status = attendanceMap[student.id];
                   const score = points[student.id] || 0;
@@ -8296,24 +8336,6 @@ export default function ClassMode({data, updateData, navigate, onlineEntry = fal
         </div>
       </ClassModeViewport.Footer>
       <ClassModeViewport.Overlays>
-        {/* PROJECT03_STUDENT_PANELS_RENDER */}
-<Project03StudentPanels
-students={students}
-attendanceMap={attendanceMap}
-        points={points}
-        studentProgress={studentProgress}
-        selectedStudent={selectedStudent}
-onSelectedStudent={setSelectedStudent}
-onMark={mark}
-onAdjustPoints={adjustPoints}
-phrases={phrases}
-correctivePhrases={correctivePhrases}
-voiceSettings={data.settings}
-groupLabel={`${current?.group || ''} ${current?.title || ''}`}
-        onSpoken={setLastPraise}
-        onNotice={setShareNotice}
-      />
-
       <Project11ClassSyncBridge
         data={data}
         updateData={updateData}

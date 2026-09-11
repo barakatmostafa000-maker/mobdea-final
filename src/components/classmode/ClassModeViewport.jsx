@@ -4,10 +4,11 @@ function Slot({ className, children }) {
 
 function ClassModeViewport({ className = '', sceneRef, children }) {
   return (
-    <section className={`classmode-viewport ${className}`.trim()} ref={sceneRef}>
-      <div className="classmode-viewport-skin classmode-v103">
-        {children}
-      </div>
+    <section
+      className={`classmode-viewport classmode-v103 ${className}`.trim()}
+      ref={sceneRef}
+    >
+      {children}
     </section>
   );
 }

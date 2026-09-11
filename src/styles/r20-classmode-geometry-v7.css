@@ -1,0 +1,317 @@
+/* R20_CLASSMODE_GEOMETRY_V7
+   Final geometry override loaded after V103, R18/R19/R20 and V6.
+   The selectors intentionally have higher specificity than the old
+   .classmode-v103.classmode-final-layout .classmode-layout rules.
+*/
+
+/* Root owns exactly: compact header + full teaching body. */
+.classmode-viewport.classmode-v103.classmode-final-layout{
+  position:fixed!important;
+  inset:0!important;
+  width:100dvw!important;
+  height:100dvh!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:52px minmax(0,1fr)!important;
+  gap:0!important;
+  overflow:hidden!important;
+  background:#070b12!important;
+}
+
+/* Force header back into the first row. */
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-header{
+  position:relative!important;
+  grid-column:1!important;
+  grid-row:1!important;
+  width:100%!important;
+  height:52px!important;
+  min-width:0!important;
+  min-height:52px!important;
+  max-height:52px!important;
+  display:block!important;
+  overflow:hidden!important;
+  z-index:100!important;
+}
+
+/* This is the conflict that was still winning:
+   V103 turns .classmode-layout into a two-column stage/students grid.
+   Collapse it to one full teaching surface. */
+.classmode-viewport.classmode-v103.classmode-final-layout > .classmode-viewport-body.classmode-layout{
+  position:relative!important;
+  grid-column:1!important;
+  grid-row:2!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  grid-template-columns:none!important;
+  grid-template-rows:none!important;
+  gap:0!important;
+  direction:rtl!important;
+  overflow:hidden!important;
+}
+
+/* Stage must fill the body instead of being auto-placed into a legacy grid cell. */
+.classmode-viewport.classmode-v103.classmode-final-layout
+> .classmode-viewport-body.classmode-layout
+> .classmode-viewport-stage,
+.classmode-viewport.classmode-v103.classmode-final-layout
+> .classmode-viewport-body.classmode-layout
+> .classmode-viewport-stage[data-r20-classmode-stage="true"]{
+  position:absolute!important;
+  inset:0!important;
+  right:0!important;
+  left:0!important;
+  top:0!important;
+  bottom:0!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+
+/* Student side column is never part of normal lesson geometry.
+   It reappears only as the explicit management overlay below. */
+.classmode-viewport.classmode-v103.classmode-final-layout
+> .classmode-viewport-body.classmode-layout
+> .classmode-viewport-students{
+  display:none!important;
+  position:absolute!important;
+  inset:0!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  z-index:8400!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout.management-open
+> .classmode-viewport-body.classmode-layout
+> .classmode-viewport-students{
+  display:block!important;
+  inset:6px 8px 66px 8px!important;
+  border:1px solid rgba(215,173,53,.34)!important;
+  border-radius:18px!important;
+  background:rgba(3,6,11,.97)!important;
+  overflow:hidden!important;
+}
+
+/* Teaching panel and every nested surface occupy the entire stage. */
+.classmode-viewport.classmode-v103.classmode-final-layout
+.classmode-viewport-stage > .classmode-board-panel{
+  position:absolute!important;
+  inset:0!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:0!important;
+  overflow:hidden!important;
+  border:0!important;
+  border-radius:0!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-frame,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-surface,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-board-stage{
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+}
+
+/* The compact content strip must remain visible in normal mode. */
+.classmode-viewport.classmode-v103.classmode-final-layout:not(.stage-focus-mode)
+.classmode-top-header{
+  display:flex!important;
+  width:100%!important;
+  height:52px!important;
+  min-height:52px!important;
+  max-height:52px!important;
+  align-items:center!important;
+  justify-content:center!important;
+  margin:0!important;
+  padding:4px 8px!important;
+  overflow:hidden!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout:not(.stage-focus-mode)
+.classmode-header-tabs{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:auto!important;
+  max-width:calc(100dvw - 120px)!important;
+  height:44px!important;
+  min-width:0!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+
+/* Retire every old student/save control first. */
+.classmode-viewport.classmode-v103.classmode-final-layout [data-r20-control="students"],
+.classmode-viewport.classmode-v103.classmode-final-layout [data-r20-control="save"],
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-management-toggle,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-fullscreen-exit,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-stage-focus-toggle,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-legacy-fullscreen-action{
+  display:none!important;
+}
+
+/* Re-enable ONLY the two buttons inside our bottom dock. */
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock{
+  position:fixed!important;
+  right:12px!important;
+  bottom:max(10px,env(safe-area-inset-bottom,0px))!important;
+  left:auto!important;
+  top:auto!important;
+  width:auto!important;
+  height:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  padding:5px!important;
+  margin:0!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  gap:6px!important;
+  transform:none!important;
+  z-index:8600!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock
+> button[data-r20-control="students"],
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock
+> button[data-r20-control="save"]{
+  position:static!important;
+  inset:auto!important;
+  right:auto!important;
+  left:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  width:48px!important;
+  min-width:48px!important;
+  height:48px!important;
+  min-height:48px!important;
+  margin:0!important;
+  padding:0!important;
+  transform:none!important;
+  opacity:1!important;
+  font-size:0!important;
+  z-index:auto!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock > button span{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout
+.project12-classmode-dock.classmode-user-bottom-dock > button::before{
+  content:none!important;
+}
+
+/* One fullscreen arrow only. */
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-user-fullscreen{
+  position:fixed!important;
+  top:62px!important;
+  right:12px!important;
+  left:auto!important;
+  bottom:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:0!important;
+  transform:none!important;
+  opacity:1!important;
+  z-index:8600!important;
+}
+
+/* PDF/media must own the full board stage in normal mode too. */
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-resource-preview{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  display:grid!important;
+  grid-template-rows:34px minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout .resource-preview-body.unified-media-renderer,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-pdf-canvas-host,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-pdf-panzoom,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-panzoom-viewport{
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  overflow:hidden!important;
+}
+
+/* True focus/fullscreen: content owns the whole viewport, but our arrow remains. */
+.classmode-viewport.classmode-v103.classmode-final-layout.stage-focus-mode,
+.classmode-viewport.classmode-v103.classmode-final-layout.presentation-fullscreen{
+  grid-template-rows:minmax(0,1fr)!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout.stage-focus-mode
+> .classmode-viewport-header,
+.classmode-viewport.classmode-v103.classmode-final-layout.presentation-fullscreen
+> .classmode-viewport-header{
+  display:none!important;
+}
+
+.classmode-viewport.classmode-v103.classmode-final-layout.stage-focus-mode
+> .classmode-viewport-body.classmode-layout,
+.classmode-viewport.classmode-v103.classmode-final-layout.presentation-fullscreen
+> .classmode-viewport-body.classmode-layout{
+  grid-row:1!important;
+  position:absolute!important;
+  inset:0!important;
+}

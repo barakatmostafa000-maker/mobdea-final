@@ -15,6 +15,7 @@ const CLASSMODE_ROOT_SELECTORS = [
 ];
 
 const STAGE_SELECTORS = [
+  ".classmode-viewport-stage",
   ".classmode-main",
   ".classmode-content",
   ".classmode-stage",

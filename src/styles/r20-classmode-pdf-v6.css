@@ -1,0 +1,46 @@
+/* R20_CLASSMODE_PDF_VISIBILITY_V6
+   Loaded after the final ClassMode rebuild.
+   1) Gives the normal (non-fullscreen) media/PDF host a real height.
+   2) Hides the old fullscreen X with higher specificity.
+*/
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-resource-preview{
+  flex:1 1 auto!important;
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+.classmode-viewport.classmode-v103.classmode-final-layout .resource-preview-body.unified-media-renderer{
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  display:block!important;
+  overflow:hidden!important;
+}
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-pdf-canvas-host,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-pdf-panzoom,
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-panzoom-viewport{
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  overflow:hidden!important;
+}
+.classmode-viewport.classmode-v103.classmode-final-layout .classmode-panzoom-content{
+  min-width:0!important;
+  min-height:0!important;
+}
+.classmode-viewport.classmode-v103.classmode-final-layout.presentation-fullscreen .classmode-fullscreen-exit,
+.classmode-viewport.classmode-v103.classmode-final-layout.fullscreen .classmode-fullscreen-exit,
+.classmode-viewport.classmode-v103.classmode-final-layout.stage-focus-mode .classmode-fullscreen-exit{
+  display:none!important;
+}

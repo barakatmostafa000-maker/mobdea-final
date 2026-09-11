@@ -23,7 +23,6 @@ import { installViewportMetrics } from "./services/viewport";
 import "./services/r19InteractionFixes.js";
 import './styles/project01-whiteboard.css';
 import './styles/project02-pdf-image-viewer.css';
-import './styles/project03-student-panels.css';
 import './styles/project04-card-layout.css';
 import './services/project04CardLayout.js';
 import './styles/project05-student-card-duplex.css';
@@ -94,6 +93,9 @@ import './services/r20CriticalViewGuard.js';
 import './services/r20PortalLoginBridge.js';
 import './services/r20PortalScopeGuard.js';
 import './styles/r20-audit-phase01-08.css';
+import './styles/r20-classmode-final-rebuild.css';
+import './styles/r20-classmode-pdf-v6.css';
+import './styles/r20-classmode-geometry-v7.css';
 installViewportMetrics();
 
 const rootElement = document.getElementById("root");

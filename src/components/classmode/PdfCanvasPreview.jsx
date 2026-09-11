@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
+import PdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker";
 import PanZoomSurface from "./PanZoomSurface";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+if (!pdfjs.GlobalWorkerOptions.workerPort) {
+  pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
+}
 
 const pdfCache = new Map();
 const MAX_RASTER_PIXELS = 8_500_000;

@@ -1,7 +1,9 @@
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+if (!pdfjs.GlobalWorkerOptions.workerPort) {
+  pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
+}
 
 const documentCache = new Map();
 
