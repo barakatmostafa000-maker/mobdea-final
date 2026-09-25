@@ -1,0 +1,246 @@
+name: Build Mobdea V8 Group12 APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_full_tests:
+        description: "Run the legacy/full test suite as diagnostics (does not block APK build)"
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches:
+      - main
+    paths:
+      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R4.zip"
+
+permissions:
+  contents: read
+
+env:
+  BASE_COMMIT: "3598945d2cd4d91bf4e78cf48214515fc32fd713"
+  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R4.zip"
+  OVERLAY_SHA256: "5006d2a3045a124a187361a8e669f3508e22227007b44d3f0af176aabdbfd2be"
+
+jobs:
+  build-debug-apk:
+    name: Audit, Build Web, Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout pinned native/base-assets parent
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BASE_COMMIT }}
+          fetch-depth: 1
+
+      - name: Checkout delivery files from main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: _delivery
+          fetch-depth: 1
+          sparse-checkout: |
+            ci/input
+          sparse-checkout-cone-mode: false
+
+      - name: Verify pinned parent fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_COMMIT"
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.version !== '10.14.1') throw new Error(`Unexpected parent package version: ${pkg.version}`);
+          if (Number(pkg.mobdea?.versionCode) !== 118) throw new Error(`Unexpected parent versionCode: ${pkg.mobdea?.versionCode}`);
+          NODE
+          test -f android/app/build.gradle
+          test -f android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/java/com/mobdea/education/MainActivity.java
+          test -s android/app/src/main/assets/ara.traineddata.gz
+          test -s android/app/src/main/assets/eng.traineddata.gz
+          for f in \
+            android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java \
+            android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java \
+            android/app/src/main/java/com/mobdea/education/pptx/MobdeaPptxRendererPlugin.java \
+            android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java \
+            android/app/src/main/java/com/mobdea/education/handwriting/MobdeaDigitalInkPlugin.java \
+            android/app/src/main/java/com/mobdea/education/recording/MobdeaScreenRecorderPlugin.java \
+            android/app/src/main/java/com/mobdea/education/voice/MobdeaTextToSpeechPlugin.java; do
+            test -s "$f"
+          done
+          test "$(find public/map-symbols -maxdepth 1 -type f -name '*.png' | wc -l)" -ge 181
+          test "$(find public/whiteboard/country-cards -maxdepth 1 -type f -name '*.png' | wc -l)" -ge 36
+          echo "Pinned parent fingerprint: OK"
+
+      - name: Locate and verify final V8 Group12 overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          OVERLAY="_delivery/ci/input/$OVERLAY_NAME"
+          test -s "$OVERLAY" || { echo "Missing $OVERLAY" >&2; exit 2; }
+          echo "$OVERLAY_SHA256  $OVERLAY" | sha256sum -c -
+          rm -rf /tmp/mobdea-overlay
+          mkdir -p /tmp/mobdea-overlay
+          unzip -q "$OVERLAY" -d /tmp/mobdea-overlay
+          python3 <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          root = Path('/tmp/mobdea-overlay')
+          manifest = json.loads((root/'OVERLAY_MANIFEST.json').read_text(encoding='utf-8'))
+          assert manifest['approved_baseline'] == 'V8_FINAL_MASTER_REAL_REVIEWED'
+          assert manifest['base_native_commit'] == '3598945d2cd4d91bf4e78cf48214515fc32fd713'
+          assert manifest['cumulative_through_group'] == 12
+          rows = manifest['files']
+          assert len(rows) >= 650, len(rows)
+          for row in rows:
+              rel = Path(row['path'])
+              assert not rel.is_absolute() and '..' not in rel.parts and '\\' not in row['path']
+              p = root/'OVERLAY'/rel
+              assert p.is_file(), row['path']
+              got = hashlib.sha256(p.read_bytes()).hexdigest()
+              assert got == row['sha256'], (row['path'], got, row['sha256'])
+          main = (root/'OVERLAY/src/main.jsx').read_text(encoding='utf-8')
+          assert '__MOBDEA_V8_FINAL_REAL_REVIEWED__' in main
+          pkg = json.loads((root/'OVERLAY/package.json').read_text(encoding='utf-8'))
+          assert pkg['version'] == '10.14.1'
+          assert int(pkg['mobdea']['versionCode']) == 118
+          symbols = list((root/'OVERLAY/public/map-symbols').glob('*.png'))
+          countries = list((root/'OVERLAY/public/whiteboard/country-cards').glob('*.png'))
+          assert len(symbols) == 181, len(symbols)
+          assert len(countries) >= 36, len(countries)
+          print(f"Overlay manifest verified: {len(rows)} files; {len(symbols)} map symbols; {len(countries)} country cards")
+          PY
+
+      - name: Apply approved V8 source and cumulative Group12 overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a /tmp/mobdea-overlay/OVERLAY/. ./
+          grep -Fq '__MOBDEA_V8_FINAL_REAL_REVIEWED__' src/main.jsx
+          grep -Fq 'tess304-r20-page-ocr-v2-two-model-fallback' android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.version !== '10.14.1' || Number(pkg.mobdea?.versionCode) !== 118) {
+            throw new Error('V8 release identity changed while applying overlay');
+          }
+          NODE
+          git diff --check
+          echo "Approved V8 + cumulative Group12 overlay applied."
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+
+      - name: Run Group12 targeted gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-output/logs
+          node --test \
+            tests/v8-group1-1to5-behavior.test.mjs \
+            tests/v8-section-07-12.test.mjs \
+            tests/v8-groups34-completion-regression.test.mjs \
+            tests/v8-groups34-media-maps.test.mjs \
+            tests/v8-groups34-viewport-country-and-nile.test.mjs \
+            tests/v8-group5-map-challenge-real.test.mjs \
+            tests/v8-groups6-7-ocr-integration.test.mjs \
+            tests/v8-group8-security-improvement.test.mjs \
+            tests/v8-group9-visitor-ledger.test.mjs \
+            tests/v8-group10-functional-closure.test.mjs \
+            tests/v8-group11-server-permissions.test.mjs \
+            tests/v8-group12-deep-audit.test.mjs \
+            tests/v8-country-cards-functional.test.mjs \
+            tests/v8-country-cards-visible.test.mjs \
+            2>&1 | tee build-output/logs/target-tests.log
+          npm run lint 2>&1 | tee build-output/logs/lint.log
+          npm run format:check 2>&1 | tee build-output/logs/format.log
+          node scripts/group12-deep-audit.mjs 2>&1 | tee build-output/logs/deep-audit.log
+
+      - name: Run full legacy suite for diagnostics
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_full_tests }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build-output/logs
+          npm test 2>&1 | tee build-output/logs/full-tests-diagnostic.log
+
+      - name: Static verification diagnostics
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build-output/logs
+          npm run verify:static 2>&1 | tee build-output/logs/static-diagnostic.log
+
+      - name: Production web build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tee build-output/logs/web-build.log
+          test -s dist/index.html
+
+      - name: Sync Capacitor Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx cap sync android 2>&1 | tee build-output/logs/cap-sync.log
+          test -f android/gradlew
+          test -f android/app/build.gradle
+          test -s android/app/src/main/java/com/mobdea/education/MainActivity.java
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x android/gradlew
+          (cd android && ./gradlew --no-daemon clean assembleDebug) 2>&1 | tee build-output/logs/gradle-debug.log
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          cp "$APK" build-output/Mobdea-V8-Group12-debug.apk
+          sha256sum build-output/Mobdea-V8-Group12-debug.apk | tee build-output/APK_SHA256.txt
+
+      - name: Write build identity
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build-output
+          {
+            echo "workflow=Build Mobdea V8 Group12 APK"
+            echo "base_commit=$BASE_COMMIT"
+            echo "overlay=$OVERLAY_NAME"
+            echo "overlay_sha256=$OVERLAY_SHA256"
+            echo "github_run_id=$GITHUB_RUN_ID"
+            echo "github_run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "source_commit=$(git rev-parse HEAD 2>/dev/null || true)"
+            if [ -f package.json ]; then node -e "const p=require('./package.json'); console.log('package_version='+p.version); console.log('version_code='+p.mobdea.versionCode)"; fi
+            date -u +"built_utc=%Y-%m-%dT%H:%M:%SZ"
+          } > build-output/BUILD_INFO.txt
+
+      - name: Upload APK and reports
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: Mobdea-V8-Group12-APK-${{ github.run_number }}
+          path: build-output/
+          if-no-files-found: warn
+          retention-days: 14
