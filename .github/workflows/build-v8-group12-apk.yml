@@ -12,15 +12,15 @@ on:
     branches:
       - main
     paths:
-      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R6.zip"
+      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R9.zip"
 
 permissions:
   contents: read
 
 env:
   BASE_COMMIT: "3598945d2cd4d91bf4e78cf48214515fc32fd713"
-  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R6.zip"
-  OVERLAY_SHA256: "14ef5dff9494ee303324c38dac0ae797f97f0466e1948250a1c02414db725dbf"
+  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R9.zip"
+  OVERLAY_SHA256: "f8d52f40f8a6b3bb5fdfd8940fad1981ebbd4e2c661e5e1f510e01617c66e294"
 
 jobs:
   build-debug-apk:
@@ -119,8 +119,24 @@ jobs:
         run: |
           set -euo pipefail
           cp -a /tmp/mobdea-overlay/OVERLAY/. ./
+          python3 scripts/patch-pinned-base-r9.py
           grep -Fq '__MOBDEA_V8_FINAL_REAL_REVIEWED__' src/main.jsx
           grep -Fq 'tess304-r20-page-ocr-v2-two-model-fallback' android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java
+          grep -Fq "PROJECT12_DEFAULT_STUDENT_PIN='12345678'" cloud-worker/worker.js
+          grep -Fq 'project12StudentContentLibrary(data,student)' cloud-worker/worker.js
+          grep -Fq 'studentPinDefaultVersion:2' cloud-worker/worker.js
+          for f in \
+            public/fonts/Amiri-Bold.ttf \
+            public/fonts/Amiri-Regular.ttf \
+            public/fonts/ArefRuqaa-Bold.ttf \
+            public/fonts/ArefRuqaa-Regular.ttf \
+            public/fonts/NotoKufiArabic-Variable.ttf \
+            public/fonts/NotoNaskhArabic-Variable.ttf \
+            public/fonts/ReemKufi-Variable.ttf \
+            public/whiteboard/cards/v8-geographical-term-fallback.svg \
+            public/whiteboard/cards/v8-historical-term-fallback.svg; do
+            test -s "$f"
+          done
           node <<'NODE'
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -164,12 +180,16 @@ jobs:
             tests/v8-group5-map-challenge-real.test.mjs \
             tests/v8-groups6-7-ocr-integration.test.mjs \
             tests/v8-group8-security-improvement.test.mjs \
+            tests/security.test.mjs \
+            tests/v8-phase1-pin-startup-actual.test.mjs \
+            tests/student-portal-sync.test.mjs \
             tests/v8-group9-visitor-ledger.test.mjs \
             tests/v8-group10-functional-closure.test.mjs \
             tests/v8-group11-server-permissions.test.mjs \
             tests/v8-group12-deep-audit.test.mjs \
             tests/v8-country-cards-functional.test.mjs \
             tests/v8-country-cards-visible.test.mjs \
+            tests/r9-real-defects-regression.test.mjs \
             2>&1 | tee build-output/logs/target-tests.log
           npm run lint 2>&1 | tee build-output/logs/lint.log
           npm run format:check 2>&1 | tee build-output/logs/format.log
