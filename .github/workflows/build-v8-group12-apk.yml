@@ -12,15 +12,15 @@ on:
     branches:
       - main
     paths:
-      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R9.zip"
+      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260927_R11.zip"
 
 permissions:
   contents: read
 
 env:
   BASE_COMMIT: "3598945d2cd4d91bf4e78cf48214515fc32fd713"
-  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260925_R9.zip"
-  OVERLAY_SHA256: "f8d52f40f8a6b3bb5fdfd8940fad1981ebbd4e2c661e5e1f510e01617c66e294"
+  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260927_R11.zip"
+  OVERLAY_SHA256: "ad799f7893435a1dd2dae6b0b6e3fa254fd4e2aa46659b9e6fa85c59ffefad1f"
 
 jobs:
   build-debug-apk:
@@ -73,6 +73,12 @@ jobs:
           done
           test "$(find public/map-symbols -maxdepth 1 -type f -name '*.png' | wc -l)" -ge 181
           test "$(find public/whiteboard/country-cards -maxdepth 1 -type f -name '*.png' | wc -l)" -ge 36
+          grep -Fq 'MobdeaBarcodeScannerPlugin' android/app/src/main/java/com/mobdea/education/MainActivity.java
+          grep -Eq 'GoogleCodeScanner|GmsBarcodeScanner|barcode' android/app/src/main/java/com/mobdea/education/barcode/MobdeaBarcodeScannerPlugin.java
+          grep -Eq 'play-services-code-scanner|barcode-scanning' android/app/build.gradle
+          grep -Eq 'onStart|UtteranceProgressListener' android/app/src/main/java/com/mobdea/education/voice/MobdeaTextToSpeechPlugin.java
+          grep -Fq 'PROJECT14_YOUTUBE_AUTO_SYNC_V1' cloud-worker/worker.js
+          grep -Fq '/youtube/grade-feed' cloud-worker/worker.js
           echo "Pinned parent fingerprint: OK"
 
       - name: Locate and verify final V8 Group12 overlay
@@ -105,8 +111,8 @@ jobs:
           main = (root/'OVERLAY/src/main.jsx').read_text(encoding='utf-8')
           assert '__MOBDEA_V8_FINAL_REAL_REVIEWED__' in main
           pkg = json.loads((root/'OVERLAY/package.json').read_text(encoding='utf-8'))
-          assert pkg['version'] == '10.14.1'
-          assert int(pkg['mobdea']['versionCode']) == 118
+          assert pkg['version'] == '10.14.3'
+          assert int(pkg['mobdea']['versionCode']) == 120
           symbols = list((root/'OVERLAY/public/map-symbols').glob('*.png'))
           countries = list((root/'OVERLAY/public/whiteboard/country-cards').glob('*.png'))
           assert len(symbols) == 181, len(symbols)
@@ -119,12 +125,15 @@ jobs:
         run: |
           set -euo pipefail
           cp -a /tmp/mobdea-overlay/OVERLAY/. ./
-          python3 scripts/patch-pinned-base-r9.py
+          python3 scripts/patch-pinned-base-r11.py
           grep -Fq '__MOBDEA_V8_FINAL_REAL_REVIEWED__' src/main.jsx
           grep -Fq 'tess304-r20-page-ocr-v2-two-model-fallback' android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java
           grep -Fq "PROJECT12_DEFAULT_STUDENT_PIN='12345678'" cloud-worker/worker.js
           grep -Fq 'project12StudentContentLibrary(data,student)' cloud-worker/worker.js
           grep -Fq 'studentPinDefaultVersion:2' cloud-worker/worker.js
+          grep -Fq 'PROJECT14_YOUTUBE_AUTO_SYNC_V1' cloud-worker/worker.js
+          grep -Fq 'Project14YouTubeGradeFeed' src/pages/ContentLibrary.jsx
+          test -s RUNTIME_VERIFICATION_REQUIRED_AR.txt
           for f in \
             public/fonts/Amiri-Bold.ttf \
             public/fonts/Amiri-Regular.ttf \
@@ -140,8 +149,8 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          if (pkg.version !== '10.14.1' || Number(pkg.mobdea?.versionCode) !== 118) {
-            throw new Error('V8 release identity changed while applying overlay');
+          if (pkg.version !== '10.14.3' || Number(pkg.mobdea?.versionCode) !== 120) {
+            throw new Error('R11 release identity is not 10.14.3 / 120 after applying overlay');
           }
           NODE
           git diff --check
@@ -172,6 +181,9 @@ jobs:
           set -euo pipefail
           mkdir -p build-output/logs
           node --test \
+            tests/v8-final-real-reviewed.test.mjs \
+            tests/r11-current-runtime-contract.test.mjs \
+            tests/r11-pin-migration-regression.test.mjs \
             tests/v8-group1-1to5-behavior.test.mjs \
             tests/v8-section-07-12.test.mjs \
             tests/v8-groups34-completion-regression.test.mjs \
@@ -190,12 +202,16 @@ jobs:
             tests/v8-country-cards-functional.test.mjs \
             tests/v8-country-cards-visible.test.mjs \
             tests/r9-real-defects-regression.test.mjs \
+            tests/project09-dashboard-responsive.test.mjs \
+            tests/online-game.test.mjs \
+            tests/project14-youtube-auto-sync.test.mjs \
+            tests/v8-post52-student-evaluation-social.test.mjs \
             2>&1 | tee build-output/logs/target-tests.log
           npm run lint 2>&1 | tee build-output/logs/lint.log
           npm run format:check 2>&1 | tee build-output/logs/format.log
           node scripts/group12-deep-audit.mjs 2>&1 | tee build-output/logs/deep-audit.log
 
-      - name: Run full legacy suite for diagnostics
+      - name: Run historical legacy suite (non-blocking diagnostics)
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_full_tests }}
         continue-on-error: true
         shell: bash
@@ -236,8 +252,8 @@ jobs:
           (cd android && ./gradlew --no-daemon clean assembleDebug) 2>&1 | tee build-output/logs/gradle-debug.log
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          cp "$APK" build-output/Mobdea-V8-Group12-debug.apk
-          sha256sum build-output/Mobdea-V8-Group12-debug.apk | tee build-output/APK_SHA256.txt
+          cp "$APK" build-output/Mobdea-V8-Group12-R11-debug.apk
+          sha256sum build-output/Mobdea-V8-Group12-R11-debug.apk | tee build-output/APK_SHA256.txt
 
       - name: Write build identity
         if: always()
@@ -249,6 +265,8 @@ jobs:
             echo "base_commit=$BASE_COMMIT"
             echo "overlay=$OVERLAY_NAME"
             echo "overlay_sha256=$OVERLAY_SHA256"
+            echo "release=10.14.3 (120) V8-G12-R11"
+            echo "blocking_acceptance=v8-final-real-reviewed + r11-current-runtime + r11-pin-migration + current group12/post52 targeted gates"
             echo "github_run_id=$GITHUB_RUN_ID"
             echo "github_run_attempt=$GITHUB_RUN_ATTEMPT"
             echo "source_commit=$(git rev-parse HEAD 2>/dev/null || true)"
@@ -260,7 +278,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: Mobdea-V8-Group12-APK-${{ github.run_number }}
+          name: Mobdea-V8-Group12-R11-APK-${{ github.run_number }}
           path: build-output/
           if-no-files-found: warn
           retention-days: 14
