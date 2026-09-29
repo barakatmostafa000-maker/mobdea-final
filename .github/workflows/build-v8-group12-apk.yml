@@ -12,15 +12,15 @@ on:
     branches:
       - main
     paths:
-      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260927_R11.zip"
+      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260927_R12.zip"
 
 permissions:
   contents: read
 
 env:
   BASE_COMMIT: "3598945d2cd4d91bf4e78cf48214515fc32fd713"
-  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260927_R11.zip"
-  OVERLAY_SHA256: "ad799f7893435a1dd2dae6b0b6e3fa254fd4e2aa46659b9e6fa85c59ffefad1f"
+  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260927_R12.zip"
+  OVERLAY_SHA256: "750f4eea1c285063b1d7ba946986c6598fbccfebfdfdecb923b15d6cd926b1c2"
 
 jobs:
   build-debug-apk:
@@ -111,8 +111,8 @@ jobs:
           main = (root/'OVERLAY/src/main.jsx').read_text(encoding='utf-8')
           assert '__MOBDEA_V8_FINAL_REAL_REVIEWED__' in main
           pkg = json.loads((root/'OVERLAY/package.json').read_text(encoding='utf-8'))
-          assert pkg['version'] == '10.14.3'
-          assert int(pkg['mobdea']['versionCode']) == 120
+          assert pkg['version'] == '10.14.4'
+          assert int(pkg['mobdea']['versionCode']) == 121
           symbols = list((root/'OVERLAY/public/map-symbols').glob('*.png'))
           countries = list((root/'OVERLAY/public/whiteboard/country-cards').glob('*.png'))
           assert len(symbols) == 181, len(symbols)
@@ -133,6 +133,7 @@ jobs:
           grep -Fq 'studentPinDefaultVersion:2' cloud-worker/worker.js
           grep -Fq 'PROJECT14_YOUTUBE_AUTO_SYNC_V1' cloud-worker/worker.js
           grep -Fq 'Project14YouTubeGradeFeed' src/pages/ContentLibrary.jsx
+          ! grep -Eq "r20RuntimeCore|r20PortalAccountRuntime|r20PortalDashboard|r20TeacherTabletDashboard|r20MonthlyEvaluation|r20CriticalViewGuard|r20PortalLoginBridge|r20PortalScopeGuard|r20WhiteboardRuntime|r20EducationalCards|r20CountryCards|r20ImageMode|r20MediaControls|r20PowerPointMode|r20GamesRuntime|r20ExamTracking|r20ReportsWhatsApp|r20RemedialAssistant|r20DuplexPrinting|r20OcrUiGuard" src/main.jsx
           test -s RUNTIME_VERIFICATION_REQUIRED_AR.txt
           for f in \
             public/fonts/Amiri-Bold.ttf \
@@ -149,8 +150,8 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          if (pkg.version !== '10.14.3' || Number(pkg.mobdea?.versionCode) !== 120) {
-            throw new Error('R11 release identity is not 10.14.3 / 120 after applying overlay');
+          if (pkg.version !== '10.14.4' || Number(pkg.mobdea?.versionCode) !== 121) {
+            throw new Error('R12 release identity is not 10.14.4 / 121 after applying overlay');
           }
           NODE
           git diff --check
@@ -182,6 +183,7 @@ jobs:
           mkdir -p build-output/logs
           node --test \
             tests/v8-final-real-reviewed.test.mjs \
+            tests/r12-authoritative-runtime.test.mjs \
             tests/r11-current-runtime-contract.test.mjs \
             tests/r11-pin-migration-regression.test.mjs \
             tests/v8-group1-1to5-behavior.test.mjs \
@@ -234,6 +236,10 @@ jobs:
           set -euo pipefail
           npm run build 2>&1 | tee build-output/logs/web-build.log
           test -s dist/index.html
+          if grep -R -E 'R20_FIX01_CORE_RUNTIME_V1|R20_FIX06_TEACHER_TABLET_DASHBOARD_V1|R20_FIX17_MEDIA_CONTROLS_V1|R20_FIX17_POWERPOINT_MODE_V1|R20_FIX18_GAMES_V1' dist/assets --include='*.js'; then
+            echo 'Legacy R20 DOM-mutating runtime leaked into the production bundle.' >&2
+            exit 1
+          fi
 
       - name: Sync Capacitor Android
         shell: bash
@@ -252,8 +258,8 @@ jobs:
           (cd android && ./gradlew --no-daemon clean assembleDebug) 2>&1 | tee build-output/logs/gradle-debug.log
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          cp "$APK" build-output/Mobdea-V8-Group12-R11-debug.apk
-          sha256sum build-output/Mobdea-V8-Group12-R11-debug.apk | tee build-output/APK_SHA256.txt
+          cp "$APK" build-output/Mobdea-V8-Group12-R12-debug.apk
+          sha256sum build-output/Mobdea-V8-Group12-R12-debug.apk | tee build-output/APK_SHA256.txt
 
       - name: Write build identity
         if: always()
@@ -265,8 +271,8 @@ jobs:
             echo "base_commit=$BASE_COMMIT"
             echo "overlay=$OVERLAY_NAME"
             echo "overlay_sha256=$OVERLAY_SHA256"
-            echo "release=10.14.3 (120) V8-G12-R11"
-            echo "blocking_acceptance=v8-final-real-reviewed + r11-current-runtime + r11-pin-migration + current group12/post52 targeted gates"
+            echo "release=10.14.4 (121) V8-G12-R12"
+            echo "blocking_acceptance=v8-final-real-reviewed + r12-authoritative-runtime + r11-current-runtime + r11-pin-migration + current group12/post52 targeted gates"
             echo "github_run_id=$GITHUB_RUN_ID"
             echo "github_run_attempt=$GITHUB_RUN_ATTEMPT"
             echo "source_commit=$(git rev-parse HEAD 2>/dev/null || true)"
@@ -278,7 +284,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: Mobdea-V8-Group12-R11-APK-${{ github.run_number }}
+          name: Mobdea-V8-Group12-R12-APK-${{ github.run_number }}
           path: build-output/
           if-no-files-found: warn
           retention-days: 14
