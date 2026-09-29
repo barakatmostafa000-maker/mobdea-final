@@ -1,0 +1,299 @@
+name: Build Mobdea V8 R13 APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_full_tests:
+        description: "Run historical/legacy suite as non-blocking diagnostics"
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches:
+      - main
+    paths:
+      - "ci/input/MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260928_R13.zip"
+      - ".github/workflows/build-v8-group12-apk.yml"
+
+permissions:
+  contents: read
+
+env:
+  BASE_COMMIT: "3598945d2cd4d91bf4e78cf48214515fc32fd713"
+  OVERLAY_NAME: "MOBDEA_V8_FINAL_GROUP12_FLAT_OVERLAY_20260928_R13.zip"
+  OVERLAY_SHA256: "9b90d60bddc9d30d95c2f7cf56740b900fc2cf598df82d6fbde37084bca82d75"
+  RELEASE_VERSION: "10.14.5"
+  RELEASE_CODE: "122"
+  RELEASE_TAG: "V8-G12-R13"
+
+jobs:
+  build-debug-apk:
+    name: R13 Audit, Web Build, Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout pinned native/base-assets parent
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BASE_COMMIT }}
+          fetch-depth: 1
+
+      - name: Checkout R13 delivery from main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: _delivery
+          fetch-depth: 1
+          sparse-checkout: |
+            ci/input
+          sparse-checkout-cone-mode: false
+
+      - name: Verify pinned parent fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_COMMIT"
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.version !== '10.14.1') throw new Error(`Unexpected parent package version: ${pkg.version}`);
+          if (Number(pkg.mobdea?.versionCode) !== 118) throw new Error(`Unexpected parent versionCode: ${pkg.mobdea?.versionCode}`);
+          NODE
+          test -f android/app/build.gradle
+          test -f android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/java/com/mobdea/education/MainActivity.java
+          test -s android/app/src/main/assets/ara.traineddata.gz
+          test -s android/app/src/main/assets/eng.traineddata.gz
+          for f in \
+            android/app/src/main/java/com/mobdea/education/ocr/MobdeaPdfOcrPlugin.java \
+            android/app/src/main/java/com/mobdea/education/ocr/R20PageOcrPlugin.java \
+            android/app/src/main/java/com/mobdea/education/pptx/MobdeaPptxRendererPlugin.java \
+            android/app/src/main/java/com/mobdea/education/assets/MobdeaNativeAssetPlugin.java \
+            android/app/src/main/java/com/mobdea/education/handwriting/MobdeaDigitalInkPlugin.java \
+            android/app/src/main/java/com/mobdea/education/recording/MobdeaScreenRecorderPlugin.java \
+            android/app/src/main/java/com/mobdea/education/voice/MobdeaTextToSpeechPlugin.java \
+            android/app/src/main/java/com/mobdea/education/barcode/MobdeaBarcodeScannerPlugin.java; do
+            test -s "$f"
+          done
+          test "$(find public/map-symbols -maxdepth 1 -type f -name '*.png' | wc -l)" -ge 181
+          test "$(find public/whiteboard/country-cards -maxdepth 1 -type f -name '*.png' | wc -l)" -ge 36
+          grep -Fq 'MobdeaBarcodeScannerPlugin' android/app/src/main/java/com/mobdea/education/MainActivity.java
+          grep -Eq 'play-services-code-scanner|barcode-scanning' android/app/build.gradle
+          grep -Eq 'onStart|UtteranceProgressListener' android/app/src/main/java/com/mobdea/education/voice/MobdeaTextToSpeechPlugin.java
+          grep -Fq 'PROJECT14_YOUTUBE_AUTO_SYNC_V1' cloud-worker/worker.js
+          grep -Fq '/youtube/grade-feed' cloud-worker/worker.js
+          echo "Pinned parent fingerprint: OK"
+
+      - name: Locate and verify R13 overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          OVERLAY="_delivery/ci/input/$OVERLAY_NAME"
+          test -s "$OVERLAY" || { echo "Missing $OVERLAY" >&2; exit 2; }
+          echo "$OVERLAY_SHA256  $OVERLAY" | sha256sum -c -
+          rm -rf /tmp/mobdea-overlay
+          mkdir -p /tmp/mobdea-overlay
+          unzip -q "$OVERLAY" -d /tmp/mobdea-overlay
+          python3 <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          root = Path('/tmp/mobdea-overlay')
+          manifest = json.loads((root/'OVERLAY_MANIFEST.json').read_text(encoding='utf-8'))
+          assert manifest['approved_baseline'] == 'V8_FINAL_MASTER_REAL_REVIEWED'
+          assert manifest['base_native_commit'] == '3598945d2cd4d91bf4e78cf48214515fc32fd713'
+          assert manifest['cumulative_through_group'] == 12
+          rows = manifest['files']
+          assert len(rows) == 729, len(rows)
+          for row in rows:
+              rel = Path(row['path'])
+              assert not rel.is_absolute() and '..' not in rel.parts and '\\' not in row['path']
+              p = root/'OVERLAY'/rel
+              assert p.is_file(), row['path']
+              got = hashlib.sha256(p.read_bytes()).hexdigest()
+              assert got == row['sha256'], (row['path'], got, row['sha256'])
+          pkg = json.loads((root/'OVERLAY/package.json').read_text(encoding='utf-8'))
+          assert pkg['version'] == '10.14.5'
+          assert int(pkg['mobdea']['versionCode']) == 122
+          assert pkg['mobdea']['releaseTag'] == 'V8-G12-R13'
+          contract = json.loads((root/'OVERLAY/DELIVERY_CONTRACT_R13.json').read_text(encoding='utf-8'))
+          assert contract['release'] == 'V8-G12-R13'
+          assert contract['backend_entry'] == 'cloud-worker/worker.group11.js'
+          main = (root/'OVERLAY/src/main.jsx').read_text(encoding='utf-8')
+          assert '__MOBDEA_V8_FINAL_REAL_REVIEWED__' in main
+          symbols = list((root/'OVERLAY/public/map-symbols').glob('*.png'))
+          countries = list((root/'OVERLAY/public/whiteboard/country-cards').glob('*.png'))
+          assert len(symbols) == 181, len(symbols)
+          assert len(countries) >= 36, len(countries)
+          print(f"R13 overlay verified: {len(rows)} files; {len(symbols)} map symbols; {len(countries)} country cards")
+          PY
+
+      - name: Apply R13 overlay and patch pinned backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a /tmp/mobdea-overlay/OVERLAY/. ./
+          python3 scripts/patch-pinned-base-r13.py
+          grep -Fq '__MOBDEA_V8_FINAL_REAL_REVIEWED__' src/main.jsx
+          grep -Fq 'v8-authoritative-compat.css' src/main.jsx
+          ! grep -Eq "import .*styles/(r18|r19|r20)-.*\.css" src/main.jsx
+          ! grep -Eq "r20RuntimeCore|r20PortalAccountRuntime|r20PortalDashboard|r20TeacherTabletDashboard|r20MonthlyEvaluation|r20CriticalViewGuard|r20PortalLoginBridge|r20PortalScopeGuard|r20WhiteboardRuntime|r20EducationalCards|r20CountryCards|r20ImageMode|r20MediaControls|r20PowerPointMode|r20GamesRuntime|r20ExamTracking|r20ReportsWhatsApp|r20RemedialAssistant|r20DuplexPrinting|r20OcrUiGuard" src/main.jsx
+          grep -Fq "PROJECT12_DEFAULT_STUDENT_PIN='12345678'" cloud-worker/worker.js
+          grep -Fq 'studentPinDefaultVersion:2' cloud-worker/worker.js
+          grep -Fq 'project12StudentContentLibrary(data,student)' cloud-worker/worker.js
+          grep -Fq 'lessonRecordings:(data.lessonRecordings||[]).filter' cloud-worker/worker.js
+          grep -Fq 'worker.group11.js' cloud-worker/wrangler.jsonc
+          grep -Fq 'MOBDEA_DATA' cloud-worker/wrangler.jsonc
+          grep -Fq 'MOBDEA_ASSETS' cloud-worker/wrangler.jsonc
+          ! grep -Fq 'MOBDEA_TRIAL_DB' cloud-worker/wrangler.jsonc
+          test -s cloud-worker/worker.group11.js
+          test -s tests/r13-css-authority-regression.test.mjs
+          test -s tests/r13-worker-patch-contract.test.mjs
+          test -s tests/r13-backend-bindings-fallback.test.mjs
+          test -s RUNTIME_VERIFICATION_REQUIRED_AR.txt
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.version !== '10.14.5' || Number(pkg.mobdea?.versionCode) !== 122 || pkg.mobdea?.releaseTag !== 'V8-G12-R13') {
+            throw new Error('R13 release identity mismatch after applying overlay');
+          }
+          NODE
+          git diff --check
+          echo "R13 overlay + pinned backend patch applied."
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+
+      - name: Run R13 blocking acceptance gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-output/logs
+          node --test \
+            tests/v8-*.test.mjs \
+            tests/class-point-improvement-v8.test.mjs \
+            tests/classmode-layout.test.mjs \
+            tests/content-library.test.mjs \
+            tests/geography-maps.test.mjs \
+            tests/library-model.test.mjs \
+            tests/media-navigation.test.mjs \
+            tests/media-renderer.test.mjs \
+            tests/native-asset-bridge.test.mjs \
+            tests/online-game.test.mjs \
+            tests/pdf-question-ocr.test.mjs \
+            tests/pptx-layout.test.mjs \
+            tests/project09-dashboard-responsive.test.mjs \
+            tests/project10-online-class.test.mjs \
+            tests/project11-student-sync.test.mjs \
+            tests/project12-integrated.test.mjs \
+            tests/project13-integrated.test.mjs \
+            tests/project14-youtube-auto-sync.test.mjs \
+            tests/question-rotation.test.mjs \
+            tests/r9-real-defects-regression.test.mjs \
+            tests/r11-*.test.mjs \
+            tests/r12-*.test.mjs \
+            tests/r13-*.test.mjs \
+            tests/security.test.mjs \
+            tests/student-portal-sync.test.mjs \
+            tests/student-ranking.test.mjs \
+            2>&1 | tee build-output/logs/r13-acceptance.log
+          npm run lint 2>&1 | tee build-output/logs/lint.log
+          npm run format:check 2>&1 | tee build-output/logs/format.log
+          node scripts/group12-deep-audit.mjs 2>&1 | tee build-output/logs/deep-audit.log
+
+      - name: Run historical legacy suite (non-blocking diagnostics)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_full_tests }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build-output/logs
+          npm test 2>&1 | tee build-output/logs/full-tests-diagnostic.log
+
+      - name: Static verification diagnostics
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build-output/logs
+          npm run verify:static 2>&1 | tee build-output/logs/static-diagnostic.log
+
+      - name: Production web build and bundle guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tee build-output/logs/web-build.log
+          test -s dist/index.html
+          grep -Fq 'versionCode 122' android/app/build.gradle
+          grep -Fq 'versionName "10.14.5"' android/app/build.gradle
+          if grep -R -E 'R20_FIX01_CORE_RUNTIME_V1|R20_FIX06_TEACHER_TABLET_DASHBOARD_V1|R20_FIX17_MEDIA_CONTROLS_V1|R20_FIX17_POWERPOINT_MODE_V1|R20_FIX18_GAMES_V1' dist/assets --include='*.js'; then
+            echo 'Legacy R20 DOM-mutating runtime leaked into the production bundle.' >&2
+            exit 1
+          fi
+
+      - name: Sync Capacitor Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx cap sync android 2>&1 | tee build-output/logs/cap-sync.log
+          test -f android/gradlew
+          test -f android/app/build.gradle
+          test -s android/app/src/main/java/com/mobdea/education/MainActivity.java
+          grep -Fq 'versionCode 122' android/app/build.gradle
+          grep -Fq 'versionName "10.14.5"' android/app/build.gradle
+
+      - name: Build R13 debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x android/gradlew
+          (cd android && ./gradlew --no-daemon clean assembleDebug) 2>&1 | tee build-output/logs/gradle-debug.log
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          cp "$APK" build-output/Mobdea-V8-Group12-R13-debug.apk
+          sha256sum build-output/Mobdea-V8-Group12-R13-debug.apk | tee build-output/APK_SHA256.txt
+
+      - name: Write R13 build identity
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p build-output
+          {
+            echo "workflow=Build Mobdea V8 R13 APK"
+            echo "base_commit=$BASE_COMMIT"
+            echo "overlay=$OVERLAY_NAME"
+            echo "overlay_sha256=$OVERLAY_SHA256"
+            echo "release=$RELEASE_VERSION ($RELEASE_CODE) $RELEASE_TAG"
+            echo "backend_entry=cloud-worker/worker.group11.js"
+            echo "github_run_id=$GITHUB_RUN_ID"
+            echo "github_run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "source_commit=$(git rev-parse HEAD 2>/dev/null || true)"
+            if [ -f package.json ]; then node -e "const p=require('./package.json'); console.log('package_version='+p.version); console.log('version_code='+p.mobdea.versionCode); console.log('release_tag='+p.mobdea.releaseTag)"; fi
+            if [ -f android/app/build.gradle ]; then grep -E 'versionCode|versionName' android/app/build.gradle | sed 's/^/android_/' ; fi
+            date -u +"built_utc=%Y-%m-%dT%H:%M:%SZ"
+          } > build-output/BUILD_INFO.txt
+
+      - name: Upload R13 APK and reports
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: Mobdea-V8-Group12-R13-APK-${{ github.run_number }}
+          path: build-output/
+          if-no-files-found: warn
+          retention-days: 14
